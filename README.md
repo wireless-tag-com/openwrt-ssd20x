@@ -16,7 +16,7 @@ sudo apt-get install zlib1g:i386 libstdc++6:i386 libc6:i386 libc6-dev-i386
 # 下载代码
 1. 下载主工程代码
 ```
-git clone https://github.com/wireless-tag-com/openwrt-sstar.git
+git clone https://github.com/wireless-tag-com/openwrt-ssd20x.git
 ```
 
 # 安装toolchian
@@ -53,6 +53,8 @@ arm-linux-gnueabihf-gcc --version
 
 ```
 cd 18.06
+./scripts/feeds update -a
+./scripts/feeds install -a -f
 make WT2022_wt
 ```
 

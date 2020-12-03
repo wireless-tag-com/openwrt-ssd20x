@@ -1,0 +1,49 @@
+#!/usr/bin/lua
+
+local uci_r = require "uci".cursor()
+local cjson = require "cjson"
+
+local function get_uci_config(iface_name)
+	local ifname = uci_r:get("wireless", iface_name, "ifname")
+	local ssid = uci_r:get("wireless", iface_name, "ssid")
+	local encryption = uci_r:get("wireless", iface_name, "encryption")
+
+	local res = {}
+	res.ifname = ifname
+	res.ssid = ssid
+	res.encryption = encryption
+
+	if encryption ~= "none" then
+		res.key = uci_r:get("wireless", iface_name, "key")
+	end
+
+	return res
+end
+
+if arg[1] == "get" then
+	local res = get_uci_config("wisp0")
+
+	ret = cjson.encode(res)
+	print(ret)
+else
+	local param_json = cjson.decode(arg[2])
+
+	if param_json["ssid"] then
+		uci_r:set("wireless", "wisp0", "ssid", param_json["ssid"])
+	end
+
+	if param_json["encryption"] then
+		uci_r:set("wireless", "wisp0", "encryption", param_json["encryption"])
+	end
+
+	if param_json["encryption"] ~= "none" then
+		uci_r:set("wireless", "wisp0", "key", param_json["key"])
+	end
+
+	uci_r:commit("wireless")
+
+	local res = get_uci_config("wisp0")
+
+	ret = cjson.encode(res)
+	print(ret)
+end

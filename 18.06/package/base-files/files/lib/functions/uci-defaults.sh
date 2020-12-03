@@ -615,3 +615,21 @@ board_config_flush() {
 	json_dump -i > /tmp/.board.json
 	mv /tmp/.board.json ${CFG}
 }
+
+ucidef_set_interface_wisp() {
+	local ifname=$1
+	local index=$2
+	local proto=$3
+	local dis=$4
+
+	uci -q get network.wisp$index && return 0
+
+	uci batch <<EOF
+set network.wisp$index='interface'
+set network.wisp$index.ifname='$ifname'
+set network.wisp$index.def_ifname='$ifname'
+set network.wisp$index.proto='$proto'
+set network.wisp$index.disabled='$dis'
+EOF
+
+}

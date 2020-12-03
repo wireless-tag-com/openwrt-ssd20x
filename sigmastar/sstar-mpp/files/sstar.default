@@ -1,0 +1,54 @@
+#!/bin/sh
+
+. /lib/sstar.sh
+
+ucidef_set_sstar_audio() {
+	local es=$1
+	local mute=$2
+
+	uci -q get sstar.audio && return 0
+
+	uci batch <<EOF
+set sstar.audio='config'
+set sstar.audio.es='$es'
+set sstar.audio.mute='$mute'
+EOF
+
+}
+
+ucidef_set_sstar_video() {
+	local bk=$1
+	local gpio=$2
+	local lcd_power=$3
+
+	uci -q get sstar.video && return 0
+
+	uci batch <<EOF
+set sstar.video='config'
+set sstar.video.blacklight='$bk'
+set sstar.video.blacklight_gpio='$gpio'
+set sstar.video.lcd_power='$lcd_power'
+EOF
+
+}
+
+[ -f /etc/config/sstar ] && exit 0
+
+touch /etc/config/sstar
+
+sstar_name=$(sstar_board_name)
+
+case "$sstar_name" in
+"WT2022")
+	ucidef_set_sstar_audio 1 14
+	ucidef_set_sstar_video pwm0 0 0
+	;;
+*)
+	ucidef_set_sstar_audio 0 0
+	ucidef_set_sstar_video gpio 0 0
+	;;
+esac
+
+uci commit sstar
+
+exit 0

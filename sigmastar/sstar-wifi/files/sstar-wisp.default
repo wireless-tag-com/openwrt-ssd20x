@@ -1,0 +1,5 @@
+#!/bin/sh
+
+. /lib/functions/uci-defaults.sh
+
+ucidef_set_interface_wisp "wlan0" "0" "dhcp" "1"

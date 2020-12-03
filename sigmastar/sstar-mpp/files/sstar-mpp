@@ -1,0 +1,110 @@
+#!/bin/sh /etc/rc.common
+
+START=15
+STOP=75
+
+. /lib/functions.sh 
+
+start() {
+	config_load sstar
+	config_get_bool es audio es 0
+	config_get mute audio mute 0
+	config_get blacklight video blacklight
+
+	if [ "$es" -gt 0 ]; then
+		insmod mhal.ko IS_MHAL_SUPPORT_ES_CODEC=1
+	else
+		insmod mhal.ko
+	fi
+
+	insmod mi_common.ko
+
+	major=`cat /proc/devices | awk "\\$2==\""mi"\" {print \\$1}"\n`
+	minor=0
+
+	insmod mi_sys.ko cmdQBufSize=128 logBufSize=0
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_sys c $major $minor
+		let minor++
+	fi
+
+	insmod mi_gfx.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_gfx c $major $minor
+		let minor++
+	fi
+
+	insmod mi_divp.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_divp c $major $minor
+		let minor++
+	fi
+
+	insmod mi_vdec.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_vdec c $major $minor
+		let minor++
+	fi
+
+	insmod mi_ao.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_ao c $major $minor
+		let minor++
+	fi
+
+	insmod mi_disp.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_disp c $major $minor
+		let minor++
+	fi
+
+	insmod mi_ipu.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_ipu c $major $minor
+		let minor++
+	fi
+
+	insmod mi_ai.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_ai c $major $minor
+		let minor++
+	fi
+
+	insmod mi_venc.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_venc c $major $minor
+		let minor++
+	fi
+
+	insmod mi_panel.ko
+	if [ $? -eq 0 ]; then
+		mknod /dev/mi_panel c $major $minor
+		let minor++
+	fi
+
+	#mi module
+	major=`cat /proc/devices | awk "\\$2==\""mi_poll"\" {print \\$1}"`
+	mknod /dev/mi_poll c $major 0
+	insmod fbdev.ko
+
+	# audio mute off
+	if [ "$mute" != "0" ]; then
+		echo "$mute" >/sys/class/gpio/export
+		echo "out" >/sys/class/gpio/gpio$mute/direction
+		echo 1 >/sys/class/gpio/gpio$mute/value
+	fi
+
+	if [ "$blacklight" == "pwm0" ]; then
+		#to enable backlight , 4.3 and 86box both need it#
+		echo 0 > /sys/class/pwm/pwmchip0/export
+		#10kHz
+		echo 10000 >/sys/class/pwm/pwmchip0/pwm0/period
+		#%60 brightness
+		echo 60 >/sys/class/pwm/pwmchip0/pwm0/duty_cycle
+		echo 1 >/sys/class/pwm/pwmchip0/pwm0/enable
+	fi
+}
+
+stop() {
+	echo "skip stop"
+}
