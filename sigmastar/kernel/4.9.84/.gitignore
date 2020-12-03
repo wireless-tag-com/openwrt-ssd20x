@@ -118,6 +118,9 @@ all.config
 
 modules/
 
+# camdriver
+#/drivers/sstar/camdriver
+
 # version header
 drivers/sstar/include/ms_version.h
 
