@@ -1,0 +1,39 @@
+config SS_SATA_HOST
+    tristate "SStar SATA HOST"
+    help
+        SStar SATA Host driver function
+
+menu "Support Linux Ahci Platfrom Driver"
+    depends on SS_SATA_HOST
+config SS_SATA_AHCI_PLATFORM_HOST
+        depends on SATA_AHCI_PLATFORM
+    tristate "SSTAR SATA AHCI PLATFORM"
+    default y
+        help
+          Sstar sata driver supports linux ahci platform driver
+endmenu
+
+menu "Select Sata Host Port"
+    depends on SS_SATA_HOST
+config SATA_HOST_0
+    tristate "SStar SATA HOST Port 0"
+    default n
+        help
+          Sstar sata host port number selection
+
+config SATA_HOST_1
+		depends on ARCH_INFINITY2
+    tristate "SStar SATA HOST Port 1"
+    default n
+        help
+          Sstar sata host port number selection
+endmenu
+
+#menu "Sata Host Bench Test Program"
+#    depends on SS_SATA_HOST
+#config SS_SATA_BENCH_TEST
+#    tristate "Enable SATA Bench Test"
+#    default n
+#        help
+#          Sstar sata host bench test code
+#endmenu

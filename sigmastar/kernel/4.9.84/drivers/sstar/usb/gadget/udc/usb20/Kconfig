@@ -1,0 +1,25 @@
+config USB_GADGET_SSTAR_DEVICE
+        tristate "Sstar USB 2.0 Device Controller"
+        help
+                Sstar USB device
+
+config USB_AVOID_SHORT_PACKET_IN_BULK_OUT_WITH_DMA_FOR_ETHERNET
+        boolean "Avoid short packet in bulk out with DMA for ethernet"
+        depends on USB_GADGET_SSTAR_DEVICE
+
+config USB_DEBUG_MESSAGE
+        boolean "Enable debug messages"
+        depends on USB_GADGET_SSTAR_DEVICE
+
+config USB_FPGA_VERIFICATION
+        boolean "FPGA verification only"
+        depends on USB_GADGET_SSTAR_DEVICE
+
+config USB_CHARGER_DETECT
+        boolean "Charger detection"
+        depends on USB_GADGET_SSTAR_DEVICE
+        #default y
+config USB_ENABLE_UPLL
+        boolean "Enable clock for controller"
+        depends on USB_GADGET_SSTAR_DEVICE
+

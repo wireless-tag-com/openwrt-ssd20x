@@ -1,0 +1,27 @@
+config MS_CRYPTO
+	tristate "Crypto driver"
+	select CRYPTO_AES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_SHA256
+	select CRYPTO_CTR
+	select CRYPTO_ALGAPI
+
+---help---
+	Say 'Y' here to use the sstar AES engine
+	for the CryptoAPI AES algorithm.
+	To compile this driver as a module, choose M here: the module
+
+
+config SS_AESDMA_INTR
+depends on MS_CRYPTO
+bool "Enable AES DMA interrupt"
+default n
+help
+	Support interrupt mode for AES operations
+
+config CRYPTODEV
+tristate "Support cryptodev"
+default m
+help
+	Support \dev\crypto

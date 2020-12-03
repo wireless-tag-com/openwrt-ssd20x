@@ -1,0 +1,11 @@
+config MS_I2C
+    tristate "Sstar I2C driver"
+    help
+        Sstar I2C driver function
+
+config MS_I2C_INT_ISR
+    bool "Support I2c ISR"
+    depends on MS_I2C
+    default n
+    help
+        Support I2c ISR

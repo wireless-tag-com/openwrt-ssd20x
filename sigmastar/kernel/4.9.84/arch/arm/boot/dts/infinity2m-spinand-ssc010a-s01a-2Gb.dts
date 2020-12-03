@@ -1,0 +1,51 @@
+/*
+* infinity2m-spinand-ssc010a-s01a-2Gb.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/dts-v1/;
+#include "infinity2m.dtsi"
+#include "infinity2m-ssc010a-s01a.dtsi"
+#include "infinity2m-ssc010a-s01a-padmux.dtsi"
+
+/ {
+    model = "INFINITY2M SSC010A-S01A-S";
+    compatible = "sstar,infinity2m";
+
+    /* memory setting will be replaced with LX_MEM*/
+    memory {
+        reg = <0x20000000 0x0FE00000>;
+    };
+	/* this cmdline will be replaced with uboot bootargs*/
+    chosen {
+        bootargs = "ubi.mtd=9,2048 root=ubi:SYSTEM rw rootfstype=ubifs init=/linuxrc rootwait=1 LX_MEM=0xFE00000 mma_heap=mma_heap_name0,miu=0,sz=0x2000000";
+    };
+
+    /*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        /*cma0 {
+            compatible = "shared-dma-pool";
+            size = <0x400000>;
+            reusable;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };*/
+    };
+
+};

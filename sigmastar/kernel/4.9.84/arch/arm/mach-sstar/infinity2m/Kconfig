@@ -1,0 +1,100 @@
+config ARCH_INFINITY2M
+    bool "SoC iNfinity2m (ARCH_MULTI_V7)" if ARCH_MULTI_V7
+    select SOC_BUS
+    select ARM_GIC
+    select VFP
+    select VFPv3
+    select WIRELESS_EXT if WIRELESS && NET
+    select WEXT_PRIV    if WIRELESS && NET
+    help
+      Support for iNfinity2m SoC
+
+config INFINITY2M_FPGA
+    bool "iNfinity2m FPGA environment" if ARCH_INFINITY2M
+    depends on ARCH_INFINITY2M
+    help
+      Support for iNfinity2m FPGA environment
+
+#config ANALOG_PD_XINDIGPLL
+#    bool "Power down xindigpll at boot"
+#    help
+#      Turn off xindigpll at kerenl boot procedure
+
+#config ANALOG_PD_ARMPLL
+#    bool "Power down armpll at boot"
+#    help
+#      Turn off armpll at kerenl boot procedure
+
+config ANALOG_PD_AUDIO
+    bool "Power down audio at boot"
+    help
+      Turn off AUDIO at kerenl boot procedure
+
+config ANALOG_PD_EMAC
+    bool "Power down EMAC at boot"
+    help
+      Turn off EMAC at kerenl boot procedure
+
+config ANALOG_PD_HDMI_ATOP
+    bool "Power down HDMI_ATOP at boot"
+    help
+      Turn off HDMI_ATOP at kerenl boot procedure
+
+config ANALOG_PD_IDAC_ATOP
+    bool "Power down IDAC_ATOP at boot"
+    help
+      Turn off IDAC_ATOP at kerenl boot procedure
+
+config ANALOG_PD_IDAC_LPLL
+    bool "Power down IDAC_LPLL at boot"
+    help
+      Turn off IDAC_LPLL at kerenl boot procedure
+
+config ANALOG_PD_DISP_LPLL
+    bool "Power down DISP_LPLL at boot"
+    help
+      Turn off DISP_LPLL at kerenl boot procedure
+
+config ANALOG_PD_MIPI_DPHY_TX_TOP
+    bool "Power down MIPI_DPHY_TX_TOP at boot"
+    help
+      Turn off MIPI_DPHY_TX_TOP at kerenl boot procedure
+
+#config ANALOG_PD_MPLL
+#    bool "Power down MPLL at boot"
+#    help
+#      Turn off MPLL at kerenl boot procedure
+
+config ANALOG_PD_SATA_ATOP
+    bool "Power down SATA_ATOP at boot"
+    help
+      Turn off SATA_ATOP at kerenl boot procedure
+
+config ANALOG_PD_UPLL_0
+    bool "Power down UPLL_0 at boot"
+    help
+      Turn off UPLL_0 at kerenl boot procedure
+
+config ANALOG_PD_UPLL_1
+    bool "Power down UPLL_1 at boot"
+    help
+      Turn off UPLL_1 at kerenl boot procedure
+
+config ANALOG_PD_USB20_P1
+    bool "Power down USB20_P1 at boot"
+    help
+      Turn off USB20_P1 at kerenl boot procedure
+
+config ANALOG_PD_USB20_P2
+    bool "Power down USB20_P2 at boot"
+    help
+      Turn off USB20_P2 at kerenl boot procedure
+
+config ANALOG_PD_USB20_P3
+    bool "Power down USB20_P3 at boot"
+    help
+      Turn off USB20_P3 at kerenl boot procedure
+
+config SS_PROFILING_TIME
+    bool "Record timestamp in sram"
+    default n

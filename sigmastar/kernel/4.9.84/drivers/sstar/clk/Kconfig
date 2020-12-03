@@ -1,0 +1,2 @@
+config MS_USCLK
+    tristate    "MS_USCLK extended sysfs interfaces for CLKs"

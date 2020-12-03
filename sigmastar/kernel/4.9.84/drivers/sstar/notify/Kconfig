@@ -1,0 +1,2 @@
+config MS_NOTIFY
+    tristate "Mstar NOTIFY driver"

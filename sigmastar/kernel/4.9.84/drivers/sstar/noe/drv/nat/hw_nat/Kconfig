@@ -1,0 +1,512 @@
+config NOE_HW_NAT
+#        tristate "HW NAT(** Work At Module Mode ONLY **)"
+        tristate
+    depends on NOE_NAT_HW
+    default m if NOE_NAT_HW
+
+
+config  NOE_HW_NAT_LAN_VLANID
+#        int "VLAN ID of LAN Ports"
+    int
+    depends on NOE_HW_NAT && !NOE_HW_NAT_MANUAL_BIND
+    default 1
+#   help
+#   please choose any one of your LAN side VLAN IDs if you use different VLAN ID for each LAN port
+
+config  NOE_HW_NAT_WAN_VLANID
+#        int "VLAN ID of WAN Ports"
+        int
+    depends on NOE_HW_NAT && !NOE_HW_NAT_MANUAL_BIND
+    default 2
+#   help
+#   please choose any one of your WAN side VLAN IDs if you use different VLAN ID for each WAN port
+
+config  NOE_HW_NAT_BINDING_THRESHOLD
+#        int "Binding Threshold (Unit:Packet Per Second)"
+        int
+    depends on NOE_HW_NAT
+    default 30
+#   help
+#   When flow rate > Binding Threshold  (# Packets Per Second),
+#   the state will change to bind state
+
+#choice
+#        prompt "Foe Table Size"
+#   depends on NOE_HW_NAT
+#   default NOE_HW_NAT_TBL_4K
+#   help
+#   Number of entries in FoE Table
+
+config  NOE_HW_NAT_TBL_1K
+#        bool "1K"
+    bool
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_TBL_2K
+#        bool "2K"
+        bool
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_TBL_4K
+#        bool "4K"
+        bool
+        default y
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_TBL_8K
+#        bool "8K"
+        bool
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_TBL_16K
+#        bool "16K"
+        bool
+    depends on NOE_HW_NAT
+#endchoice
+
+config  HNAT_V2
+    bool
+    default y
+    depends on NOE_HW_NAT
+
+#choice
+#   prompt "Hash Algorithm"
+#   depends on NOE_HW_NAT
+#   default NOE_HW_NAT_HASH1
+
+config  NOE_HW_NAT_HASH0
+#        bool "Hash0-Simple"
+        bool
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_HASH1
+#        bool "Hash1-Complex"
+        bool
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_HASH2
+#        bool "Hash2-Complex"
+        bool
+        default y
+    depends on NOE_HW_NAT && HNAT_V2
+
+config  NOE_HW_NAT_HASH3
+#        bool "Hash3-Complex"
+        bool
+    depends on NOE_HW_NAT && HNAT_V2
+
+config  NOE_HW_NAT_HASH_DBG
+#        bool "Hash-Debug"
+    bool
+    depends on NOE_HW_NAT
+
+#endchoice
+
+#choice
+#        prompt "HW_NAT OP MODE"
+#    depends on NOE_HW_NAT && (NOE_HW_NAT_HASH1 || NOE_HW_NAT_HASH2)
+#    default HW_NAT_AUTO_MODE
+#    help
+#    HWNAT Operation mode. There is three type operation mode you can choose.
+
+config  NOE_HW_NAT_AUTO_MODE
+        bool
+        default y
+#        bool "AUTO_MODE"
+#    help
+#    Say Y here if you want to enable HWNAT Operation auto mode
+#    There is hwnat auto learn mode, driver fill ppetable,
+#    and set entry bind.
+
+config  NOE_HW_NAT_SEMI_AUTO_MODE
+    bool
+    default n
+#        bool "SEMI_AUTO_MODE"
+#    help
+#    There is hwnat semi-auto learn mode, driver fill ppetable,
+#    but user set entry bind.
+
+config  NOE_HW_NAT_MANUAL_MODE
+    bool
+    default n
+#        bool "MANUAL_MODE"
+#    help
+#    There is hwnat manual mode, user fill ppetable,
+#    but user set entry bind.
+
+#endchoice
+
+
+
+choice
+    prompt "Hash DBG Mode"
+    depends on NOE_HW_NAT_HASH_DBG
+    default NOE_HW_NAT_HASH_DBG_SPORT
+
+config  NOE_HW_NAT_HASH_DBG_IPV6_SIP
+        bool "IPv6 source IP[15:0]"
+
+config  NOE_HW_NAT_HASH_DBG_IPV4_SIP
+        bool "IPv4 source IP[15:0]"
+
+config  NOE_HW_NAT_HASH_DBG_SPORT
+        bool "source port[15:0]"
+
+endchoice
+
+config  NOE_HW_NAT_PRE_ACL_SIZE
+        int "Pre ACL Table Size"
+    depends on NOE_HW_NAT && !HNAT_V2
+    default 383
+    help
+    Pre ACL + Pre/Post MTR + Pre/Post AC Must less than 512
+
+config  NOE_HW_NAT_PRE_MTR_SIZE
+        int "Pre Meter Table Size"
+    depends on NOE_HW_NAT && !HNAT_V2
+    default 32
+    help
+    Pre ACL + Pre/Post MTR + Pre/Post AC Must less than 512
+
+config  NOE_HW_NAT_PRE_AC_SIZE
+        int "Pre AC Table Size"
+    depends on NOE_HW_NAT && !HNAT_V2
+    default 32
+    help
+    Pre ACL + Pre/Post MTR + Pre/Post AC Must less than 512
+
+config  NOE_HW_NAT_POST_MTR_SIZE
+        int "Post Meter Table Size"
+    depends on NOE_HW_NAT && !HNAT_V2
+    default 32
+    help
+    Pre ACL + Pre/Post MTR + Pre/Post AC Must less than 512
+
+config  NOE_HW_NAT_POST_AC_SIZE
+        int "Post AC Table Size"
+    depends on NOE_HW_NAT && !HNAT_V2
+    default 32
+    help
+    Pre ACL + Pre/Post MTR + Pre/Post AC Must less than 512
+
+
+config  NOE_HW_NAT_TCP_KA
+#        int "TCP KeepAlive Interval(Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_1K
+    default 5
+    help
+    HW will duplicate one TCP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_UDP_KA
+#        int "UDP KeepAlive Interval(Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_1K
+    default 5
+    help
+    HW will duplicate one UDP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_NTU_KA
+#        int "Non-TCP/UDP KeepAlive Interval(Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_1K && HNAT_V2
+    default 5
+    help
+    HW will duplicate one packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_TCP_KA
+#        int "TCP KeepAlive Interval(Unit:2Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_2K
+    default 3
+    help
+    HW will duplicate one TCP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+
+
+config  NOE_HW_NAT_UDP_KA
+#        int "UDP KeepAlive Interval(Unit:2Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_2K
+    default 3
+    help
+    HW will duplicate one UDP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_NTU_KA
+#        int "None-TCP/UDP KeepAlive Interval(Unit:2Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_2K && HNAT_V2
+    default 3
+    help
+    HW will duplicate one packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_TCP_KA
+#        int "TCP KeepAlive Interval(Unit:4Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_4K
+    default 1
+    help
+    HW will duplicate one TCP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+
+
+config  NOE_HW_NAT_UDP_KA
+#        int "UDP KeepAlive Interval(Unit:4Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_4K
+    default 1
+    help
+    HW will duplicate one UDP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_NTU_KA
+#        int "Non-TCP/UDP KeepAlive Interval(Unit:4Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_4K && HNAT_V2
+    default 1
+    help
+    HW will duplicate one packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_TCP_KA
+#        int "TCP KeepAlive Interval(Unit:8Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_8K
+    default 1
+    help
+    HW will duplicate one TCP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+
+config  NOE_HW_NAT_UDP_KA
+#        int "UDP KeepAlive Interval(Unit:8Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_8K
+    default 1
+    help
+    HW will duplicate one UDP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_NTU_KA
+#        int "None-TCP/UDP KeepAlive Interval(Unit:8Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_8K && HNAT_V2
+    default 1
+    help
+    HW will duplicate one packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_TCP_KA
+#        int "TCP KeepAlive Interval(Unit:16Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_16K
+    default 1
+    help
+    HW will duplicate one TCP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+
+config  NOE_HW_NAT_UDP_KA
+#        int "UDP KeepAlive Interval(Unit:16Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_16K
+    default 1
+    help
+    HW will duplicate one UDP packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_NTU_KA
+#        int "None-TCP/UDP KeepAlive Interval(Unit:16Sec)"
+    int
+    depends on NOE_HW_NAT_TBL_16K && HNAT_V2
+    default 1
+    help
+    HW will duplicate one packet from tcp bind flow to CPU
+    in order to refresh Linux conntrack table.
+
+config  NOE_HW_NAT_ACL_DLTA
+#        int "Life time of ACL link to FOE entry(Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT && !HNAT_V2
+    default 3
+    help
+    Set ageout time for ACL link to FoE entry
+
+config  NOE_HW_NAT_UNB_DLTA
+#        int "Life time of Unbind entry (Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT
+    default 3
+    help
+    set ageout time for bind Unbind entry
+
+config  NOE_HW_NAT_UNB_MNP
+#        int "Min threshold for unbind state(Pkt count)"
+    int
+    depends on NOE_HW_NAT
+    default 1000
+    help
+    An unbind flow whose pkt counts < Min threshold and idle time > Life time
+    => This unbind entry would be aged out
+    [Notes: Idle time = current time - last packet receive time]
+
+config  NOE_HW_NAT_UDP_DLTA
+#        int "Life time of Bind UDP entry (Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT
+    default 5
+    help
+    Set ageout time for bind UDP entry
+
+config  NOE_HW_NAT_TCP_DLTA
+#        int "Life time of Bind TCP entry (Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT
+    default 5
+    help
+    Set ageout time for bind TCP entry
+
+config  NOE_HW_NAT_FIN_DLTA
+#        int "Life time of Bind FIN entry (Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT
+    default 5
+    help
+    Set ageout time for FIN entry
+
+config  NOE_HW_NAT_NTU_DLTA
+#        int "Life time of Non-TCP/UDP entry (Unit:1Sec)"
+    int
+    depends on NOE_HW_NAT && HNAT_V2
+    default 5
+    help
+    Set ageout time for Non-TCP/UDP entry
+
+config  NOE_HW_NAT_IPV6
+#        bool "IPv6 Acceleration"
+    bool
+    depends on NOE_HW_NAT
+    default y
+    help
+    "ipv6 routing accelerated by HNAT"
+
+config  NOE_HW_NAT_ACL2UP_HELPER
+#        bool "ACL -> UP helper"
+    bool
+    depends on NOE_HW_NAT && !HNAT_V2
+    help
+    "use ACL rule to get user priority"
+
+config  NOE_HW_NAT_PREBIND
+#        bool "Pre-bind support"
+    bool
+    default n
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_PBND_RD_PRD
+#        int "check interval in pause state (us) Max:65535"
+    int
+    default 1000
+    depends on NOE_HW_NAT_PREBIND
+    default 1 if (!NOE_HW_NAT_PREBIND)
+
+config  NOE_HW_NAT_PBND_RD_LMT
+        int "max retyr count"
+    default 10
+    depends on NOE_HW_NAT_PREBIND
+
+config  PPE_MCAST
+#        bool "PPE built-in multicast table support"
+    bool
+    default y
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_WIFI
+#   bool "WiFi Acceleration"
+    bool
+    default y if NOE_HW_NAT
+    depends on NOE_HW_NAT
+    select NOE_HW_NAT_WIFI_NEW_ARCH
+
+config  NOE_HW_NAT_WIFI_NEW_ARCH
+#   bool "WiFi Acceleration New Architecture / New Dev if"
+    bool
+    default y if NOE_HW_NAT_WIFI
+    depends on NOE_HW_NAT_WIFI
+
+config HW_NAT_NEW_ARCH_WDMA
+#   bool "WiFi Acceleration with WDMA"
+    bool
+    default y if NOE_HW_NAT_WIFI
+    depends on NOE_HW_NAT_WIFI
+
+config  NOE_HW_NAT_NIC_USB
+#   bool "PCIe Ethernet NIC/USB Acceleration"
+    bool
+    default y
+    depends on NOE_HW_NAT
+
+config  NOE_HW_NAT_PPTP_L2TP
+#   bool "PPTP_L2TP Acceleration"
+    bool
+    default n
+
+config  NOE_HW_NAT_PACKET_SAMPLING
+#   bool "Packet Sampling to CPU"
+    bool
+    default n
+    depends on NOE_HW_NAT
+
+config NOE_HW_NAT_ACCNT_MAINTAINER
+#   bool "byte/pkt count for LAN/WAN port"
+    bool
+    default n
+    depends on NOE_HW_NAT && HNAT_V2
+    help
+    "if you need 64bits bytes/pkts counter, and ask HNAT module to get statistic counter periodically, please enable it"
+
+config PPE_MIB
+#   bool "byte/pkt count for flow"
+    bool
+    default n
+    depends on NOE_HW_NAT && HNAT_V2
+    help
+    "if you need bytes/pkts counter per flow entry, and ask HNAT module to get statistic counter periodically, please enable it"
+
+config QDMA_SUPPORT_QOS
+#   bool "qdma support qos"
+    bool
+    depends on NOE_HW_NAT
+    default y
+    help
+    "if you need qdma binding support qos, please enable it"
+
+config WAN_TO_WLAN_SUPPORT_QOS
+#   bool "wan to wlan support qos"
+    bool
+    depends on NOE_HW_NAT
+    select QDMA_SUPPORT_QoS
+    default y
+    help
+    "if you need qdma wan t0 wlan binding support qos, please enable it"
+
+config  SUPPORT_WLAN_OPTIMIZE
+#    bool "bridge not binding"
+    bool
+    default n
+
+config  NOE_HW_NAT_IPI
+        bool
+#        bool "Dispatch packets to CPUs"
+        default n
+        depends on NOE_HW_NAT && HNAT_V2
+        help
+    "if you need hwnat ipi, must EXPORT_SYMBOL(get_rps_cpu)(net/core/dev.c)"
+

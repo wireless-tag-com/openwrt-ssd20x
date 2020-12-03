@@ -1,0 +1,21 @@
+infinity2m_defconfig
+- FPGA: Not maintained anymore for FPGA
+  - infinity2m_fpga_defconfig
+- SPINAND
+  infinity2m_spinand_ssc010a_s01a_2Gb_defconfig
+  - DCDO
+    infinity2m_spinand_ssc010a_s01a_dcdo_defconfig: default DCDO
+    infinity2m_spinand_ssc010a_s01a_dcdo_test_defconfig: Temp developing for DCDO ramdisk
+  infinity2m_spinand_ssc010a_s01a_defconfig
+  infinity2m_spinand_ssc010a_ssr623_s01a_defconfig:???
+  infinity2m_spinand_ssc011a_s01a_defconfig
+  infinity2m_spinand_ssc011a_s01a_minigui_defconfig:????
+  infinity2m_spinand_ssc011a_s01a_minigui_fastboot
+- SPINOR
+  infinity2m_ssc010a_s01a_2Gb_defconfig
+  infinity2m_ssc010a_s01a_bench_defconfig
+  infinity2m_ssc010a_s01a_defconfig
+  infinity2m_ssc010a_ssr623_s01a_defconfig
+  infinity2m_ssc011a_s01a_defconfig
+  infinity2m_ssc011a_s01a_fastboot_defconfig
+  infinity2m_ssc011a_s01a_minigui_defconfig

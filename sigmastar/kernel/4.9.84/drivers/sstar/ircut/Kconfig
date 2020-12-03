@@ -1,0 +1,9 @@
+config MS_IRCUT
+        tristate "ircut driver"
+        help
+          Say Y here to enable the driver for the ircut.
+
+          If unsure, say Y.
+
+          To compile this driver as a module, choose M here: the
+          module will be called mdrv_ircut.

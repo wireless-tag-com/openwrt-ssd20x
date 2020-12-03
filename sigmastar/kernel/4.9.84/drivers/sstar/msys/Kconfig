@@ -1,0 +1,33 @@
+config MS_MSYS
+    bool "msys api"
+    default y
+    
+config MS_ZEN
+    bool
+    depends on MS_MSYS
+    default y
+
+config MS_MSYS_LOG
+    bool "Log Redirection"
+    depends on MS_MSYS
+    default n
+
+config MSYS_PERF_TEST
+    bool "sysfs:perf test"
+    depends on MS_MSYS
+    default n
+
+config MSYS_BENCH_MEMORY_FUNC
+    bool "ioctl:bench memory function"
+    depends on MS_MSYS
+    default n
+
+config MSYS_MIU_PROTECT
+    bool "sysfs:MIU protest"
+    depends on MS_MSYS
+    default n
+
+config MSYS_DMEM_SYSFS_ALL
+    bool "add more dmem sysfs node"
+    depends on MS_MSYS
+    default n

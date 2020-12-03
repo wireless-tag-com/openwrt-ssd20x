@@ -1,0 +1,5 @@
+config MS_MOVE_DMA
+	bool "Mstar Move DMA driver"
+	default n
+	help
+

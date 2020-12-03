@@ -1,0 +1,5 @@
+config MS_SPI_INFINITY
+    tristate "MS SPI driver"
+    default n
+    help
+    Enable support for SPI Driver

@@ -1,0 +1,50 @@
+config MS_FLASH_ISP
+
+  select MTD
+  #select MTD_CHAR
+  #select MTD_BLKDEVS
+  #select NFTL
+  #select NFTL_RW
+  #select MTD_OOPS
+  
+  #select MTD_COMPLEX_MAPPINGS
+  #select MTD_BLOCK2MTD
+  #select MTD_CMDLINE_PARTS
+  #select SCSI_LOWLEVEL
+  #select AUTOFS_FS
+  
+  #select FAT_FS
+  #select MSDOS_FS
+  #select VFAT_FS
+  
+  #select MTD_DEBUG
+  #select MTD_DEBUG_VERBOSE
+  #select MTD_CONCAT
+  #select MTD_PARTITIONS
+  #select MTD_NAND
+  #select JFFS2_FS
+  #select JFFS2_FS_DEBUG
+  #select JFFS2_FS_WRITEBUFFER
+
+bool "Serial Flash driver"
+default n
+---help---
+    Enable compilation option for Serial Flash.
+    FSP support Quadread/Daulread/write with BDMA.
+    
+if MS_FLASH_ISP
+config MS_FLASH_ISP_MXP_PARTS
+    bool
+    default y
+
+
+config SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
+        bool "Customized ZY Erase ENV"
+        default n
+        depends on MS_FLASH_ISP != n
+        help
+          This is for customized ZY fw_setenv behavior.
+
+endif
+
+	

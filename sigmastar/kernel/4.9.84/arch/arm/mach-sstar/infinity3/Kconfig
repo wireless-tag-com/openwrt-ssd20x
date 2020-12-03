@@ -1,0 +1,10 @@
+config ARCH_INFINITY3
+    bool "SoC iNfinity3 (ARCH_MULTI_V7)" if ARCH_MULTI_V7
+    select SOC_BUS
+    select ARM_GIC        
+    select VFP
+    select VFPv3
+    select WIRELESS_EXT if WIRELESS && NET
+    select WEXT_PRIV    if WIRELESS && NET
+    help
+      Support for iNfinity3 SoC

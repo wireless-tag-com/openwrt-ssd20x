@@ -1,0 +1,102 @@
+//*
+//* $Id: //DAILEO/Columbus/IPCamera/source/iNfinity/iNfinity_ROM/source/include/macro.include#1 $
+//* $Header: //DAILEO/Columbus/IPCamera/source/iNfinity/iNfinity_ROM/source/include/macro.include#1 $
+//* $Date: 2015/05/27 $
+//* $DateTime: 2015/05/27 17:11:47 $
+//* $Change: 1236156 $
+//* $File: //DAILEO/Columbus/IPCamera/source/iNfinity/iNfinity_ROM/source/include/macro.include $
+//* $Revision: #1 $
+//*
+
+
+////WREG
+.macro  WREG    reg_addr32, vall
+        ldr     r7, =\reg_addr32
+        ldr     r6, =\vall
+        str     r6, [r7]
+        b 1011f
+        .ltorg
+1011:
+.endm
+
+
+////REG_C2M
+.macro	REG_C2M cpu_reg, reg_addr32
+    ldr 	r7, =\reg_addr32
+    str 	\cpu_reg, [r7]
+.endm
+
+
+////WREG_B
+.macro  WREG_B  reg_addr32, val
+        ldr     r7, =\reg_addr32
+        ldr     r6, =\val
+        strb    r6, [r7]
+.endm
+
+
+////RREG
+.macro  RREG    dest_reg, reg_addr32
+        ldr     r7, =\reg_addr32
+        ldr     \dest_reg, [r7]
+.endm
+
+////RREG_B
+.macro  RREG_B  dest_reg, reg_addr32
+        ldr     r7, =\reg_addr32
+        ldrb    \dest_reg, [r7]
+.endm
+
+////LOOP_DELAY
+.macro  LOOP_DELAY val
+        ldr r7, =\val
+1012:
+        nop
+        subs r7,r7, #1
+        bne 1012b
+.endm
+
+////DELAYUS
+.macro  DELAYUS val
+    ldr r7, =\val
+1013:
+        // in AMBER3, we set subtrahend from 1 to 40
+        subs r7, r7, #40
+        bgt 1013b
+.endm
+
+
+////_HOLD_
+.macro  _HOLD_
+    b .
+.endm
+
+////MEMCPY32
+.macro  MEMCPY32
+1015:
+    ldr     r9, [r10], #4
+    str     r9, [r11], #4
+    subs    r12, r12, #4
+    bne     1015b
+.endm
+
+////MMUSET
+.macro	MMUSET
+1016:
+        str     r3, [r2], #4
+        add     r3, r3, #0x00100000
+        subs    r4, r4, #1
+        cmp     r4, #0
+        bne     1016b
+.endm
+
+////MEMCPY32
+.macro  MEMCPY32_T
+1017:
+    ldr     r4, [r5]
+    str     r4, [r6]
+        add     r5, #4
+        add     r6, #4
+    sub     r7, #4
+    bne     1017b
+.endm

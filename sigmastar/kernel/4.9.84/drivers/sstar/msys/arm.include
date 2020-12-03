@@ -1,0 +1,133 @@
+//*
+//* $Id: //DAILEO/Columbus/IPCamera/source/iNfinity/iNfinity_ROM/source/include/arm.include#1 $
+//* $Header: //DAILEO/Columbus/IPCamera/source/iNfinity/iNfinity_ROM/source/include/arm.include#1 $
+//* $Date: 2015/05/27 $
+//* $DateTime: 2015/05/27 17:11:47 $
+//* $Change: 1236156 $
+//* $File: //DAILEO/Columbus/IPCamera/source/iNfinity/iNfinity_ROM/source/include/arm.include $
+//* $Revision: #1 $
+//*
+
+
+//=======================
+//ARM modes
+//=======================
+.equ MODE_USR_32,				0x10		//USR mode
+.equ MODE_FIQ_32,			 	0x11		//FIQ mode
+.equ MODE_IRQ_32,			 	0x12		//IRQ mode
+.equ MODE_SVC_32,			 	0x13		//SVC mode
+.equ MODE_ABT_32,			 	0x17		//ABORT mode
+.equ MODE_UND_32,			 	0x1B		//UNDEF mode
+.equ MODE_SYS_32,			 	0x1F
+
+.equ Mode_mask,  	    		0x1F        // mask to handle the processor modes
+
+
+.equ Mode_IRQ_MIRQ,    	0x92        // Mode IRQ and Mask IRQ
+.equ Mode_SVC_MIRQ,    	0x93        // Mode SVC and Mask IRQ
+.equ Mode_SVC_UIRQ,    	0x13        // Mode SVC and UnMask IRQ
+.equ Mode_SVC_MIRQ_MFIQ,0xD3        // Mode SVC, Mask IRQ, Mask FIQ
+.equ Mode_SVC,    	    0x13        // SVC mode
+
+.equ MODE_BITS,			0x1F
+
+.equ TBIT,				0x20
+.equ FBIT,				0x40
+.equ IBIT,				0x80
+
+
+.equ T_Bit,        	  	0x20        // Thumb enable bit
+.equ I_Bit,        	  	0x80        // IRQ disable bit
+.equ F_Bit,      	    0x40        // FIQ disable bit
+//=======================
+//ARM interrupts
+//=======================
+.equ INTERRUPT_BITS,	  0xC0
+
+.equ ENABLE_IRQ,			0x0
+.equ ENABLE_FIQ,			0x0
+.equ DISABLE_FIQ,		  	0x40
+.equ DISABLE_IRQ,		  	0x80
+
+//=======================
+//ARM fLAGs
+//=======================
+.equ FLAG_BITS,					0xF0000000
+
+.equ NFLAG,            	0x80000000
+.equ ZFLAG,            	0x40000000
+.equ CFLAG,            	0x20000000
+.equ VFLAG,           	0x10000000
+
+
+.equ SVC_SWI,        		0x00        // SWI to enter in SVC mode
+
+.equ ERROR_UNDEF,	    0x01
+.equ ERROR_SWI,	      	0x02
+.equ ERROR_PREFETCH,	0x03
+.equ ERROR_ABT,	      	0x04
+.equ ERROR_IRQ,	      	0x05
+.equ ERROR_FIQ,	      	0x06
+.equ ERROR_BOOT_FAIL,	0x07
+
+
+
+
+#ifdef __ELF__
+# define _C_LABEL(x)    x
+#else
+# ifdef __STDC__
+#  define _C_LABEL(x)   _ ## x
+# else
+#  define _C_LABEL(x)   _/**/x
+# endif
+#endif
+#define _ASM_LABEL(x)   x
+
+#ifdef __STDC__
+# define __CONCAT(x,y)  x ## y
+# define __STRING(x)    #x
+#else
+# define __CONCAT(x,y)  x/**/y
+# define __STRING(x)    "x"
+#endif
+
+#ifndef _ALIGN_TEXT
+# define _ALIGN_TEXT .align 0
+#endif
+
+/*
+ * gas/arm uses @ as a single comment character and thus cannot be used here
+ * Instead it recognised the # instead of an @ symbols in .type directives
+ * We define a couple of macros so that assembly code will not be dependant
+ * on one or the other.
+ */
+#define _ASM_TYPE_FUNCTION  #function
+#define _ASM_TYPE_OBJECT    #object
+#define _ENTRY(x) \
+    .text; _ALIGN_TEXT; .globl x; .type x,_ASM_TYPE_FUNCTION; x: .fnstart
+
+#define _ASM_SIZE(x)    .size x, .-x;
+
+#define _END(x) \
+    .fnend; \
+    _ASM_SIZE(x)
+
+#ifdef GPROF
+# ifdef __ELF__
+#  define _PROF_PROLOGUE    \
+    mov ip, lr; bl __mcount
+# else
+#  define _PROF_PROLOGUE    \
+    mov ip,lr; bl mcount
+# endif
+#else
+# define _PROF_PROLOGUE
+#endif
+
+#define ENTRY(y)    _ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
+#define ENTRY_NP(y) _ENTRY(_C_LABEL(y))
+#define END(y)      _END(_C_LABEL(y))
+#define ASENTRY(y)  _ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
+#define ASENTRY_NP(y)   _ENTRY(_ASM_LABEL(y))
+#define ASEND(y)    _END(_ASM_LABEL(y))

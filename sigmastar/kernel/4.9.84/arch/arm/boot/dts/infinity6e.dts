@@ -1,0 +1,58 @@
+/*
+* infinity6e.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+ /*
+ * Memory Layout
+ * 0x20000000-0x24000000 64M Kernel
+ * 0x24000000-0x24800000 8M  system
+ * 0x24800000-0x24900000 1M  data
+ * 0x24900000-0x25000000 7M  temp0
+ * 0x25000000-0x28000000 48M temp1
+ */
+/dts-v1/;
+#include "infinity6e.dtsi"
+#include "infinity6e-padmux.dtsi"
+
+/ {
+    model = "INFINITY6E ASIC";
+    compatible = "sstar,infinity6e";
+
+    memory {
+        reg = <0x20000000 0x06000000>;
+    };
+
+    chosen {
+        bootargs = "console=ttyS0,38400n8r androidboot.console=ttyS0 root=/dev/mtdblock0 init=/linuxrc LX_MEM=0x3ee0000 mma_heap=mma_heap_name0,miu=0,sz=0x2000000 mma_memblock_remove=1";
+    };
+
+    /*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    /*
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        cma0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            size = <0x04000000>;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+    };
+    */
+};

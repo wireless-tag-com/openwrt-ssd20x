@@ -1,0 +1,7 @@
+config MS_IR
+
+tristate "SStar IR driver"
+  default n
+  help
+  enable support for IR driver
+

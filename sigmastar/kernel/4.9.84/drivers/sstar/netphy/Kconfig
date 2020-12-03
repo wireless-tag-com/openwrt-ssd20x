@@ -1,0 +1,6 @@
+config SSTAR_NETPHY
+      tristate "SSTAR 10/100 PHYs"
+      default y
+      ---help---
+        Currently supports the SSTAR ALBANY(10/100)
+

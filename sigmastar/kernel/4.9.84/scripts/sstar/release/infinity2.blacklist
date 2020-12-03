@@ -1,0 +1,2 @@
+drivers/sstar/ceva_link
+linux-4.9 /scripts/ms_gen_ceva_version_h.py

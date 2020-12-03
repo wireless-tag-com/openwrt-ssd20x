@@ -1,0 +1,10 @@
+config VCORE_DVFS
+        tristate "vcore_dvfs driver"
+        default y if ARCH_INFINITY2
+        help
+          Say Y here to enable the driver for the vcore.
+
+          If unsure, say Y.
+
+          To compile this driver as a module, choose M here: the
+          module will be called vcore_dvfs.

@@ -1,0 +1,7 @@
+config MS_CA9_GT_CLOCKSOURCE
+    bool    "ARM CA9 GT Timer for clocksource"
+    depends on ARCH_CEDRIC
+    depends on ARM_GLOBAL_TIMER
+    
+config MS_PIU_TIMER
+    bool    "PIU Timer driver"    

@@ -1,0 +1,20 @@
+config MS_EMMC
+	tristate "EMMC driver"
+	depends on MMC
+	help
+    		To enable MSTAR EMMC driver.
+    		
+config MS_EMMC_CEDRIC
+    tristate "EMMC support for Cedric"
+    depends on MS_EMMC
+    depends on ARCH_CEDRIC    		
+
+    
+config MS_EMMC_CHICAGO
+    tristate "EMMC support for Chicago"
+    depends on MS_EMMC
+    depends on ARCH_CHICAGO
+
+config MS_EMMC_UNIFY_DRIVER
+    bool "UNIFY EMMC DRIVER"
+    depends on MS_EMMC

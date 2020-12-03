@@ -1,0 +1,4 @@
+config MS_PADMUX
+    bool
+    default y
+

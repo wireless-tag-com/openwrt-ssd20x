@@ -1,0 +1,16 @@
+config ARCH_INFINITY5
+    bool "SoC iNfinity5 (ARCH_MULTI_V7)" if ARCH_MULTI_V7
+    select SOC_BUS
+    select ARM_GIC
+    select VFP
+    select VFPv3
+    select WIRELESS_EXT if WIRELESS && NET
+    select WEXT_PRIV    if WIRELESS && NET
+    help
+      Support for iNfinity5 SoC
+
+config INFINITY5_FPGA
+    bool "iNfinity5 FPGA environment" if ARCH_INFINITY5
+    depends on ARCH_INFINITY5
+    help
+      Support for iNfinity5 FPGA environment

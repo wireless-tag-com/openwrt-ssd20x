@@ -1,0 +1,90 @@
+/*
+* infinity6b0-ssc009b-s01a.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/dts-v1/;
+#include "infinity6b0.dtsi"
+
+/ {
+    model = "INFINITY6B0 SSC009B-S01A QFN128";
+    compatible = "sstar,infinity6b0";
+
+    /* memory setting will be replaced with LX_MEM*/
+    memory {
+        reg = <0x20000000 0x08000000>;
+    };
+	/* this cmdline will be replaced with uboot bootargs*/
+    chosen {
+        bootargs = "console=ttyS0,115200n8r androidboot.console=ttyS0 root=/dev/mtdblock2 init=/linuxrc cma=16m";
+    };
+
+/*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        /*cma0 {
+            compatible = "shared-dma-pool";
+            size = <0x400000>;
+            reusable;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };*/
+    };
+
+    soc {
+        Sstar-ehci-1 {
+            compatible = "Sstar-ehci-1";
+            dpdm_swap=<0>;
+            power-enable-pad = <PAD_PM_GPIO2>;
+        };
+
+        vif {
+            vif_sr0_par_mode = <2>;
+            vif_sr0_mipi_mode = <1>;
+            vif_sr0_bt656_mode = <2>;
+            vif_sr0_mclk_mode = <1>;
+            vif_sr0_pdn_mode  = <1>;
+            vif_sr0_rst_mode  = <1>;
+            vif_sr0_parallel_rst_mode  = <2>;
+            vif_sr0_parallel_pdn_mode  = <2>;
+            vif_sr0_mipi_rst_mode  = <1>;
+            vif_sr0_mipi_pdn_mode  = <1>;
+            vif_sr0_hvsync_mode  = <1>;
+            vif_sr0_pck_mode  = <1>;
+            /* Config sensor 1 pad mux */
+            vif_sr1_par_mode = <2>;
+            vif_sr1_mipi_mode = <2>;
+            vif_sr1_bt656_mode = <2>;
+        };
+
+        csi {
+            sr0_mipi_mode = <1>;
+        };
+
+        core_voltage {
+            vid_width = <2>;
+            vid_gpios = <PAD_PM_GPIO7 PAD_PM_GPIO8>;
+            vid_voltages = <850 900 950 1000>;  //2b'00 2b'01 2b'10 2b'11
+        };
+
+        sdmmc {
+            slotnum = <2>;
+        };
+    };
+
+};

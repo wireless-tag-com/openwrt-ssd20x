@@ -1,0 +1,72 @@
+/*
+* infinity3-EXT512M.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/dts-v1/;
+#include "infinity3.dtsi"
+
+/ {
+    model = "INFINITY3 MSC000A-S02A-512M";
+    compatible = "sstar,infinity3";
+
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8r androidboot.console=ttyS0 root=/dev/ram rootwait";
+        linux,initrd-start = <0x20FE0000>;
+        linux,initrd-end =   <0x21000000>;
+    };
+
+    memory {
+        reg = <0x20000000 0x10000000>;
+    };
+
+    temp0:rammtd@0 {
+        compatible = "mtd-ram";
+        reg= <0x30000000 0x10000000>;
+        bank-width = <1>;
+        erase-size = <0x10000>;
+        linux,mtd-name = "temp0";
+    };
+
+/*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        miu_bist_mem: miu_bist_mem@27F00000 {
+            reg = <0x2FF00000 0x00100000>;
+            no-map ;
+            status = "okay";
+        };
+
+        cma0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            size = <0x7000000>;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+    };
+
+    soc {
+        isp: isp {
+            //clk-pad = <PAD_SPI0_CK>; //be compatible with the previous QFN, so it must reserved 4 pins for SPI0 pads
+            isp-flag = <0x3>; //enable DNR and ROT
+            isp-res = <0x5>; //max image size 5M
+        };
+    };
+};

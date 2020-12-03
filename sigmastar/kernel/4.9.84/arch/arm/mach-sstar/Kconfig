@@ -1,0 +1,110 @@
+menuconfig ARCH_SSTAR
+    bool "SStar ARM SoCs"
+
+if ARCH_SSTAR
+
+config SS_DUALOS
+    bool "SStar Dual-OS"
+
+choice
+    prompt "Select types of SStar Dual-OS"
+    depends on SS_DUALOS
+
+    config LH_RTOS
+        bool "Enable Hypervisor" if ARCH_MULTI_V7
+        help
+            Enable LH + RTOS.
+
+    config SS_AMP
+        bool "Enable SStar AMP" if ARCH_MULTI_V7
+        help
+            Enable SStar AMP.
+endchoice
+
+comment "Options"
+config SS_DTB_NAME
+    string "Sstar DTB NAME"
+    default ""
+
+config SS_BUILTIN_DTB
+    bool "Sstar Builtin DTB"
+    default y
+
+config MS_L2X0_PATCH
+    bool "L2X0 patch"
+    depends on CACHE_L2X0
+    default y
+
+config MS_KERNEL_TYPE
+	string 
+	default ""
+	
+config MS_ARMV7_XIP
+    bool
+    default y
+	depends on XIP_KERNEL
+
+
+config SSTAR_CHIP_FOLDER
+    string
+    option env="SSTAR_CHIP_MODEL"
+
+config SSTAR_CHIP_NAME
+    string
+    default SSTAR_CHIP_FOLDER
+
+config SSTAR_SHORT_NAME
+    string "Short Name"
+    default ""
+
+config MP_IRQ_TRACE
+    bool "MP_IRQ_TRACE"
+    default n
+
+config DISABLE_CLK_DEBUGFS_SUPPORT
+    bool "Do not support debugfs for clock platform"
+    default y
+
+config SKIP_SQUASHFS_BAD_BLOCK
+    bool "Skip squashfs bad block"
+    depends on MTD
+    default y
+
+config DEFERRED_INIICALLS
+    bool "support deferred initcalls"
+    default y
+
+config DEFERRED_INIICALLS_SLAB_SYSFS
+    bool "defer slab_sysfs_init"
+    depends on DEFERRED_INIICALLS
+    default n
+
+config DEFERRED_INIICALLS_PARAM_SYSFS
+    bool "defer param_sysfs_init"
+    depends on DEFERRED_INIICALLS
+    default n
+
+config DEFERRED_INIICALLS_PPERF_SYSFS
+    bool "defer perf_event_sysfs_init"
+    depends on DEFERRED_INIICALLS
+    default n
+
+config DEFERRED_INIICALLS_MORE_SYSFS
+    bool "defer irq_sysfs_init, init_clocksource_sysfs,clockevents_init_sysfs"
+    depends on DEFERRED_INIICALLS
+    default n
+
+config DEFERRED_CREATE_DTS_SYSNODE
+    bool "defer of_core_init"
+    depends on DEFERRED_INIICALLS
+    default n
+
+config CRYPTO_MANAGER_NO_TESTS_THREAD
+    bool "Do not create cryto test thread"
+    depends on CRYPTO_MANAGER_DISABLE_TESTS
+    default n
+
+source "arch/arm/mach-sstar/$SSTAR_CHIP_NAME/Kconfig"
+
+endif
+

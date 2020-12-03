@@ -1,0 +1,45 @@
+////////////////////////////////////////////
+// What kind of test before release
+////////////////////////////////////////////
+
+A. Auto detection for  different speed and duplex
+	1. 10Mb Full
+	2. 10Mb Half
+	3. 100Mb Full
+	4. 100Mb Half
+	
+B. Data Transfer Rate with different speed and duplex
+	1. 10Mb Half
+		1.1 64-byte icmp packet:   greater than 7.6Mb
+		1.2 128-byte icmp packet:  greater than 7.6Mb 
+		1.3 256-byte icmp packet:  greater than 7.6Mb
+		1.4 512-byte icmp packet:  greater than 7.6Mb 
+		1.5 1024-byte icmp packet: greater than 7.6Mb 
+		1.6 1280-byte icmp packet: greater than 7.6Mb
+		1.7 1514-byte icmp packet: greater than 7.6Mb
+	2. 10Mb Full  
+		2.1 64-byte icmp packet:   greater than 7.6Mb
+		2.2 128-byte icmp packet:  greater than 7.6Mb 
+		2.3 256-byte icmp packet:  greater than 7.6Mb
+		2.4 512-byte icmp packet:  greater than 7.6Mb 
+		2.5 1024-byte icmp packet: greater than 7.6Mb 
+		2.6 1280-byte icmp packet: greater than 7.6Mb
+		2.7 1514-byte icmp packet: greater than 7.6Mb
+	3. 100Mb Half
+		3.1 64-byte icmp packet:   greater than 7.6Mb
+		3.2 128-byte icmp packet:  greater than 10Mb 
+		3.3 256-byte icmp packet:  greater than 15Mb
+		3.4 512-byte icmp packet:  greater than 30Mb 
+		3.5 1024-byte icmp packet: greater than 50Mb 
+		3.6 1280-byte icmp packet: greater than 55Mb
+		3.7 1514-byte icmp packet: greater than 60Mb
+	4. 100Mb Full			
+		4.1 64-byte icmp packet:   greater than 7.6Mb
+		4.2 128-byte icmp packet:  greater than 10Mb 
+		4.3 256-byte icmp packet:  greater than 15Mb
+		4.4 512-byte icmp packet:  greater than 30Mb 
+		4.5 1024-byte icmp packet: greater than 50Mb 
+		4.6 1280-byte icmp packet: greater than 55Mb
+		4.7 1514-byte icmp packet: greater than 60Mb	
+	
+ 

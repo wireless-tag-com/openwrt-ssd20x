@@ -1,0 +1,24 @@
+Compile these small test program then execute them on target
+EX: arm-linux-gnueabihf-gcc -DPLATFORM_NAME=INFINITY -static -o regio.bin regio.c
+
+Basically one C file should generate one test application
+
+Use the "PLATFORM_NAME" define to check chip difference(CEDRIC, CHICAGO, INFINITY)
+Use "uname()" C API in code to check kernel version
+Application may need to be recompiled for different PLATFORM_NAME
+Application "SHOULD NOT" need to be recompiled for different kernel version
+
+Check the unametest.c, the output is as following:
+
+system name = Linux
+node name   = (none)
+release     = 3.18.14
+version     = #421 SMP PREEMPT Thu Jun 11 07:05:52 CST 2015
+machine     = armv7l
+
+
+ajtc.c        network socket test client, packet generator
+ajts.c        network socket test server, packet receiver
+us_ticks.c    check the wrapping of IOCTL_MSYS_GET_US_TICKS
+regio.c       userspace register w/r sample
+dmem.c        userspace DMEM allocation & w/r sample

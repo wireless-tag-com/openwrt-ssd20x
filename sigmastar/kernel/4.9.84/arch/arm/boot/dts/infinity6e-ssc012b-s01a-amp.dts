@@ -1,0 +1,73 @@
+/*
+* infinity6e-ssc012b-s01a-amp.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+ /*
+ * Memory Layout
+ * 0x20000000-0x24000000 64M Kernel
+ * 0x24000000-0x24800000 8M  system
+ * 0x24800000-0x24900000 1M  data
+ * 0x24900000-0x25000000 7M  temp0
+ * 0x25000000-0x28000000 48M temp1
+ */
+/dts-v1/;
+#define __DTS_AMP__
+
+#include "infinity6e.dtsi"
+#include "infinity6e-padmux.dtsi"
+
+/ {
+    model = "INFINITY6E SSC012B-S01A-AMP";
+    compatible = "sstar,infinity6e";
+
+    memory {
+        reg = <0x20000000 0x04000000>;
+    };
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8r root=/dev/ram rdinit=/linuxrc initrd=0x20E00000,0x96000 rootwait=1 LX_MEM=0x5000000 mma_heap=mma_heap_name0,miu=0,sz=0x2000000,mem=80m,maxcpus=1";
+    };
+
+    /*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        cma0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            size = <0x0400000>;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+    };
+
+    soc {
+        /* Disable linux side I2C1 for RTK */
+        i2c1@1{
+            status = "disabled";
+        };
+    };
+
+    /*!! wait correct info to enable this feature.
+    core_voltage {
+            vid_width = <1>;
+            vid_gpios = <PAD_SAR_GPIO3>;
+            vid_voltages = <900 1000>;  //2b'00 2b'01
+            vid_default = <1>;  //2b'00
+    };*/
+};

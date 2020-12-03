@@ -1,0 +1,9 @@
+config MS_SAR
+        tristate "sar driver"
+        help
+          Say Y here to enable the driver for the sar.
+
+          If unsure, say Y.
+
+          To compile this driver as a module, choose M here: the
+          module will be called mdrv_sar.

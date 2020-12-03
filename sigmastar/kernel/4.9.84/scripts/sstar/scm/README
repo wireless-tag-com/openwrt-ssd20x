@@ -1,0 +1,9 @@
+Software Configuration Managment
+================================
+
+1. Coverity & Black duck
+
+   Tool: cov_scan.sh
+   Purpose: List file modification commit exception intial commit.
+   Uage: ./cov_scan.sh coveriy_192.txt 
+

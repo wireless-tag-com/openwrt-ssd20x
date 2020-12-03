@@ -1,0 +1,173 @@
+config NOE
+#    bool "Ethernet GMAC"
+    tristate
+    depends on MS_NOE
+    default MS_NOE
+    ---help---
+      This driver support gigabit ethernet family of adapters.
+
+if NOE
+
+config NOE_FPGA_VERIFY
+    bool
+
+config NOE_NO_CHECK_ACTIVE_SETMAC
+    bool "Not check active when setting MAC address"
+    default y
+
+choice
+    prompt "GMAC1 is connected to"
+    depends on NOE
+    default GE1_GMII_AN_EXTPHY
+
+config  GE1_GMII_AN_EXTPHY
+    bool "GMII_AN (External GigaPhy)"
+
+endchoice
+
+config  MAC_TO_GIGAPHY_MODE_ADDR
+    hex "GE1 Phy Address"
+    default 0x1 if GE1_GMII_AN_EXTPHY
+
+
+config NOE_GMAC2
+    bool "GMAC2 Support"
+    depends on NOE
+    default y
+
+choice
+    prompt "GMAC2 is connected to"
+    depends on NOE_GMAC2
+    default GE2_GMII_AN_EXTPHY
+
+config GE2_GMII_AN_EXTPHY
+    bool "GMII (External GigaPhy)"
+    depends on NOE_GMAC2
+endchoice
+
+config  MAC_TO_GIGAPHY_MODE_ADDR2
+    hex "GE2 Phy Address"
+    default 0x3 if GE2_GMII_AN_EXTPHY
+    depends on NOE_GMAC2
+
+config MDIO_IC1819
+    bool "MDIO_IC1819 (SW MDIO TO CONTROL IC1819)"
+    depends on NOE_GMAC2
+    select MS_MDIO
+    
+config NOE_RGMII_TX_DELAY_2NS
+    bool "RGMII tx delay 2ns default"
+    depends on NOE
+    default y
+
+#choice
+#    prompt "Network BottomHalves"
+#    depends on NOE
+#    default NOE_NETWORK_TASKLET_BH
+
+config NOE_NETWORK_TASKLET_BH
+#    bool "Tasklet"
+    bool
+    default n
+
+config NOE_NETWORK_WORKQUEUE_BH
+#    bool "Work Queue"
+    bool
+    default n
+
+config NOE_NAPI
+#    bool "NAPI"
+    bool
+    default y
+#endchoice
+
+#config NOE_SPECIAL_TAG
+#   bool "Special Tag (0x810x)"
+#   depends on NOE
+
+config NOE_CHECKSUM_OFFLOAD
+    bool
+    default y
+    depends on NOE
+
+#config NOE_HW_IOCOHERENT
+#    bool
+#   default n
+#   depends on NOE
+
+config NOE_HW_LRO
+#   bool "HW LRO"
+    bool
+    default y
+    depends on NOE
+
+config NOE_HW_VLAN_TX
+    bool
+    default y
+    depends on NOE
+    ---help---
+      Please disable HW_VLAN_TX if you need double vlan
+
+config NOE_HW_VLAN_RX
+    bool
+    default n
+    depends on NOE
+    ---help---
+      Please disable HW_VLAN_RX if you need double vlan
+
+config NOE_TSO
+    bool
+    default y
+    depends on NOE_HW_VLAN_TX
+
+config NOE_ETHTOOL
+    select MII
+    bool "support ethtool"
+    default n
+    depends on NOE
+
+config NOE_QDMA
+    bool "Choose QDMA istead PDMA"
+    bool
+    default y
+    depends on NOE
+
+config NOE_QDMATX_QDMARX
+    bool
+    depends on NOE_QDMA
+
+config HW_SFQ
+    bool
+    depends on NOE_QDMA
+
+config  ESW_DOUBLE_VLAN_TAG
+    bool
+    default n
+
+config ETH_SKB_ALLOC_SELECT
+    bool
+    default y
+
+#choice
+#    prompt "SKB Allocation API Selection"
+#    depends on ETH_SKB_ALLOC_SELECT
+#    default ETH_SLAB_ALLOC_SKB
+
+config  ETH_SLAB_ALLOC_SKB
+    #bool "SLAB skb allocation"
+    bool
+    default y
+
+config  ETH_PAGE_ALLOC_SKB
+    #bool "Page skb allocation"
+    bool
+    default n
+
+#endchoice
+
+#config NOE_TX_RX_INT_SEPARATION
+#    bool "Interrupt Separation"
+#    default y
+
+
+endif # NOE

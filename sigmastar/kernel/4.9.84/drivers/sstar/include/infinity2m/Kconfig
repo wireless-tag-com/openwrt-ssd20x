@@ -1,0 +1,10 @@
+source "drivers/sstar/emmc/Kconfig"
+source "drivers/sstar/sdmmc/Kconfig"
+source "drivers/sstar/emac/Kconfig"
+source "drivers/sstar/crypto/Kconfig"
+source "drivers/sstar/cpufreq/Kconfig"
+source "drivers/sstar/miu/Kconfig"
+source "drivers/sstar/bdma/Kconfig"
+source "drivers/sstar/movedma/Kconfig"
+source "drivers/sstar/sata_host/Kconfig"
+

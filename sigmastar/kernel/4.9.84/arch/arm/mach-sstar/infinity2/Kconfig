@@ -1,0 +1,25 @@
+config ARCH_INFINITY2
+    bool "SoC iNfinity2 (ARCH_MULTI_V7)"
+    select SOC_BUS
+    select ARM_GIC
+    select VFP
+    select VFPv3
+    select WIRELESS_EXT if WIRELESS && NET
+    select WEXT_PRIV    if WIRELESS && NET
+    select HAVE_ARM_SCU if SMP
+    select ARM_GLOBAL_TIMER
+    select CACHE_L2X0
+    help
+      Support for iNfinity2 SoC
+
+config SS_PROFILING_TIME
+    bool "Record timestamp in sram"
+    default n
+
+config MP_PLATFORM_GIC_SET_MULTIPLE_CPUS
+	bool "MP_PLATFORM_GIC_SET_MULTIPLE_CPUS"
+	depends on SMP
+	default y
+config MP_GLOBAL_TIMER_CLK
+	bool "MP_GLOBAL_TIMER_CLK"
+	default y

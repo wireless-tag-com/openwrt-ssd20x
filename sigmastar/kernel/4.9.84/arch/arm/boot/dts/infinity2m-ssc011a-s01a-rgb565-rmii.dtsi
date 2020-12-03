@@ -1,0 +1,110 @@
+/*
+* infinity2m-ssc011a-s01a-rgb565-rmii.dtsi- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/ {
+    soc {
+        core_voltage {
+            //vid_gpios = <PAD_FUART_CTS PAD_FUART_RTS>;
+        };
+
+        sdmmc {
+            compatible = "sstar,sdmmc";
+
+            slotnum = <0>;
+        };
+
+        i2c0@0{
+            compatible = "sstar,i2c";
+            reg = <0x1F223000 0x200>,<0x1F203c00 0x200>,<0x1F207000 0x200>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+            clocks = <&CLK_miic0>;
+            i2c-group = <0>;
+            /*
+             * padmux: 1 -> PAD_HDMITX_SCL, PAD_HDMITX_SDA
+             *         2 -> PAD_TTL1, PAD_TTL2
+             *         3 -> PAD_TTL14, PAD_TTL15
+             *         4 -> PAD_GPIO6, PAD_GPIO7
+            */
+            i2c-padmux = <1>;
+           /*
+              *  speed: 0 -> HWI2C_HIGH(high speed: 400 KHz)
+              *         1 -> HWI2C_NORMAL(normal speed: 300 KHz)
+              *         2 -> HWI2C_SLOW(slow speed: 200 KHz)
+              *         3 -> HWI2C_VSLOW(very slow: 100 KHz)
+              *         4 -> HWI2C_USLOW(ultra slow: 50 KHz)
+              *         5 -> HWI2C_UVSLOW(ultra-very slow: 25 KHz)
+              */
+            i2c-speed = <3>;
+            i2c-en-dma = <0>;  // 0: disable; 1: enable;
+            status = "ok";
+        };
+
+        i2c1@1{
+            compatible = "sstar,i2c";
+            reg = <0x1F223200 0x200>,<0x1F203c00 0x200>,<0x1F207000 0x200>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+            clocks = <&CLK_miic1>;
+            i2c-group = <1>;
+            /*
+             * padmux: 1 -> PAD_GPIO2, PAD_GPIO3
+             *         2 -> PAD_HDMITX_SCL, PAD_HDMITX_SDA
+             *         4 -> PAD_TTL22, PAD_TTL23
+             *         5 -> PAD_SD_CLK, PAD_SD_CMD
+            */
+            i2c-padmux = <3>;
+            /*
+              *  speed: 0 -> HWI2C_HIGH(high speed: 400 KHz)
+              *         1 -> HWI2C_NORMAL(normal speed: 300 KHz)
+              *         2 -> HWI2C_SLOW(slow speed: 200 KHz)
+              *         3 -> HWI2C_VSLOW(very slow: 100 KHz)
+              *         4 -> HWI2C_USLOW(ultra slow: 50 KHz)
+              *         5 -> HWI2C_UVSLOW(ultra-very slow: 25 KHz)
+              */
+            i2c-speed = <3>;
+            i2c-en-dma = <0>;  // 0: disable; 1: enable;
+            status = "ok";
+            goodix_gt911@5D{ //EVB i2c-padmux=2 SSD201_SZ_DEMO_BOARD i2c-padmux=1
+                compatible = "goodix,gt911";
+                reg = <0x5D>;
+                goodix_rst = <PAD_GPIO1>; //SSD201_SZ_DEMO_BOARD PAD_GPIO1  EVB PAD_GPIO0
+                goodix_int = <PAD_GPIO13>; //SSD201_SZ_DEMO_BOARD PAD_GPIO13  EVB PAD_GPIO1
+                interrupts-extended = <&ms_gpi_intc INT_GPI_FIQ_GPIO13>;
+                interrupt-names = "goodix_int";
+            };
+        };
+
+        gpioi2c {
+            compatible = "sstar,infinity-gpioi2c";
+            scl-gpio = <PAD_GPIO11>;
+            sda-gpio = <PAD_GPIO12>;
+            status = "ok";
+        };
+
+        disp: disp {
+            compatible = "sstar,disp";
+            status = "ok";
+            interrupts = <GIC_SPI INT_IRQ_DISP0 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI INT_IRQ_DISP_1 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI INT_IRQ_DISP_3 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&CLK_mop>, <&CLK_disp_432>, <&CLK_disp_216>;
+            clock-names = "CLK_mop", "CLK_disp_432", "CLK_disp_216";
+            //Reg = <0x1F224000 0x200>;
+        };
+
+     };
+
+};

@@ -1,0 +1,33 @@
+--- a/inittab.c
++++ b/inittab.c
+@@ -23,6 +23,7 @@
+ #include <unistd.h>
+ #include <regex.h>
+ #include <ctype.h>
++#include <termios.h>
+ 
+ #include <libubox/utils.h>
+ #include <libubox/list.h>
+@@ -92,6 +93,7 @@
+ static void fork_worker(struct init_action *a)
+ {
+ 	pid_t p;
++	struct termios tty_attrs;
+ 
+ 	a->proc.pid = fork();
+ 	if (!a->proc.pid) {
+@@ -101,6 +103,14 @@
+ 			ERROR("Failed to setup i/o redirection\n");
+ 
+ 		ioctl(STDIN_FILENO, TIOCSCTTY, 1);
++
++		if (tcgetattr(STDIN_FILENO, &tty_attrs) < 0) {
++			ERROR("Failed to tcgetattr\n");
++		} else {
++			tcsetattr(STDIN_FILENO, TCSANOW, &tty_attrs);
++		}
++		fflush(NULL);
++
+ 		tcsetpgrp(STDIN_FILENO, p);
+ 
+ 		execvp(a->argv[0], a->argv);

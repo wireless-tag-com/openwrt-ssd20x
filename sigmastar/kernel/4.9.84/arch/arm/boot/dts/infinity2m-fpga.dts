@@ -1,0 +1,79 @@
+/*
+* infinity2m-fpga.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+ /*
+ * Memory Layout
+ * 0x20000000-0x24000000 64M Kernel
+ * 0x24000000-0x24800000 8M  system
+ * 0x24800000-0x24900000 1M  data
+ * 0x24900000-0x25000000 7M  temp0
+ * 0x25000000-0x28000000 48M temp1
+ */
+/dts-v1/;
+#include "infinity2m-fpga.dtsi"
+
+/ {
+    model = "INFINITY2M FPGA";
+    compatible = "sstar,infinity2m";
+
+    memory {
+        reg = <0x20000000 0x06000000>;
+    };
+
+    chosen {
+        bootargs = "console=ttyS0,38400n8r androidboot.console=ttyS0 root=/dev/mtdblock0 init=/linuxrc LX_MEM=0x6000000 mma_heap=mma_heap_name0,miu=0,sz=0x2000000";
+    };
+
+    rootfsp:rammtd@0 {
+        compatible = "mtd-ram";
+        reg= <0x27000000 0x00400000>;
+        bank-width = <1>;
+        linux,mtd-name = "ROOTFS";
+    };
+
+    /* Size of this partition must be identical to the size of data.jffs2 due to JFFS2 limitation */
+    datap:rammtd@1 {
+        compatible = "mtd-ram";
+        reg= <0x27400000 0x0400000>;
+        bank-width = <1>;
+        linux,mtd-name = "DATA";
+        erase-size = <0x10000>;
+    };
+
+    extp:rammtd@2 {
+        compatible = "mtd-ram";
+        reg= <0x27800000 0x0800000>;
+        bank-width = <1>;
+        linux,mtd-name = "EXT";
+        erase-size = <0x10000>;
+    };
+
+/*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        cma0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            size = <0x01000000>;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+    };
+};

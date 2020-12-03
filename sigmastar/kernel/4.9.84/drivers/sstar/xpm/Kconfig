@@ -1,0 +1,4 @@
+config MS_XPM
+    bool "eXtend PM driver"
+    
+    

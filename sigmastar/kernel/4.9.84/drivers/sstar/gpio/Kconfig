@@ -1,0 +1,8 @@
+config MS_GPIO
+    tristate "GPIO driver"
+    default y
+    help
+
+config MS_SW_I2C
+    tristate "SW I2C via GPIO support"
+    depends on MS_GPIO

@@ -1,0 +1,6 @@
+config MS_SDMMC
+	tristate "SStar SD/MMC Card Interface Support"
+	depends on MMC
+	default n
+  ---help---
+        Enable SD/MMC Driver Support for SStar Product

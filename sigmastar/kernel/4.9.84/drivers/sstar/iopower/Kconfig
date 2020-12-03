@@ -1,0 +1,4 @@
+config MS_IOPOWER
+    bool
+    depends on ARCH_INFINITY6E
+    default y

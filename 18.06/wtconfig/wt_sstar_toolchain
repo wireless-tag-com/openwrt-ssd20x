@@ -1,0 +1,50 @@
+CONFIG_DEVEL=y
+CONFIG_EXTERNAL_TOOLCHAIN=y
+# CONFIG_NATIVE_TOOLCHAIN is not set
+CONFIG_TARGET_NAME="arm-linux-gnueabihf"
+CONFIG_TOOLCHAIN_PREFIX="arm-linux-gnueabihf-"
+CONFIG_TOOLCHAIN_ROOT="/opt/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf"
+CONFIG_EXTERNAL_TOOLCHAIN_LIBC_USE_GLIBC=y
+# CONFIG_EXTERNAL_TOOLCHAIN_LIBC_USE_UCLIBC is not set
+# CONFIG_EXTERNAL_TOOLCHAIN_LIBC_USE_MUSL is not set
+CONFIG_TOOLCHAIN_LIBC="glibc"
+CONFIG_TOOLCHAIN_BIN_PATH="./bin"
+CONFIG_TOOLCHAIN_INC_PATH=""
+CONFIG_TOOLCHAIN_LIB_PATH="./arm-linux-gnueabihf/libc/usr/lib ./arm-linux-gnueabihf/libc/lib"
+# CONFIG_EXTRA_TARGET_ARCH is not set
+CONFIG_EXTRA_BINUTILS_CONFIG_OPTIONS=""
+CONFIG_EXTRA_GCC_CONFIG_OPTIONS=""
+# CONFIG_SSP_SUPPORT is not set
+# CONFIG_SJLJ_EXCEPTIONS is not set
+# CONFIG_INSTALL_LIBGCJ is not set
+# CONFIG_INSTALL_GFORTRAN is not set
+# CONFIG_INSTALL_GCCGO is not set
+# CONFIG_INSIGHT is not set
+CONFIG_USE_GLIBC=y
+CONFIG_USE_EXTERNAL_LIBC=y
+
+CONFIG_PACKAGE_libc=y
+CONFIG_LIBC_ROOT_DIR="/opt/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf/arm-linux-gnueabihf/libc"
+CONFIG_LIBC_FILE_SPEC="lib/ld{*.so*,-linux*.so.*} lib/lib{anl,c,cidn,crypt,dl,m,nsl,nss_dns,nss_files,resolv,util}{-*.so,.so.*,.so}"
+
+CONFIG_PACKAGE_libgcc=y
+CONFIG_LIBGCC_ROOT_DIR="/opt/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf/arm-linux-gnueabihf/libc"
+CONFIG_LIBGCC_FILE_SPEC="usr/lib/libgcc_s.so.*"
+
+CONFIG_PACKAGE_libpthread=y
+CONFIG_LIBPTHREAD_ROOT_DIR="/opt/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf/arm-linux-gnueabihf/libc"
+CONFIG_LIBPTHREAD_FILE_SPEC="lib/libpthread{-*.so,.so.*}"
+
+CONFIG_PACKAGE_librt=y
+CONFIG_LIBRT_ROOT_DIR="/opt/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf/arm-linux-gnueabihf/libc"
+CONFIG_LIBRT_FILE_SPEC="lib/librt{-*.so,.so.*}"
+
+# CONFIG_PACKAGE_libssp is not set
+
+CONFIG_PACKAGE_libstdcpp=y
+CONFIG_LIBSTDCPP_ROOT_DIR="/opt/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf/arm-linux-gnueabihf/libc"
+CONFIG_LIBSTDCPP_FILE_SPEC="usr/lib/libstdc++.so.*"
+
+# CONFIG_PKG_CHECK_FORMAT_SECURITY is not set
+
+

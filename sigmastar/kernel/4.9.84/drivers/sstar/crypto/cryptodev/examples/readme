@@ -1,0 +1,3 @@
+arm-linux-gnueabihf-gcc -static aes.c -o aes -I.. ;arm-linux-gnueabihf-strip  aes
+arm-linux-gnueabihf-gcc -static sha.c -o sha -I.. ;arm-linux-gnueabihf-strip  sha
+arm-linux-gnueabihf-gcc -static sha-copy.c -o sha-copy -I.. ;arm-linux-gnueabihf-strip sha-copy

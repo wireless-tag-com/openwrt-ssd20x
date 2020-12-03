@@ -1,0 +1,266 @@
+config MS_GMAC
+select NET
+select NET_ETHERNET
+select MII
+select PACKET
+select USE_POLICY_FWD
+select INET
+select NETDEVICES
+
+tristate "GMAC"
+default n
+
+---help---
+Enable compilation option for driver GMAC
+
+if MS_GMAC
+menu "MStar GMAC Driver"
+
+
+choice
+    prompt "Default Select PadMux"
+    default GMAC_TO_RMII
+    depends on MSTAR_KANO || ARCH_INFINITY2
+
+#config KANO_GMAC1_EPHY
+#bool "GMAC1 + Internal EPHY"
+#help
+#    GMAC1 + Internal EPHY
+
+config KANO_GMAC0_GPHY
+bool "GMAC0 + external GPHY"
+help
+    GMAC0 + external GPHY
+
+config GMAC_TO_RMII
+bool "GMAC0 + external EPHY"
+help
+    GMAC0 + external EPHY
+
+config KANO_GMAC1_GPHY
+bool "GMAC1 + external GPHY"
+help
+    GMAC1 + external GPHY
+
+config GMAC1_TO_RMII
+bool "GMAC1 + external EPHY"
+help
+    GMAC1 + external EPHY
+endchoice
+
+
+choice
+    prompt "Select RX Method"
+    default GMAC_Memory_Copy
+
+config GMAC_RX_Memory_Copy
+bool "Memory_Copy"
+help
+    Use memcpy and additional RX buffer for RX callback function
+
+config GMAC_RX_DMA
+bool "DMA"
+help
+    GMAC Direct access Kernel Memory in RX callback function.
+    K6, K6lite, k7 can only use one MIU for kernel Memory.
+
+endchoice
+
+config GMAC_RX_NAPI
+bool "Enable RX_NAPI"
+default y
+help
+    Enable NAPI Method. Disable interrupt during heavy tracffic.
+
+
+config GMAC_RX_NAPI_WEIGHT
+int "RX_NAPI_WEIGHT"
+depends on GMAC_RX_NAPI
+default 64
+help
+    NAPI Weight
+
+
+config GMAC_RX_GRO
+bool "Enable RX_GRO"
+default y
+help
+    Enable Generic receive offload. Merge packet with same destination and source
+
+
+config GMAC_RX_DELAY_INTERRUPT
+bool "Enable RX Delay Interrupt"
+default y
+help
+    Enable RX Delay Interrupt. Reduce interrupt number.
+
+
+config GMAC_DELAY_INTERRUPT_NUMBER
+int "Packet Threshold"
+depends on GMAC_RX_DELAY_INTERRUPT
+default 64
+help
+    MAX 255
+
+config GMAC_DELAY_INTERRUPT_TIMEOUT
+int "Timeout"
+default 6
+help
+    MAX 255
+
+
+choice
+    prompt "Select TX Queue"
+    default GMAC_TX_DESC_MODE if MSTAR_K6Lite
+    default GMAC_NEW_TX_QUEUE_V3 if MSTAR_K6
+    default GMAC_TX_4_QUEUE
+
+config GMAC_TX_4_QUEUE
+bool "Default TX Queue"
+help
+    Use default TX Queue 4.
+
+config GMAC_NEW_TX_QUEUE_V3
+bool "Enable Additional New TX Queue"
+depends on MSTAR_K6Lite || MSTAR_K6 || ARCH_INFINITY2
+help
+    Enable New TX Queue. Larger TX Queue. Kayla support
+
+config GMAC_TX_DESC_MODE
+bool "Enable TX dexcriptor Mode"
+depends on MSTAR_K6Lite || ARCH_INFINITY2
+help
+    Enable TX dexcriptor Mode. Use DRAM for TX QUEUE.
+
+endchoice
+
+if GMAC_NEW_TX_QUEUE_V3
+config GMAC_NEW_TX_QUEUE_THRESHOLD_V3
+int "New TX Queue Threshold"
+default 60
+help
+    MAX 63
+
+endif
+
+#config MSTAR_GMAC_V2
+#bool "GMAC V2"
+#default n
+#help
+#    GMAC V2 architecture. Zero memcpy in RX, pre-allocate ring buffer
+
+if MSTAR_GMAC_V2
+config GMAC_RX_CMA
+bool "Support RX skb allocated from CMA buffer"
+default n
+help
+    Support RX skb allocated from CMA buffer
+
+config GMAC_TX_ENHANCEMENT
+bool "Select TX enhancement"
+default n
+help
+    Select TX enhancement
+
+if GMAC_TX_ENHANCEMENT
+
+choice
+    prompt "TX enhancement select"
+    default GMAC_NEW_TX_QUEUE
+
+config GMAC_NEW_TX_QUEUE
+bool "Use new TX queue hardware design"
+help
+    Use new TX queue hardware design, it's now supported on K6.
+
+if GMAC_NEW_TX_QUEUE
+config GMAC_NEW_TX_QUEUE_THRESHOLD
+int "New TX queue threshold"
+default 60
+help
+    New TX queue threshold
+endif
+
+config GMAC_TX_ZERO_COPY_SW_QUEUE
+bool "Support TX zero copy with software queue"
+help
+    Support TX zero copy with software queue
+
+endchoice
+
+endif
+
+config GMAC_ISR_BOTTOM_HALF
+bool "Support ISR bottom-half"
+default n
+help
+    Support ISR bottom-half
+
+if GMAC_ISR_BOTTOM_HALF
+
+choice
+    prompt "GMAC ISR BH select"
+    default GMAC_ISR_BH_NAPI
+
+config GMAC_ISR_BH_TASKLET
+bool "Use tasklet for bottom-half"
+help
+    Use tasklet for bottom-half
+
+config GMAC_ISR_BH_NAPI
+bool "Use NAPI for bottom-half"
+help
+    Use NAPI for bottom-half
+
+if GMAC_ISR_BH_NAPI
+config GMAC_NAPI_WEIGHT
+int "NAPI weight"
+default 64
+help
+    NAPI weight
+
+config GMAC_NAPI_GRO
+bool "Use NAPI GRO mechanism"
+default n
+help
+    Use NAPI GRO mechanism
+endif
+
+endchoice
+
+endif
+endif
+
+config GMAC_SUPPLY_RNG
+bool "Supply to random number generator device"
+default n
+help
+    Supply to random number generator device
+
+#config GMAC_ETHERNET_ALBANY
+#bool "Supply to internel PHY"
+#default n
+#help
+#    Supply to internel PHY
+
+config MSTAR_GMAC_HW_TX_CHECKSUM
+bool "Supply to hardware TX checksum"
+default n
+help
+    Supply to hardware TX checksum
+
+config MSTAR_GMAC_JUMBO_PACKET
+bool "Supply to jumbo packet"
+default n
+help
+    Supply to jumbo packet
+
+#config MSTAR_GMAC_RMII_DOWNGRADE_MODE
+#bool "Supply GMAC to use external EPHY by RMII"
+#default n
+#help
+#    Supply to GMAC use external RMII EPHY
+
+endmenu #"MStar GMAC Driver"
+
+endif

@@ -1,0 +1,66 @@
+/* Copyright (c) 2018-2019 Sigmastar Technology Corp.
+ All rights reserved.
+
+ Unless otherwise stipulated in writing, any and all information contained
+herein regardless in any format shall remain the sole proprietary of
+Sigmastar Technology Corp. and be kept in strict confidence
+(Sigmastar Confidential Information) by the recipient.
+Any unauthorized act including without limitation unauthorized disclosure,
+copying, use, reproduction, sale, distribution, modification, disassembling,
+reverse engineering and compiling of the contents of Sigmastar Confidential
+Information is unlawful and strictly prohibited. Sigmastar hereby reserves the
+rights to any and all damages, losses, costs and expenses resulting therefrom.
+*/
+
+///////////////////////////////////////////////////////////////////////////////
+/// @file      cam_sysfs.h
+/// @brief     Cam sysfs Wrapper Header File for
+///            1. RTK OS
+///            3. Linux Kernel Space
+///////////////////////////////////////////////////////////////////////////////
+
+#ifndef __CAM_SYSFS_H__
+#define __CAM_SYSFS_H__
+#include <linux/module.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/sysfs.h>
+#include <linux/device.h>
+#include <linux/kobject.h>
+typedef unsigned char       u8;
+typedef signed   char       s8;
+typedef unsigned short      u16;
+typedef signed   short      s16;
+typedef unsigned int        u32;
+typedef signed   int        s32;
+typedef unsigned long long  u64;
+typedef signed   long long  s64;
+
+void CamModulePlatformDriver(struct platform_driver);
+
+void CamClassDestroy(struct class *cls);
+struct class * __must_check CamClassCreate(struct module *owner, const char *name);
+struct kobject *CamKobjectCreateAndAdd(const char *name, struct kobject *parent);
+void CamDeviceUnregister(struct device *dev);
+void CamDeviceRemoveFile(struct device *dev, const struct device_attribute *attr);
+void CamDeviceDestroy(struct class *class, dev_t devt);
+int CamDeviceCreateFile(struct device *dev, const struct device_attribute *attr);
+struct device *CamDeviceCreate(struct class *class, struct device *parent, dev_t devt, void *drvdata, const char *fmt, ...);
+void CamSysfsRemoveFiles(struct kobject *kobj, const struct attribute **attr);
+void CamSysfsRemoveFile(struct kobject *kobj, const struct attribute *attr);
+int CamSysfsCreateLink(struct kobject *kobj, struct kobject *target, const char *name);
+int CamSysfsCreateFiles(struct kobject *kobj, const struct attribute **ptr);
+int __must_check CamSysfsCreateFile(struct kobject *kobj, const struct attribute * attr);
+int CamPlatformGetIrqByname(struct platform_device *dev, const char *name);
+void CamPlatformDriverUnregister(struct platform_driver *drv);
+int CamPlatformDriverRegister(struct platform_driver *drv);
+struct resource *CamPlatformGetResource(struct platform_device *dev, unsigned int type, unsigned int num);
+int CamOfAddressToResource(struct device_node *dev, int index, struct resource *r);
+int CamOfIrqToResource(struct device_node *dev, int index, struct resource *r);
+int CamOfPropertyReadU32Index(const struct device_node *np, const char *propname, u32 index, u32 *out_value);
+int CamOfPropertyReadVariableU32Array(const struct device_node *np, const char *propname, u32 *out_values, size_t sz_min, size_t sz_max);
+
+#endif /* __CAM_SYSFS_H__ */

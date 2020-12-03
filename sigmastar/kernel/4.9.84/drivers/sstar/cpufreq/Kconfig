@@ -1,0 +1,8 @@
+config MS_CPU_FREQ
+	tristate "Mstar CPU frequency scaling driver"
+    select CPU_FREQ
+    select CPU_FREQ_STAT_DETAILS
+    select CPU_FREQ_GOV_POWERSAVE
+    select CPU_FREQ_GOV_ONDEMAND
+    select CPU_FREQ_GOV_USERSPACE
+    select PM_OPP

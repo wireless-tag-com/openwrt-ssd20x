@@ -1,0 +1,19 @@
+config MSTAR_MIU
+
+tristate "MSTAR MIU"
+
+help
+    MStar miu driver
+default n
+
+if MSTAR_MIU
+choice
+	prompt "MIU_PROTECT"
+	default SSC007A_S01A
+config SSC007A_S01A
+ bool "ssc007a-s01a"
+endchoice
+
+
+endif
+    

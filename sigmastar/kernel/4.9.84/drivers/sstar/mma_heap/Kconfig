@@ -1,0 +1,8 @@
+config MSTAR_MMAHEAP
+bool  "MMA HEAP"
+select MSTAR_MIU
+default n
+ 
+help
+    MStar MMA HEAP driver function
+    

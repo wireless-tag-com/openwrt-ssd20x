@@ -1,0 +1,14 @@
+config ARCH_INFINITY6
+    bool "SoC iNfinity6 (ARCH_MULTI_V7)" if ARCH_MULTI_V7
+    select SOC_BUS
+    select ARM_GIC        
+    select VFP
+    select VFPv3
+    select WIRELESS_EXT if WIRELESS && NET
+    select WEXT_PRIV    if WIRELESS && NET
+    help
+      Support for iNfinity6 SoC
+
+config SS_PROFILING_TIME
+    bool "Record timestamp in sram"
+    default y

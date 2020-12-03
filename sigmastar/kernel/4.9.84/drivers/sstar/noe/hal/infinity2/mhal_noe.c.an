@@ -1,0 +1,3577 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2006-2007 MStar Semiconductor, Inc.
+// All rights reserved.
+//
+// Unless otherwise stipulated in writing, any and all information contained
+// herein regardless in any format shall remain the sole proprietary of
+// MStar Semiconductor Inc. and be kept in strict confidence
+// (“MStar Confidential Information”) by the recipient.
+// Any unauthorized act including without limitation unauthorized disclosure,
+// copying, use, reproduction, sale, distribution, modification, disassembling,
+// reverse engineering and compiling of the contents of MStar Confidential
+// Information is unlawful and strictly prohibited. MStar hereby reserves the
+// rights to any and all damages, losses, costs and expenses resulting therefrom.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///
+/// @file   Mhal_noe.c
+/// @brief  NOE Driver
+/// @author MStar Semiconductor Inc.
+///
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+//-------------------------------------------------------------------------------------------------
+//  Include files
+//-------------------------------------------------------------------------------------------------
+
+#include <linux/kernel.h>
+#include <linux/delay.h>
+#include "mdrv_types.h"
+#include "mst_platform.h"
+#include "mdrv_system.h"
+//#include "chip_int.h"
+#include "mstar/mstar_chip.h"
+#include "mhal_noe_reg.h"
+#include "mhal_noe.h"
+#include "mhal_noe_lro.h"
+
+
+#define  NEW_GPHY 1
+//-------------------------------------------------------------------------------------------------
+//  Data structure
+//-------------------------------------------------------------------------------------------------
+
+typedef enum {
+    E_MHAL_NOE_DELAY_NS_0,
+    E_MHAL_NOE_DELAY_NS_2,
+}EN_MHAL_NOE_DELAY_TIME;
+
+struct _mhal_mii_info{
+    unsigned char noe_mii_force_mode;
+    u32 phy_addr;
+    EN_NOE_SPEED speed;
+    EN_NOE_DUPLEX duplex;
+};
+
+struct _mhal_intr_info {
+    void __iomem *fe_tx_int_status;
+    void __iomem *fe_tx_int_enable;
+    void __iomem *fe_rx_int_status;
+    void __iomem *fe_rx_int_enable;
+    MS_U32 reg_int_val_p;
+    MS_U32 reg_int_val_q;
+};
+
+struct _mhal_noe_config{
+    struct _mhal_mii_info mii_info[E_NOE_GE_MAC_MAX];
+    EN_NOE_HAL_LOG noe_dbg_enable;
+    struct _mhal_intr_info intr_info;
+    EN_NOE_SEL noe_internal_phy_enable; 
+    MS_BOOL mdio_n;
+    EN_NOE_SEL_PIN_MUX pin_mux;
+    MS_U16 version;
+    EN_MHAL_NOE_DELAY_TIME delay;
+};
+
+
+typedef void (*_MHAL_DMA_GET_INFO) (void *);
+typedef void (*_MHAL_PINMUX_SEL) (void );
+//--------------------------------------------------------------------------------------------------
+//  Constant definition
+//--------------------------------------------------------------------------------------------------
+#define NOE_WAIT_IDLE_THRESHOLD (1000)
+
+
+#define MHAL_NOE_DBG_INFO(fmt, args...) \
+{\
+    if (noe_config.noe_dbg_enable & E_NOE_HAL_LOG_DBG)\
+        printk(fmt, ##args);\
+}
+
+#define MHAL_NOE_INTR_INFO(fmt, args...) \
+{\
+    if (noe_config.noe_dbg_enable & E_NOE_HAL_LOG_INTR)\
+        printk(fmt, ##args);\
+}
+//--------------------------------------------------------------------------------------------------
+//  Local Functions
+//--------------------------------------------------------------------------------------------------
+static void _MHal_NOE_PDMA_Get_Dbg(void *dbg_info);
+static void _MHal_NOE_QDMA_Get_Cnt(void *cnt_info);
+static void _MHal_NOE_QDMA_Get_Fq(void *fq_info);
+static void _MHal_NOE_QDMA_Get_Sch(void *rate_info);
+static void _MHal_NOE_QDMA_Get_Fc(void *fc_info);
+static void _MHal_NOE_QDMA_Get_Fsm(void *fsm_info);
+static void _MHal_NOE_QDMA_Get_Vq(void *vq_info);
+static void _MHal_NOE_QDMA_Get_Pq(void *pq_info);
+static void _MHal_NOE_GE1ToGPHY_GE2ToPM(void);
+static void _MHal_NOE_GE1ToPM_GE2ToCHIPTOP(void);
+static void _MHal_NOE_GE1ToGPHY_GE2ToCHIPTOP(void);
+static void _MHal_NOE_GE1ToGPHY(void);
+static void _MHal_NOE_GE1ToPM(void);
+static void _MHal_NOE_GE2ToPM(void);
+static void _MHal_NOE_GE2ToCHIPTOP(void);
+static void _MHal_NOE_Set_Auto_Polling(EN_NOE_SEL enable);
+
+//--------------------------------------------------------------------------------------------------
+//  Variable
+//--------------------------------------------------------------------------------------------------
+
+void __iomem *ethdma_sysctl_base;
+EXPORT_SYMBOL(ethdma_sysctl_base);
+
+
+//--------------------------------------------------------------------------------------------------
+//  Local Variable
+//--------------------------------------------------------------------------------------------------
+
+static _MHAL_DMA_GET_INFO _mhal_noe_qdma_get_info_pfn[E_NOE_QDMA_INFO_MAX] = {
+    [E_NOE_QDMA_INFO_CNT] = _MHal_NOE_QDMA_Get_Cnt,
+    [E_NOE_QDMA_INFO_FQ] = _MHal_NOE_QDMA_Get_Fq,
+    [E_NOE_QDMA_INFO_SCH] = _MHal_NOE_QDMA_Get_Sch,
+    [E_NOE_QDMA_INFO_FC] = _MHal_NOE_QDMA_Get_Fc,
+    [E_NOE_QDMA_INFO_FSM] = _MHal_NOE_QDMA_Get_Fsm,
+    [E_NOE_QDMA_INFO_VQ] = _MHal_NOE_QDMA_Get_Vq,
+    [E_NOE_QDMA_INFO_PQ] = _MHal_NOE_QDMA_Get_Pq,
+};
+
+static _MHAL_DMA_GET_INFO _mhal_noe_pdma_get_info_pfn[E_NOE_PDMA_INFO_MAX] = {
+    [E_NOE_PDMA_INFO_DBG] = _MHal_NOE_PDMA_Get_Dbg,
+};
+
+static _MHAL_PINMUX_SEL _mhal_noe_pinmux_pfn[E_NOE_SEL_PIN_MUX_MAX] = {
+    [E_NOE_SEL_PIN_MUX_GE1_TO_GPHY] = _MHal_NOE_GE1ToGPHY,
+    [E_NOE_SEL_PIN_MUX_GE1_TO_PM] = _MHal_NOE_GE1ToPM,
+    [E_NOE_SEL_PIN_MUX_GE2_TO_PM] = _MHal_NOE_GE2ToPM,
+    [E_NOE_SEL_PIN_MUX_GE2_TO_CHIPTOP] = _MHal_NOE_GE2ToCHIPTOP,
+    [E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM] = _MHal_NOE_GE1ToGPHY_GE2ToPM,
+    [E_NOE_SEL_PIN_MUX_GE1_TO_PM_GE2_TO_CHIPTOP] = _MHal_NOE_GE1ToPM_GE2ToCHIPTOP,
+    [E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_CHIPTOP] = _MHal_NOE_GE1ToGPHY_GE2ToCHIPTOP,
+};
+
+static struct _mhal_noe_config  noe_config = {
+    .mii_info = {
+        [E_NOE_GE_MAC1] = {
+            .noe_mii_force_mode = NOE_DISABLE,
+            .phy_addr = NOE_INVALID_PHY_ADDR,
+            .speed = E_NOE_SPEED_INVALID,
+            .duplex = E_NOE_DUPLEX_INVALID,
+        },
+        [E_NOE_GE_MAC2] = {
+            .noe_mii_force_mode = NOE_DISABLE,
+            .phy_addr = NOE_INVALID_PHY_ADDR,
+            .speed = E_NOE_SPEED_INVALID,
+            .duplex = E_NOE_DUPLEX_INVALID,
+        },
+    },
+    .noe_dbg_enable = NOE_DISABLE,
+    .intr_info = {
+        .fe_tx_int_status = NULL,
+        .fe_tx_int_enable = NULL,
+        .fe_rx_int_status = NULL,
+        .fe_rx_int_enable = NULL,
+    },
+#if CONFIG_NOE_MDIO_NEW_MODE
+    .mdio_n = 1,
+#else
+    .mdio_n = 0,
+#endif
+    .version = 0xFFFF,
+    .delay = E_MHAL_NOE_DELAY_NS_2,
+};
+
+static void _MHal_NOE_Init_Mdio(EN_NOE_SEL_PIN_MUX sel)
+{
+    if (sel == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY) {
+        //NOE_RIU_REG(0x121E, 0x06 << 1) = NOE_RIU_REG(0x121F, 0x3C) | BIT(0);
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM) {
+        /* PAD_PM */ 
+        //NOE_RIU_REG(0x121F, 0x1E << 1) = NOE_RIU_REG(0x121F, 0x1E << 1) | BIT(14);
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE1_TO_PM) { 
+
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE1_TO_PM_GE2_TO_CHIPTOP) {
+        //NOE_RIU_REG(0x121E, 0x06 << 1) = NOE_RIU_REG(0x121F, 0x3C) & (~BIT(0));
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE2_TO_PM) {
+
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM) {
+
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE2_TO_CHIPTOP) {
+
+    }
+    else if (sel == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_CHIPTOP) {
+
+    }
+}
+
+static void _MHal_NOE_Reset_SW(void)
+{
+    NOE_RIU_REG(NOE_RIU_BANK_NOE_MISC, 0x00 << 1) = 0x0003;
+    udelay(1);
+    NOE_RIU_REG(NOE_RIU_BANK_NOE_MISC, 0x00 << 1) = 0x0000;
+}
+
+static void _MHal_NOE_Init_Clock(void)
+{
+    /* NOE */ 
+    NOE_RIU_REG(NOE_RIU_BANK_CLKGEN2, 0x70 << 1) = 0x0404;
+    NOE_RIU_REG(NOE_RIU_BANK_CLKGEN2, 0x71 << 1) = 0x0000;
+    NOE_RIU_REG(NOE_RIU_BANK_CLKGEN2, 0x74 << 1) = 0x0000;
+
+    /* WED */
+    NOE_RIU_REG(NOE_RIU_BANK_CLKGEN2, 0x72 << 1) = 0x0004;
+    NOE_RIU_REG(NOE_RIU_BANK_CLKGEN2, 0x73 << 1) = 0x0004;
+    
+    /* Reset */
+    _MHal_NOE_Reset_SW();
+ 
+    /* GMACPLL */
+    MHal_NOE_Write8_Reg(NOE_RIU_BANK_CLKGEN0, (0x63 << 1), 0x00);
+    NOE_RIU_REG(NOE_RIU_BANK_ANA_MISC_GMAC, 0x68 << 1) = 0xBC4F;
+    NOE_RIU_REG(NOE_RIU_BANK_ANA_MISC_GMAC, 0x69 << 1) = 0x0014;
+    NOE_RIU_REG(NOE_RIU_BANK_ANA_MISC_GMAC, 0x63 << 1) = 0x0000;
+    udelay(50);
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_CLKGEN2, 0x01 << 1), 0xFF00, 0x0C00);
+    NOE_RIU_REG(NOE_RIU_BANK_CLKGEN1, 0x32 << 1) = 0x0000;
+}
+
+
+static void _MHal_NOE_GPHY_Set_Addr(MS_U8 addr)
+{
+    MS_U16 regValue;
+    regValue = NOE_RIU_REG(0x0035, 0x68) & 0xFFF0;
+    NOE_RIU_REG(0x0035, 0x68) = regValue | addr;
+    MHAL_NOE_DBG_INFO("GPHY ADDR  = 0x%x \n", NOE_RIU_REG(0x0035, 0x68));
+}
+
+
+static inline void MHal_NOE_GPHY_Write45_Mii_Mgr(MS_U8 phy_addr, MS_U8 device, MS_U32 address, MS_U32 value)
+{
+    u16 uVal;
+    u8  uRegVal;
+
+    uVal = (GPHY_MDIO_START_CL45 << GPHY_MDIO_START_SHIFT)
+         | (GPHY_MDIO_OPCODE_CL45_ADDRESS << GPHY_MDIO_OPCODE_SHIFT)
+         | ((phy_addr & 0x1f) << GPHY_MDIO_PHY_ADDRESS_SHIFT)
+         | ((device & 0x1f) << GPHY_MDIO_REG_ADDRESS_SHIFT)
+         | GPHY_MDIO_TA;
+
+    printk("[%s][%d] address = 0x%04x, uVal=0x%04x \n",__FUNCTION__,__LINE__,address, uVal);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);
+    NOE_RIU_REG(0x0035, 0xf2) = address & 0xFFFF;
+    NOE_RIU_REG(0x0035, 0xf4) = uVal;
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);
+
+    udelay(200);
+
+    uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+
+    while(!(uRegVal & 0x80))
+    {
+        printk("uRegVal = 0x%02x\n", uRegVal);
+        uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+        barrier ();
+    }
+
+    uVal = (GPHY_MDIO_START_CL45 << GPHY_MDIO_START_SHIFT)
+         | (GPHY_MDIO_OPCODE_WRITE << GPHY_MDIO_OPCODE_SHIFT)
+         | ((phy_addr & 0x1f) << GPHY_MDIO_PHY_ADDRESS_SHIFT)
+         | ((device & 0x1f) << GPHY_MDIO_REG_ADDRESS_SHIFT)
+         | GPHY_MDIO_TA;
+
+    printk("[%s][%d] value = 0x%04X, uVal=0x%04X \n",__FUNCTION__,__LINE__,value, uVal);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);
+    NOE_RIU_REG(0x0035, 0xf2) = value & 0xFFFF;
+    NOE_RIU_REG(0x0035, 0xf4) = uVal;
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);
+
+    udelay(200);
+
+    uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+
+    while(!(uRegVal & 0x80))
+    {
+        printk("uRegVal = 0x%02x\n", uRegVal);
+        uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+        barrier ();
+    }
+
+}
+
+
+static inline void _MHal_NOE_GPHY_Set_Config(MS_U8 phy_addr)
+{
+
+    //// reg_led_mode = 2'b01
+    MHal_NOE_Write8_Reg(0x000e, 0x50, 0x10);////wriu    0x00000e50 0x10
+    MHal_NOE_Write8_Reg(0x000e, 0x51, 0x00);////wriu    0x00000e51 0x00
+
+    ////Set LED0 on control
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h024, 16'hc007);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0024, 0xc007);
+    udelay(200);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0024, 0xc007);
+
+    ////Set LED3 on control
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h02a, 16'hc007);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x002a, 0xc007);
+
+    ////Set LED3 Blinking
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h02b, 16'h003f);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x002b, 0x003f);
+
+    //Set LED Basic control
+    //reg_mdio_cl45_write(addr, 16'h1f, 16'h021, 16'h800a);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0021, 0x800a);
+
+#if 0
+    ////By mode setting Start
+
+    //// DA_AD_CORE_PWD_C TBT=1, HBT=1
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h0e4, 16'h1101);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x00e4, 0x1101);
+
+    //// DA_AD_CORE_PWD_D TBT=1, HBT=1
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h0e5, 16'h1101);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x00e5, 0x1101);
+
+    ////DA_TX_CM1_OP
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h26a, 16'h0440);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x026a, 0x0440);
+
+    ////Set cr_da_tx_cm1_op_tsmode
+    ////Set cr_da_tx_rm1_op_tsmode
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h26b, 16'h0000);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x026b, 0x0000);
+
+    ////Set cr_da_tx_cm1_op_gbe_slp
+    ////Set cr_da_tx_cm2_op_gbe_slp
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h302, 16'h0004);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0302, 0x0004);
+
+    ////Set DA_TX_FILTER_CAP_A
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h023, 16'h0555);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0023, 0x0555);
+
+    ////Set DA_TX_FILTER_CAP_B
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h024, 16'h0555);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0024, 0x0555);
+
+    ////Set DA_TX_FILTER_CAP_C
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h025, 16'h0555);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0025, 0x0555);
+
+    ////Set DA_TX_FILTER_CAP_D
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h026, 16'h0555);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0026, 0x0555);
+
+    ////Set DA_TX_OVERSHOOT_EN
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h011, 16'h0f00);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0011, 0x0f00);
+
+    ////Set CR_DA_TX_PS_DRIR0
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h269, 16'h444f);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0269, 0x444f);
+
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h268, 16'h03f4);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0268, 0x03f4);
+
+    ////Set CR_DA_TX_PS_OP
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h272, 16'h35bf);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0272, 0x35bf);
+
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h271, 16'h7e94);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x0271, 0x7e94);
+
+    ////Set DA_TX_I2MPB_A
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h016, 16'h4010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0016, 0x4010);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h012, 16'h4010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0012, 0x4010);
+
+    ////Set DA_TX_I2MPB_B
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h018, 16'h1010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0018, 0x1010);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h017, 16'h1010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0017, 0x1010);
+
+    ////Set DA_TX_I2MPB_C
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h019, 16'h1010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0019, 0x1010);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h020, 16'h1010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0020, 0x1010);
+
+    ////Set DA_TX_I2MPB_D
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h022, 16'h1010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0022, 0x1010);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h021, 16'h1010);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1e, 0x0021, 0x1010);
+
+    ////Set CR_DA_TX_I2MPB_10M
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h27c, 16'h0000);
+    MHal_NOE_GPHY_Write45_Mii_Mgr(phy_addr, 0x1f, 0x027c, 0x0000);
+#endif
+}
+
+void MHal_NOE_GPHY_Read_Mii_Mgr(unsigned char phy_addr, unsigned char address,u32 *value)
+{
+    u32 uVal;
+    u8  uRegVal;
+
+    uVal = (GPHY_MDIO_START_CL22 << GPHY_MDIO_START_SHIFT)
+         | (GPHY_MDIO_OPCODE_CL22_READ << GPHY_MDIO_OPCODE_SHIFT)
+         | ((phy_addr & 0x1f) << GPHY_MDIO_PHY_ADDRESS_SHIFT)
+         | ((address & 0x1f) << GPHY_MDIO_REG_ADDRESS_SHIFT)
+         | GPHY_MDIO_TA;
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);
+    NOE_RIU_REG(0x0035, 0xf2) = 0x0;
+    NOE_RIU_REG(0x0035, 0xf4) = uVal;
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);
+
+    udelay(200);
+
+    uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+
+    while(!(uRegVal & 0x80))
+    {
+        uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+        barrier ();
+    }
+
+    *value = (u32)NOE_RIU_REG(0x0035, 0xf6);
+
+    printk("%s(phy_addr = 0x%x, address = 0x%02x, value = 0x%04x)\n", __FUNCTION__, (u32)phy_addr, (u32)address, *value);
+}
+
+void MHal_NOE_GPHY_Write_Mii_Mgr(unsigned char phy_addr, unsigned char address, u32 value)
+{
+    u16 uVal;
+    u8  uRegVal;
+
+    uVal = (GPHY_MDIO_START_CL22 << GPHY_MDIO_START_SHIFT)
+         | (GPHY_MDIO_OPCODE_WRITE << GPHY_MDIO_OPCODE_SHIFT)
+         | ((phy_addr & 0x1f) << GPHY_MDIO_PHY_ADDRESS_SHIFT)
+         | ((address & 0x1f) << GPHY_MDIO_REG_ADDRESS_SHIFT)
+         | GPHY_MDIO_TA;
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);
+    NOE_RIU_REG(0x0035, 0xf2) = value & 0xFFFF;
+    NOE_RIU_REG(0x0035, 0xf4) = uVal;
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);
+
+    udelay(200);
+
+    uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+
+    while(!(uRegVal & 0x80))
+    {    
+        printk("uRegVal = 0x%02x\n", uRegVal);
+        uRegVal = MHal_NOE_Read8_Reg(0x0035, 0xf0);
+        barrier ();
+    }    
+
+    printk("%s(phy_addr = 0x%x, address = 0x%02x, value = 0x%04x)\n", __FUNCTION__, (u32)phy_addr, (u32)address, value);
+}
+
+MS_BOOL MHal_NOE_GPHY_Get_Link_Info(MS_U8 phy_addr)
+{
+    MS_U32 value;
+    MS_U8 counter = 0;
+    MHal_NOE_GPHY_Read_Mii_Mgr(phy_addr, GPHY_REG_STATUS, &value);
+    while(!(value & GPHY_AN_DONE))
+    {
+        //wait 4 secs
+        counter++;
+        if(counter > 20)
+        {
+            printk("AN fail \n");
+            return FALSE;
+        }
+
+        mdelay(200);
+        MHal_NOE_GPHY_Read_Mii_Mgr(phy_addr, GPHY_REG_STATUS, &value);
+    } 
+    counter = 0;
+    MHal_NOE_GPHY_Read_Mii_Mgr(phy_addr, GPHY_REG_STATUS, &value);
+    while(!(value & GPHY_LINK_UP))
+    {
+        //wait 4 secs
+        counter++;
+        if(counter > 20)
+        {
+            printk("Link up fail \n");
+            return FALSE;
+        }
+
+        mdelay(200);
+        MHal_NOE_GPHY_Read_Mii_Mgr(phy_addr, GPHY_REG_STATUS, &value);
+    }
+
+    MHal_NOE_GPHY_Read_Mii_Mgr(phy_addr, GPHY_REG_STAT1000, &value);
+    if(value &  LPA_1000FULL) {
+        printk(" 1000 FUll\n");
+    }
+    else {
+        MHal_NOE_GPHY_Read_Mii_Mgr(phy_addr, GPHY_REG_LINK_PARTNER, &value);
+        if(value & (LPA_100FULL |  LPA_100HALF)) {
+            if(value & LPA_100FULL){
+                printk(" 100 FUll\n");
+                //MHalThisBCE.duplex = 1;
+            }
+            else {
+                printk(" 100 Half\n");
+                //MHalThisBCE.duplex = 0;
+            }
+        }
+        else {
+            if(value & LPA_10FULL) {
+                printk(" 10 FUll\n");
+                //MHalThisBCE.duplex = 1;
+            }
+            else {
+                printk(" 10 Half\n");
+                //MHalThisBCE.duplex = 0;
+            }
+
+        }
+         
+    }
+    return TRUE;
+}
+
+static void _MHal_NOE_GPHY_Init(void)
+{
+#if NEW_GPHY
+    //swch 3
+    MHal_NOE_Write8_Reg(0x000e, 0x7a, 0x00);////wriu    0x00000e7a 0x00
+    MHal_NOE_Write8_Reg(0x000e, 0x7b, 0x00);////wriu    0x00000e7b 0x00
+    //swch 4
+    MHal_NOE_Write8_Reg(0x110b, 0x03, 0x00);////wriu    0x00110b03 0x00
+    MHal_NOE_Write8_Reg(0x110a, 0xc4, 0x01);////wriu    0x00110ac4 0x01
+    MHal_NOE_Write8_Reg(0x110a, 0xc5, 0x00);////wriu    0x00110ac5 0x00
+    MHal_NOE_Write8_Reg(0x110a, 0x23, 0x00);////wriu    0x00110a23 0x00
+    MHal_NOE_Write8_Reg(0x1124, 0xc4, 0x01);////wriu    0x001124c4 0x01
+    MHal_NOE_Write8_Reg(0x1124, 0xc5, 0x00);////wriu    0x001124c5 0x00
+    MHal_NOE_Write8_Reg(0x1124, 0x23, 0x00);////wriu    0x00112423 0x00
+    MHal_NOE_Write8_Reg(0x1109, 0x63, 0x00);////wriu    0x00110963 0x00
+    MHal_NOE_Write8_Reg(0x1109, 0x73, 0x00);////wriu    0x00110973 0x00
+    MHal_NOE_Write8_Reg(0x1109, 0x83, 0x00);////wriu    0x00110983 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0x00, 0x04);////wriu    0x00100b00 0x04
+    MHal_NOE_Write8_Reg(0x100b, 0x01, 0x00);////wriu    0x00100b01 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0x2e, 0x00);////wriu    0x00100b2e 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0x2f, 0x03);////wriu    0x00100b2f 0x03
+    MHal_NOE_Write8_Reg(0x100b, 0x3e, 0x18);////wriu    0x00100b3e 0x18
+    MHal_NOE_Write8_Reg(0x100b, 0x3f, 0x00);////wriu    0x00100b3f 0x00
+    MHal_NOE_Write8_Reg(0x100a, 0x40, 0x18);////wriu    0x00100a40 0x18
+    MHal_NOE_Write8_Reg(0x100a, 0x41, 0x00);////wriu    0x00100a41 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0x20, 0x00);////wriu    0x00100b20 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0x21, 0x00);////wriu    0x00100b21 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0x20, 0x01);////wriu    0x00100b20 0x01
+    MHal_NOE_Write8_Reg(0x100b, 0x21, 0x00);////wriu    0x00100b21 0x00
+    MHal_NOE_Write8_Reg(0x100b, 0xfa, 0x04);////wriu    0x00100bfa 0x04
+    //swch 3
+    MHal_NOE_Write8_Reg(0x000e, 0x40, 0x80);////wriu    0x00000e40 0x80
+    MHal_NOE_Write8_Reg(0x000e, 0x41, 0x00);////wriu    0x00000e41 0x00
+    //swch 4
+    MHal_NOE_Write8_Reg(0x1008, 0x00, 0xc0);////wriu    0x00100800 0xc0
+    MHal_NOE_Write8_Reg(0x1008, 0x0e, 0x01);////wriu    0x0010080e 0x01
+    MHal_NOE_Write8_Reg(0x1008, 0x04, 0x10);////wriu    0x00100804 0x10
+    MHal_NOE_Write8_Reg(0x1008, 0x05, 0x01);////wriu    0x00100805 0x01
+    MHal_NOE_Write8_Reg(0x1008, 0x40, 0xc0);////wriu    0x00100840 0xc0
+    MHal_NOE_Write8_Reg(0x1008, 0x4e, 0x01);////wriu    0x0010084e 0x01
+    MHal_NOE_Write8_Reg(0x1008, 0x44, 0x10);////wriu    0x00100844 0x10
+    MHal_NOE_Write8_Reg(0x1008, 0x45, 0x01);////wriu    0x00100845 0x01
+    MHal_NOE_Write8_Reg(0x103a, 0x88, 0x0f);////wriu    0x00103a88 0x0f
+    MHal_NOE_Write8_Reg(0x103a, 0x89, 0x04);////wriu    0x00103a89 0x04
+    MHal_NOE_Write8_Reg(0x103a, 0x80, 0x01);////wriu    0x00103a80 0x01
+    MHal_NOE_Write8_Reg(0x103a, 0x81, 0x00);////wriu    0x00103a81 0x00
+    MHal_NOE_Write8_Reg(0x103a, 0x08, 0x0f);////wriu    0x00103a08 0x0f
+    MHal_NOE_Write8_Reg(0x103a, 0x09, 0x04);////wriu    0x00103a09 0x04
+    MHal_NOE_Write8_Reg(0x103a, 0x00, 0x01);////wriu    0x00103a00 0x01
+    MHal_NOE_Write8_Reg(0x103a, 0x01, 0x00);////wriu    0x00103a01 0x00
+    MHal_NOE_Write8_Reg(0x123e, 0x08, 0x0f);////wriu    0x00123e08 0x0f
+    MHal_NOE_Write8_Reg(0x123e, 0x09, 0x04);////wriu    0x00123e09 0x04
+    MHal_NOE_Write8_Reg(0x123e, 0x00, 0x01);////wriu    0x00123e00 0x01
+    MHal_NOE_Write8_Reg(0x123e, 0x01, 0x00);////wriu    0x00123e01 0x00
+    MHal_NOE_Write8_Reg(0x1038, 0x08, 0x0f);////wriu    0x00103808 0x0f
+    MHal_NOE_Write8_Reg(0x1038, 0x09, 0x04);////wriu    0x00103809 0x04
+    MHal_NOE_Write8_Reg(0x1038, 0x00, 0x01);////wriu    0x00103800 0x01
+    MHal_NOE_Write8_Reg(0x1038, 0x01, 0x00);////wriu    0x00103801 0x00
+    MHal_NOE_Write8_Reg(0x1038, 0x88, 0x0f);////wriu    0x00103888 0x0f
+    MHal_NOE_Write8_Reg(0x1038, 0x89, 0x04);////wriu    0x00103889 0x04
+    MHal_NOE_Write8_Reg(0x1038, 0x80, 0x01);////wriu    0x00103880 0x01
+    MHal_NOE_Write8_Reg(0x1038, 0x81, 0x00);////wriu    0x00103881 0x00
+    MHal_NOE_Write8_Reg(0x141a, 0x08, 0x0f);////wriu    0x00141a08 0x0f
+    MHal_NOE_Write8_Reg(0x141a, 0x09, 0x04);////wriu    0x00141a09 0x04
+    MHal_NOE_Write8_Reg(0x141a, 0x00, 0x01);////wriu    0x00141a00 0x01
+    MHal_NOE_Write8_Reg(0x141a, 0x01, 0x00);////wriu    0x00141a01 0x00
+    MHal_NOE_Write8_Reg(0x101e, 0xa0, 0x00);////wriu    0x00101ea0 0x00
+    MHal_NOE_Write8_Reg(0x101e, 0xa1, 0x00);////wriu    0x00101ea1 0x00
+    //swch 3
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x08);////wriu    0x00003640 0x08
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x00);////wriu    0x00003640 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0x1e, 0x00);////wriu    0x0000351e 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0x1f, 0x00);////wriu    0x0000351f 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x42, 0x01);////wriu    0x00003642 0x01
+    MHal_NOE_Write8_Reg(0x0036, 0x43, 0x00);////wriu    0x00003643 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xda, 0x11);////wriu    0x000036da 0x11
+    MHal_NOE_Write8_Reg(0x0036, 0xdb, 0x00);////wriu    0x000036db 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xde, 0x00);////wriu    0x000036de 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xdf, 0x00);////wriu    0x000036df 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfc, 0x00);////wriu    0x000036fc 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfd, 0x00);////wriu    0x000036fd 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x08, 0x00);////wriu    0x00003608 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x09, 0x00);////wriu    0x00003609 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x06, 0x04);////wriu    0x00003606 0x04
+    MHal_NOE_Write8_Reg(0x0036, 0x07, 0x00);////wriu    0x00003607 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xd8, 0x11);////wriu    0x000036d8 0x11
+    MHal_NOE_Write8_Reg(0x0036, 0xd9, 0x80);////wriu    0x000036d9 0x80
+    MHal_NOE_Write8_Reg(0x0036, 0xf2, 0x00);////wriu    0x000036f2 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xf3, 0x02);////wriu    0x000036f3 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0xf4, 0x3c);////wriu    0x000036f4 0x3c
+    MHal_NOE_Write8_Reg(0x0036, 0xf5, 0x00);////wriu    0x000036f5 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xf6, 0x02);////wriu    0x000036f6 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0xf7, 0x00);////wriu    0x000036f7 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xf8, 0x38);////wriu    0x000036f8 0x38
+    MHal_NOE_Write8_Reg(0x0036, 0xf9, 0x20);////wriu    0x000036f9 0x20
+    MHal_NOE_Write8_Reg(0x0036, 0xfa, 0x05);////wriu    0x000036fa 0x05
+    MHal_NOE_Write8_Reg(0x0036, 0xfb, 0x00);////wriu    0x000036fb 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfc, 0x00);////wriu    0x000036fc 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfd, 0x02);////wriu    0x000036fd 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0x8e, 0x05);////wriu    0x0000368e 0x05
+    MHal_NOE_Write8_Reg(0x0036, 0x8f, 0x00);////wriu    0x0000368f 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x46, 0x91);////wriu    0x00003646 0x91
+    MHal_NOE_Write8_Reg(0x0036, 0x47, 0x00);////wriu    0x00003647 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x5e, 0x34);////wriu    0x0000365e 0x34
+    MHal_NOE_Write8_Reg(0x0036, 0x5f, 0x34);////wriu    0x0000365f 0x34
+    MHal_NOE_Write8_Reg(0x0036, 0x60, 0x34);////wriu    0x00003660 0x34
+    MHal_NOE_Write8_Reg(0x0036, 0x61, 0x34);////wriu    0x00003661 0x34
+
+    ////Set clock to AHB clock
+    //swch 4
+    MHal_NOE_Write8_Reg(0x1033, 0x64, 0x00);////wriu    0x00103364 0x00
+    //swch 3
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x08);////wriu    0x00003640 0x08
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x00);////wriu    0x00003640 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+
+    ////Pattern : GPHY Initial
+    MHal_NOE_Write8_Reg(0x0036, 0x8e, 0x05);////wriu    0x0000368e 0x05
+    MHal_NOE_Write8_Reg(0x0036, 0x8f, 0x00);////wriu    0x0000368f 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x64, 0x00);////wriu    0x00003664 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x65, 0x00);////wriu    0x00003665 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x66, 0x00);////wriu    0x00003666 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x67, 0x00);////wriu    0x00003667 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xc4, 0xc1);////wriu    0x000036c4 0xc1
+    MHal_NOE_Write8_Reg(0x0036, 0xc5, 0x02);////wriu    0x000036c5 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0x80, 0x0c);////wriu    0x00003680 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x81, 0x0c);////wriu    0x00003681 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x82, 0x0c);////wriu    0x00003682 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x83, 0x0c);////wriu    0x00003683 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x7e, 0x44);////wriu    0x0000367e 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x7f, 0x44);////wriu    0x0000367f 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x68, 0x44);////wriu    0x00003668 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x69, 0x44);////wriu    0x00003669 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x76, 0x10);////wriu    0x00003676 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0x77, 0x10);////wriu    0x00003677 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0x78, 0x10);////wriu    0x00003678 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0x79, 0x10);////wriu    0x00003679 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0xb6, 0xc4);////wriu    0x000036b6 0xc4
+    MHal_NOE_Write8_Reg(0x0036, 0xb7, 0xcc);////wriu    0x000036b7 0xcc
+    MHal_NOE_Write8_Reg(0x0036, 0x8a, 0x00);////wriu    0x0000368a 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x8b, 0x00);////wriu    0x0000368b 0x00
+
+    //// reg_led_mode = 2'b01
+    MHal_NOE_Write8_Reg(0x000e, 0x50, 0x10);////wriu    0x00000e50 0x10
+    MHal_NOE_Write8_Reg(0x000e, 0x51, 0x00);////wriu    0x00000e51 0x00
+    _MHal_NOE_GPHY_Set_Config(0);
+
+#else    
+    MS_U8 regValue;
+    //swch 3
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x08);////wriu    0x00003640 0x08
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x00);////wriu    0x00003640 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0x1e, 0x00);////wriu    0x0000351e 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0x1f, 0x00);////wriu    0x0000351f 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x42, 0x01);////wriu    0x00003642 0x01
+    MHal_NOE_Write8_Reg(0x0036, 0x43, 0x00);////wriu    0x00003643 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xda, 0x11);////wriu    0x000036da 0x11
+    MHal_NOE_Write8_Reg(0x0036, 0xdb, 0x00);////wriu    0x000036db 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xde, 0x00);////wriu    0x000036de 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xdf, 0x00);////wriu    0x000036df 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfc, 0x00);////wriu    0x000036fc 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfd, 0x00);////wriu    0x000036fd 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x08, 0x00);////wriu    0x00003608 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x09, 0x00);////wriu    0x00003609 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x06, 0x04);////wriu    0x00003606 0x04
+    MHal_NOE_Write8_Reg(0x0036, 0x07, 0x00);////wriu    0x00003607 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xd8, 0x11);////wriu    0x000036d8 0x11
+    MHal_NOE_Write8_Reg(0x0036, 0xd9, 0x80);////wriu    0x000036d9 0x80
+    MHal_NOE_Write8_Reg(0x0036, 0xf2, 0x00);////wriu    0x000036f2 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xf3, 0x02);////wriu    0x000036f3 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0xf4, 0x3c);////wriu    0x000036f4 0x3c
+    MHal_NOE_Write8_Reg(0x0036, 0xf5, 0x00);////wriu    0x000036f5 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xf6, 0x02);////wriu    0x000036f6 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0xf7, 0x00);////wriu    0x000036f7 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xf8, 0x38);////wriu    0x000036f8 0x38
+    MHal_NOE_Write8_Reg(0x0036, 0xf9, 0x20);////wriu    0x000036f9 0x20
+    MHal_NOE_Write8_Reg(0x0036, 0xfa, 0x05);////wriu    0x000036fa 0x05
+    MHal_NOE_Write8_Reg(0x0036, 0xfb, 0x00);////wriu    0x000036fb 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfc, 0x00);////wriu    0x000036fc 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xfd, 0x02);////wriu    0x000036fd 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0x8e, 0x05);////wriu    0x0000368e 0x05
+    MHal_NOE_Write8_Reg(0x0036, 0x8f, 0x00);////wriu    0x0000368f 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x46, 0x91);////wriu    0x00003646 0x91
+    MHal_NOE_Write8_Reg(0x0036, 0x47, 0x00);////wriu    0x00003647 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x5e, 0x34);////wriu    0x0000365e 0x34
+    MHal_NOE_Write8_Reg(0x0036, 0x5f, 0x34);////wriu    0x0000365f 0x34
+    MHal_NOE_Write8_Reg(0x0036, 0x60, 0x34);////wriu    0x00003660 0x34
+    MHal_NOE_Write8_Reg(0x0036, 0x61, 0x34);////wriu    0x00003661 0x34
+
+    regValue = MHal_NOE_Read8_Reg(0x0036, 0x60);
+    MHAL_NOE_DBG_INFO("MHal_NOE_Read8_Reg(0x0036, 0x60) : %x\r\n", regValue);
+
+    ////Set clock to AHB clock
+    //swch 4
+    MHal_NOE_Write8_Reg(0x1033, 0x64, 0x00);////wriu    0x00103364 0x00
+    //swch 3
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x08);////wriu    0x00003640 0x08
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x40, 0x00);////wriu    0x00003640 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x41, 0x00);////wriu    0x00003641 0x00
+
+    ////Pattern : GPHY Initial
+    MHal_NOE_Write8_Reg(0x0036, 0x8e, 0x05);////wriu    0x0000368e 0x05
+    MHal_NOE_Write8_Reg(0x0036, 0x8f, 0x00);////wriu    0x0000368f 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x64, 0x00);////wriu    0x00003664 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x65, 0x00);////wriu    0x00003665 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x66, 0x00);////wriu    0x00003666 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x67, 0x00);////wriu    0x00003667 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0xc4, 0xc1);////wriu    0x000036c4 0xc1
+    MHal_NOE_Write8_Reg(0x0036, 0xc5, 0x02);////wriu    0x000036c5 0x02
+    MHal_NOE_Write8_Reg(0x0036, 0x80, 0x0c);////wriu    0x00003680 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x81, 0x0c);////wriu    0x00003681 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x82, 0x0c);////wriu    0x00003682 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x83, 0x0c);////wriu    0x00003683 0x0c
+    MHal_NOE_Write8_Reg(0x0036, 0x7e, 0x44);////wriu    0x0000367e 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x7f, 0x44);////wriu    0x0000367f 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x68, 0x44);////wriu    0x00003668 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x69, 0x44);////wriu    0x00003669 0x44
+    MHal_NOE_Write8_Reg(0x0036, 0x76, 0x10);////wriu    0x00003676 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0x77, 0x10);////wriu    0x00003677 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0x78, 0x10);////wriu    0x00003678 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0x79, 0x10);////wriu    0x00003679 0x10
+    MHal_NOE_Write8_Reg(0x0036, 0xb6, 0xc4);////wriu    0x000036b6 0xc4
+    MHal_NOE_Write8_Reg(0x0036, 0xb7, 0xcc);////wriu    0x000036b7 0xcc
+    MHal_NOE_Write8_Reg(0x0036, 0x8a, 0x00);////wriu    0x0000368a 0x00
+    MHal_NOE_Write8_Reg(0x0036, 0x8b, 0x00);////wriu    0x0000368b 0x00
+
+    //// reg_led_mode = 2'b01
+    MHal_NOE_Write8_Reg(0x000e, 0x50, 0x10);////wriu    0x00000e50 0x10
+    MHal_NOE_Write8_Reg(0x000e, 0x51, 0x00);////wriu    0x00000e51 0x00
+
+    ////Set LED0 on control
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h024, 16'h8007);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x24);////wriu    0x000035f2 0x24
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x07);////wriu    0x000035f2 0x07
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x80);////wriu    0x000035f3 0x80
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set LED0 Blinking
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h025, 16'h003f);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x25);////wriu    0x000035f2 0x25
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x3f);////wriu    0x000035f2 0x3f
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set LED3 on control
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h02a, 16'h8007);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x2a);////wriu    0x000035f2 0x2a
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x07);////wriu    0x000035f2 0x07
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x80);////wriu    0x000035f3 0x80
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set LED3 Blinking
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h02b, 16'h003f);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x2b);////wriu    0x000035f2 0x2b
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x3f);////wriu    0x000035f2 0x3f
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////By mode setting Start
+
+    //// DA_AD_CORE_PWD_C TBT=1, HBT=1
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h0e4, 16'h1101);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0xe4);////wriu    0x000035f2 0xe4
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x01);////wriu    0x000035f2 0x01
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x11);////wriu    0x000035f3 0x11
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    //// DA_AD_CORE_PWD_D TBT=1, HBT=1
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h0e5, 16'h1101);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0xe5);////wriu    0x000035f2 0xe5
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x01);////wriu    0x000035f2 0x01
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x11);////wriu    0x000035f3 0x11
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////DA_TX_CM1_OP
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h26a, 16'h0440);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x6a);////wriu    0x000035f2 0x6a
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x40);////wriu    0x000035f2 0x40
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x04);////wriu    0x000035f3 0x04
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set cr_da_tx_cm1_op_tsmode
+    ////Set cr_da_tx_rm1_op_tsmode
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h26b, 16'h0000);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x6b);////wriu    0x000035f2 0x6b
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x00);////wriu    0x000035f2 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set cr_da_tx_cm1_op_gbe_slp
+    ////Set cr_da_tx_cm2_op_gbe_slp
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h302, 16'h0004);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x02);////wriu    0x000035f2 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x03);////wriu    0x000035f3 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x04);////wriu    0x000035f2 0x04
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_FILTER_CAP_A
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h023, 16'h0555);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x23);////wriu    0x000035f2 0x23
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x55);////wriu    0x000035f2 0x55
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x05);////wriu    0x000035f3 0x05
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_FILTER_CAP_B
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h024, 16'h0555);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x24);////wriu    0x000035f2 0x24
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x55);////wriu    0x000035f2 0x55
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x05);////wriu    0x000035f3 0x05
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_FILTER_CAP_C
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h025, 16'h0555);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x25);////wriu    0x000035f2 0x25
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x55);////wriu    0x000035f2 0x55
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x05);////wriu    0x000035f3 0x05
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_FILTER_CAP_D
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h026, 16'h0555);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x26);////wriu    0x000035f2 0x26
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x55);////wriu    0x000035f2 0x55
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x05);////wriu    0x000035f3 0x05
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_OVERSHOOT_EN
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h011, 16'h0f00);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x11);////wriu    0x000035f2 0x11
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x00);////wriu    0x000035f2 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x0f);////wriu    0x000035f3 0x0f
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set CR_DA_TX_PS_DRIR0
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h269, 16'h444f);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x69);////wriu    0x000035f2 0x69
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x4f);////wriu    0x000035f2 0x4f
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x44);////wriu    0x000035f3 0x44
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h268, 16'h03f4);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x68);////wriu    0x000035f2 0x68
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0xf4);////wriu    0x000035f2 0xf4
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x03);////wriu    0x000035f3 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set CR_DA_TX_PS_OP
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h272, 16'h35bf);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x72);////wriu    0x000035f2 0x72
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0xbf);////wriu    0x000035f2 0xbf
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x35);////wriu    0x000035f3 0x35
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h271, 16'h7e94);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x71);////wriu    0x000035f2 0x71
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x94);////wriu    0x000035f2 0x94
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x7e);////wriu    0x000035f3 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_I2MPB_A
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h016, 16'h4010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x16);////wriu    0x000035f2 0x16
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x40);////wriu    0x000035f3 0x40
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h012, 16'h4010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x12);////wriu    0x000035f2 0x12
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x40);////wriu    0x000035f3 0x40
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_I2MPB_B
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h018, 16'h1010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x18);////wriu    0x000035f2 0x18
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x10);////wriu    0x000035f3 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h017, 16'h1010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x17);////wriu    0x000035f2 0x17
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x10);////wriu    0x000035f3 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_I2MPB_C
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h019, 16'h1010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x19);////wriu    0x000035f2 0x19
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x10);////wriu    0x000035f3 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h020, 16'h1010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x20);////wriu    0x000035f2 0x20
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x10);////wriu    0x000035f3 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set DA_TX_I2MPB_D
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h022, 16'h1010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x22);////wriu    0x000035f2 0x22
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x10);////wriu    0x000035f3 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////reg_mdio_cl45_write(addr, 16'h1e, 16'h021, 16'h1010);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x21);////wriu    0x000035f2 0x21
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x10);////wriu    0x000035f2 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x10);////wriu    0x000035f3 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7a);////wriu    0x000035f4 0x7a
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    ////Set CR_DA_TX_I2MPB_10M
+    ////reg_mdio_cl45_write(addr, 16'h1f, 16'h27c, 16'h0000);
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x7c);////wriu    0x000035f2 0x7c
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x02);////wriu    0x000035f3 0x02
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x00);////wriu    0x000035f5 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x03);////wriu    0x000035f0 0x03
+    MHal_NOE_Write8_Reg(0x0035, 0xf2, 0x00);////wriu    0x000035f2 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf3, 0x00);////wriu    0x000035f3 0x00
+    MHal_NOE_Write8_Reg(0x0035, 0xf4, 0x7e);////wriu    0x000035f4 0x7e
+    MHal_NOE_Write8_Reg(0x0035, 0xf5, 0x10);////wriu    0x000035f5 0x10
+    MHal_NOE_Write8_Reg(0x0035, 0xf1, 0x01);////wriu    0x000035f1 0x01
+    udelay(200);
+
+    MHal_NOE_Write8_Reg(0x0035, 0xf0, 0x00);  //change mdio access mode from m* proprietary to generic
+#endif
+}
+
+
+static void _MHal_NOE_GE1ToGPHY(void)
+{
+    //NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x30 << 1) &= ~0x0003;
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1), 0x0F00, 0x0C00);
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1), 0x000F, 0x0008);
+
+    if (noe_config.mdio_n == 1) {
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x9044, 0x1044);
+        if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_1000) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x9044, 0x1044);
+        }
+        else if ((noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) ||
+                (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10)) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x9044, 0x9044);
+        }       
+    }
+    else {
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0xD044, 0x5044);
+        if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_1000) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0xD044, 0x5044);
+        }
+        else if ((noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) ||
+                (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10)) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0xD044, 0xD044);
+        }
+    }
+ 
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1), 0x0077, 0x0000);
+}
+
+static void _MHal_NOE_GE1ToPM(void)
+{
+    MHAL_NOE_DBG_INFO("[%s][%d] GE1 To PM\n",__FUNCTION__,__LINE__);
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1) & (~0x0F00)) | 0x0C00;
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1) & (~0x000F)) | 0x0000;
+    if (noe_config.mdio_n == 1) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x1024)) | 0x1024;
+    }
+    else {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = 0x5024; //(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x5024)) | 0x5024;
+    }
+
+#if 0
+///////////////// Add for test ///////////////
+    printk("cell mode\n"); 
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x13 << 1) = 0x0CC0;
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x13 << 1) = 0x0EE0;
+
+
+    if (noe_config.version == 0x0)
+        NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x13 << 1) = 0x0000;
+        
+//////////////// End ////////////////////////
+#endif
+    printk("io mode \n");
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) = 0x0088;
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) = 0x8088;
+
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x60 << 1) = 0x008C;
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) & (~0x0004)) | 0x0004;
+     
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) & (~0x0003)) | 0x0003;
+    }
+    else if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) & (~0x0003)) | 0x0001;
+    }
+    NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) = (NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) & (~0x0100)) | 0x0000;
+
+}
+
+static void _MHal_NOE_GE2ToPM(void)
+{   
+#if 0 //New
+    printk("[%s][%d] \n",__FUNCTION__,__LINE__);
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) & (~0x0F00)) | 0x0C00;
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) & (~0x000F)) | 0x0000;
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x2028)) | 0x2008;
+        
+
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) &= (~0xFF8F);
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) |= 0x0088;
+    }
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) |= 0x8088;
+    }
+   
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x60 << 1) = 0x00AC;
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x69 << 1) = 0x8088;
+
+    if (noe_config.version == 0x0) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x68 << 1) = 0x008C;
+    }
+    else {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x68 << 1) = 0x00AC;
+    }
+    //IO Mode
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) &(~0x0004)) | 0x000;
+    NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) = (NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) & (~0x0100)) | 0x0000;
+    
+#else
+    printk("[%s][%d] \n",__FUNCTION__,__LINE__);
+    if (noe_config.mii_info[E_NOE_GE_MAC2].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) & (~0xC000)) | 0x0C00;
+    }
+    else if (noe_config.mii_info[E_NOE_GE_MAC2].speed == E_NOE_SPEED_10) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) & (~0xC000)) | 0x0400;
+    }
+
+
+    /* ### Clkgen ### */
+    // reg_ckg_gmac_ahb
+    NOE_RIU_REG(0x100a, 0x02) = 0x0c00;
+    // reg_ckg_secgmac_ahb
+    NOE_RIU_REG(0x1033, 0x64) = 0x0000;
+    // reg_ckg_syn_gmac
+    NOE_RIU_REG(0x100b, 0xc6) = 0x0000;
+    // reg_ckadj_rx
+    NOE_RIU_REG(0x121f, 0x22) = 0x0000;
+    // reg_xmii_10_100_when_slow ...
+    NOE_RIU_REG(0x121f, 0x24) = 0x0000;
+    // reg_2x_mode_clk_pol
+    NOE_RIU_REG(0x0035, 0xc2) = 0x8088;
+    // reg_rgmii_sl_mode
+    NOE_RIU_REG(0x0035, 0xc0) = 0x00ac;
+    // reg_rmii_cken_sec ...
+    NOE_RIU_REG(0x0035, 0xd2) = 0x8088;
+    // req_fifo_qu1_sec ...
+    NOE_RIU_REG(0x0035, 0xd0) = 0x00ac;
+
+    /* ### Settings of mux with NOE ### */
+    NOE_RIU_REG(0x121f, 0x3c) = 0x2018;
+
+    /* ### Settings of GMAC mux ### */
+    // reg_ckadj_rx
+    NOE_RIU_REG(0x121f, 0x22) = 0x0c88;
+    // reg_ckg_gmac_rx_ref
+    NOE_RIU_REG(0x121f, 0x24) = 0x2880;
+    // DDR mode
+    NOE_RIU_REG(0x121f, 0x26) = 0x0ee2;
+    // reg_tx_padclk_sel
+    NOE_RIU_REG(0x121f, 0x20) = 0x0200;
+#endif
+}
+
+static void _MHal_NOE_GE2ToCHIPTOP(void)
+{
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) = 0x0C88;
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2880;
+    if (noe_config.mdio_n == 1) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x2028)) | 0x2028;
+    }
+    else {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x6068)) | 0x2068; 
+    }
+
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0CE0;
+    else if(noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0EE0;
+
+
+    if (noe_config.version == 0) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x10 << 1) = 0x0000;
+    }
+    else {
+        /* Need to Check */
+    }
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) & (~0xC000)) | 0xC000;
+    }
+    else if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10) {
+        /* 100  or 10 */
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) & (~0xC000)) | 0x4000;
+    }
+    NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1) =  NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1)| 0x0001;
+}
+
+static void _MHal_NOE_GE1ToGPHY_GE2ToPM(void)
+{
+
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(0x000E, 0x38) , 0xFF00, 0x0000);
+
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1) = 0x0000;
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1) = 0x0008;
+    NOE_RIU_REG(0x121F, 0x11 << 1) = 0x0000;
+    NOE_RIU_REG(0x121F, 0x12 << 1) = 0x0000;
+    NOE_RIU_REG(0x0031, 0x69 << 1) = 0x8088;
+    NOE_RIU_REG(0x0031, 0x68 << 1) = 0x00AC;
+    
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_1000) {
+        NOE_RIU_REG(0x121F, 0x1E << 1) = 0x1064 | 0x2018;
+    }
+    else {
+        /* 100  or 10 */
+        NOE_RIU_REG(0x121F, 0x1E << 1) = 0x9064 | 0x2018;
+    }
+    
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(0x101E, 0x50 << 1), 0xFF00, 0x0000);
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(0x101E, 0x06 << 1), 0x00FF, 0x0001);
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1) = 0x0C88;
+    NOE_RIU_REG(0x121F, 0x11 << 1) = 0x0C88;
+    NOE_RIU_REG(0x121F, 0x12 << 1) = 0x2880;
+    NOE_RIU_REG(0x121F, 0x13 << 1) = 0x0EE2;
+    NOE_RIU_REG(0x121F, 0x10 << 1) = 0x0200;
+}
+
+static void _MHal_NOE_GE1ToGPHY_GE2ToCHIPTOP(void)
+{
+#if 1
+    printk("[%s][%d]!!!!! GE2 To CHIPTOP, noe_config.mdio_n=%d\n",__FUNCTION__,__LINE__,noe_config.mdio_n);
+    _MHal_NOE_GE1ToGPHY();
+
+#if 0 
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) = 0x0C88;
+
+#if 1
+    printk("[%s][%d]!!!!! GE2 To CHIPTOP, noe_config.mdio_n=%d\n",__FUNCTION__,__LINE__,noe_config.mdio_n);
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2080; // original 2880, but gphy cannot works
+    if (noe_config.version == 0) {
+        //NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) &= ~0x0002;
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2080;
+        //NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1) |= BIT(6);
+    }
+    else {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2880; // original 2880, but gphy cannot works
+    }
+    if (noe_config.mdio_n == 1)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) |= 0x2028;
+    else
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) |= 0x2068;
+#else
+    printk("[%s][%d]xxxxxx GE2 To CHIPTOP, noe_config.mdio_n=%d\n",__FUNCTION__,__LINE__,noe_config.mdio_n);
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2080; // original 2880, but gphy cannot works
+    if (noe_config.mdio_n == 1)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x2028, 0x2028);
+    else
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x6068, 0x2068);
+#endif
+
+
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0CE0;
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0EE0;
+
+    if (noe_config.version == 0)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x10 << 1), 0x0004, 0x0000);
+    else /* Need to Check */
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x10 << 1), 0x0004 , 0x0004);
+
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1), 0xC000, 0xC000);
+    else if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1), 0xC000, 0x4000);
+
+    NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1) |= 0x0001;
+#endif
+
+#else
+    /* GE2 To Chiptop*/
+    printk("[%s][%d]!!!!! GE2 To CHIPTOP, noe_config.mdio_n=%d\n",__FUNCTION__,__LINE__,noe_config.mdio_n);
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) = 0x0C88;
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2880;
+    if (noe_config.mdio_n == 1)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x2028, 0x2028);
+    else
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x6068, 0x2068);
+
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0CE0;
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0EE0;
+
+    if (noe_config.version == 0)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x10 << 1), 0x0004, 0x0000);
+    else /* Need to Check */
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x10 << 1), 0x0004 , 0x0004);
+
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1), 0xC000, 0xC000);
+    else if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10)
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1), 0xC000, 0x4000);
+
+    NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1) |= 0x0001;
+
+    /* GE1 To GPHY*/
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1), 0x0F00, 0x0C00);
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1), 0x000F, 0x0008);
+
+#if 1
+    printk("why?????????????????????? \n");
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x0002, 0x0000);
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) |= 0x1044;
+    //NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1), 0x0077, 0x0000);
+#else
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1), 0x0F00, 0x0C00);
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1), 0x000F, 0x0008);
+
+    if (noe_config.mdio_n == 1) {
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x9044, 0x1044);
+        if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_1000) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x9044, 0x1044);
+        }
+        else if ((noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) ||
+                (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10)) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0x9044, 0x9044);
+        }
+    }
+    else {
+        NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0xD044, 0x5044);
+        if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_1000) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0xD044, 0x5044);
+        }
+        else if ((noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) ||
+                (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10)) {
+            NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1), 0xD044, 0xD044);
+        }
+    }
+
+    NOE_RIU_REG_MASK_WRITE(NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1), 0x0077, 0x0000);
+
+
+#endif
+#endif
+}
+
+static void _MHal_NOE_GE1ToPM_GE2ToCHIPTOP(void)
+{
+
+    printk("[%s][%d] GE1 To PM and GE2 To CHIPTOP \n",__FUNCTION__,__LINE__);
+    /* GE1 TO PM*/
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x11 << 1) & (~0x0F00)) | 0x0C00;
+    NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x12 << 1) & (~0x000F)) | 0x0000;
+    if (noe_config.mdio_n == 1) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x1024)) | 0x1024;
+    }
+    else {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) & (~0x5024)) | 0x5024;
+    }
+
+#if 0
+///////////////// Add for test ///////////////
+    printk("cell mode\n"); 
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x13 << 1) = 0x0CC0;
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x13 << 1) = 0x0EE0;
+
+
+    if (noe_config.version == 0x0)
+        NOE_RIU_REG(NOE_RIU_BANK_SECGMAC4, 0x13 << 1) = 0x0000;
+        
+//////////////// End ////////////////////////
+#endif
+
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) = 0x0088;
+    }
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x61 << 1) = 0x8088;
+    }
+
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x60 << 1) = 0x008C;
+    NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) & (~0x0004)) | 0x0004;
+     
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) & (~0x0003)) | 0x0003;
+    }
+    else if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_ALBANY0, 0x62 << 1) & (~0x0003)) | 0x0001;
+    }
+    NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) = (NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) & (~0x0100)) | 0x0000;
+
+    /* GE2 To CHIPTOP*/
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x11 << 1) = 0x0C88;
+    NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = 0x2880;
+    if (noe_config.mdio_n == 1) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) |= 0x2028;
+    }
+    else {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x1E << 1) |= 0x2028; 
+    }
+
+    if (noe_config.delay == E_MHAL_NOE_DELAY_NS_0)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0CE0;
+    else if (noe_config.delay == E_MHAL_NOE_DELAY_NS_2)
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x13 << 1) = 0x0EE0;
+
+
+    if (noe_config.version == 0) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x10 << 1) = 0x0000;
+    }
+    else {
+        /* Need to Check */
+    }
+    if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_100) {
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) & (~0xC000)) | 0xC000;
+    }
+    else if (noe_config.mii_info[E_NOE_GE_MAC1].speed == E_NOE_SPEED_10) {
+        /* 100  or 10 */
+        NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) = (NOE_RIU_REG(NOE_RIU_BANK_GMAC4, 0x12 << 1) & (~0xC000)) | 0x4000;
+    }
+    NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1) =  NOE_RIU_REG(NOE_RIU_BANK_CHIPTOP, 0x06 << 1)| 0x0001;
+
+#if 0 // remove Kevin's script
+    NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0xF2) = (NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0xF2) & (~0x20)) | 0x20;
+    NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0xC5) = (NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0xF5) & (~0xF0)) | 0x00;
+    NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0xF3) = (NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0xF3) & (~0x04)) | 0x04;
+    NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0x63) = (NOE_RIU8_REG(NOE_RIU_BANK_ALBANY1, 0x63) & (~0x03)) | 0x03;
+#endif
+}
+
+static inline void MHal_NOE_Enable_Mdio(EN_NOE_SEL enable)
+{
+
+}
+ 
+
+void MHal_NOE_Write_Bits_Zero(void __iomem *addr, MS_U32 bit, MS_U32 len)
+{
+	int reg_val;
+	int i;
+
+	reg_val = MHal_NOE_Read_Reg(addr);
+	for (i = 0; i < len; i++)
+		reg_val &= ~(1 << (bit + i));
+	MHal_NOE_Write_Reg(addr, reg_val);
+}
+
+void MHal_NOE_Write_Bits_One(void __iomem *addr, MS_U32 bit, MS_U32 len)
+{
+	unsigned int reg_val;
+	unsigned int i;
+
+	reg_val = MHal_NOE_Read_Reg(addr);
+	for (i = 0; i < len; i++)
+		reg_val |= 1 << (bit + i);
+	MHal_NOE_Write_Reg(addr, reg_val);
+}
+
+EN_NOE_RET MHal_NOE_Set_Pin_Mux(EN_NOE_SEL_PIN_MUX mux)
+{
+    if(mux >= E_NOE_SEL_PIN_MUX_MAX) {
+        return E_NOE_RET_INVALID_PARAM;
+    }
+    MHAL_NOE_DBG_INFO("mux=%d\n",mux);
+
+    if ((mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY) || 
+        (mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM) ||
+        (mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_CHIPTOP)) {
+        MHAL_NOE_DBG_INFO(" start internal PHY \n");
+        _MHal_NOE_GPHY_Init();
+    }
+    noe_config.pin_mux = mux;
+    _mhal_noe_pinmux_pfn[mux]();
+    _MHal_NOE_Init_Mdio(mux);
+    return E_NOE_RET_TRUE;
+}
+
+void MHal_NOE_Set_MAC_Address(EN_NOE_GE_MAC ge, unsigned char p[6])
+{
+    unsigned long reg_value;
+    reg_value = (p[0] << 8) | (p[1]);
+    if (ge == E_NOE_GE_MAC1) {
+        MHal_NOE_Write_Reg(GDMA1_MAC_ADRH, reg_value);
+    }
+    else if(ge == E_NOE_GE_MAC2) {
+        MHal_NOE_Write_Reg(GDMA2_MAC_ADRH, reg_value);
+    }
+    reg_value = (p[2] << 24) | (p[3] << 16) | (p[4] << 8) | p[5];
+    if(ge == E_NOE_GE_MAC1) {
+        MHal_NOE_Write_Reg(GDMA1_MAC_ADRL, reg_value);
+    }
+    else if(ge == E_NOE_GE_MAC2) {
+        MHal_NOE_Write_Reg(GDMA2_MAC_ADRL, reg_value);
+    }
+ 
+    MHAL_NOE_DBG_INFO("GMAC%d_MAC_ADRH -- : 0x%08x\n", ge+1, (ge == E_NOE_GE_MAC1)?MHal_NOE_Read_Reg(GDMA1_MAC_ADRH):MHal_NOE_Read_Reg(GDMA2_MAC_ADRH));
+    MHAL_NOE_DBG_INFO("GMAC%d_MAC_ADRL -- : 0x%08x\n", ge+1, (ge == E_NOE_GE_MAC1)?MHal_NOE_Read_Reg(GDMA1_MAC_ADRL):MHal_NOE_Read_Reg(GDMA2_MAC_ADRL));
+}
+
+
+void MHal_NOE_Stop(void)
+{
+    unsigned int reg_value;
+    
+    MHAL_NOE_DBG_INFO("%s()...",__FUNCTION__);
+    reg_value = MHal_NOE_Read_Reg(DMA_GLO_CFG);
+    reg_value &= ~(TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN);
+    MHal_NOE_Write_Reg(DMA_GLO_CFG, reg_value);
+    
+    MHAL_NOE_DBG_INFO("Done\n");
+}
+
+
+void MHal_NOE_Reset_FE(void)
+{
+    unsigned int val;        
+    val = MHal_NOE_Read_Reg(RSTCTRL);
+    val = val | RSTCTL_FE_RST;
+    MHal_NOE_Write_Reg(RSTCTRL, val);
+    
+    val = val & ~(RSTCTL_FE_RST);
+    MHal_NOE_Write_Reg(RSTCTRL, val);
+}
+
+
+void MHal_NOE_Set_DBG(EN_NOE_HAL_LOG level)
+{
+    noe_config.noe_dbg_enable = level;
+}
+
+void MHal_NOE_Reset_GMAC(void)
+{
+#if 0
+    MHal_NOE_Write_Reg(RSTCTRL, 0x00800000);
+    MHal_NOE_Write_Reg(RSTCTRL, 0x00000000);
+#endif
+}
+
+static EN_NOE_RET _MHal_NOE_Write_Mii_Mgr(u32 addr, u32 reg, u32 write_data)
+{
+    unsigned long t_start = jiffies;
+    u32 data;
+    
+    MHal_NOE_Enable_Mdio(E_NOE_SEL_ENABLE);
+    
+    /* make sure previous write operation is complete */
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            break;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Write operation ongoing\n");
+            return E_NOE_RET_DEVICE_BUSY;
+        }
+    }
+    data = (0x01 << 16) | (1 << 18) | (addr << 20) | (reg << 25) | write_data;
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, data);
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, (data | (1 << 31))); /*start*/
+    /* MHAL_NOE_DBG_INFO("\n Set Command [0x%08X] to PHY !!\n",MDIO_PHY_CONTROL_0); */
+    
+    t_start = jiffies;
+    
+    /* make sure write operation is complete */
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            return E_NOE_RET_TRUE;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Write operation Time Out\n");
+            return E_NOE_RET_TIMEOUT;
+        }
+    }
+    return E_NOE_RET_FALSE;
+}
+
+static EN_NOE_RET _MHal_NOE_Read_Mii_Mgr(u32 addr, u32 reg, u32 *read_data)
+{
+    MS_U32 status = 0;
+    unsigned long t_start = jiffies;
+    MS_U32 data = 0;
+    
+    /* We enable mdio gpio purpose register, and disable it when exit. */
+    MHal_NOE_Enable_Mdio(E_NOE_SEL_ENABLE);
+    
+    /* make sure previous read operation is complete */
+    while (1) {
+        /* 0 : Read/write operation complete */
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            break;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Read operation is ongoing !!\n");
+            return E_NOE_RET_DEVICE_BUSY;
+        }
+    }
+    
+    data = (0x01 << 16) | (0x02 << 18) | (addr << 20) | (reg << 25);
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, data);
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, (data | (1 << 31)));
+    
+    /* make sure read operation is complete */
+    t_start = jiffies;
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            status = MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0);
+            *read_data = (MS_U32)(status & 0x0000FFFF);
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            return E_NOE_RET_TRUE;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Read operation Time Out!!\n");
+            return E_NOE_RET_TIMEOUT;
+        }
+    }
+    return E_NOE_RET_FALSE;
+}
+
+
+static void _MHal_NOE_Set_Auto_Polling(EN_NOE_SEL enable)
+{
+    if (enable == E_NOE_SEL_ENABLE)
+    {
+        MHal_NOE_Write_Reg(ESW_PHY_POLLING, MHal_NOE_Read_Reg(ESW_PHY_POLLING)|(1 << 31));
+    }
+    else{
+        MHal_NOE_Write_Reg(ESW_PHY_POLLING, MHal_NOE_Read_Reg(ESW_PHY_POLLING)&(~(1 << 31)));
+    }
+}
+
+
+static MS_U8 MHal_NOE_Is_Mii_Mgr_Force_Mode(u32 addr)
+{
+    unsigned char i = 0;
+    for (i = 0; i < E_NOE_GE_MAC_MAX; i++)
+    {
+        if (noe_config.mii_info[i].phy_addr == addr) {
+            return noe_config.mii_info[i].noe_mii_force_mode;
+        }
+    }
+    return NOE_DISABLE;
+}
+
+static EN_NOE_RET _MHal_NOE_Set45_Mii_Mgr_Addr(u32 port_num, u32 dev_addr, u32 reg_addr)
+{
+    unsigned long t_start = jiffies;
+    MS_U32 data = 0;
+    
+    MHal_NOE_Enable_Mdio(E_NOE_SEL_ENABLE);
+    
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            break;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Read operation is ongoing !!\n");
+            return E_NOE_RET_DEVICE_BUSY;
+        }
+    }
+    data = (dev_addr << 25) | (port_num << 20) | (0x00 << 18) | (0x00 << 16) | reg_addr;
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, data);
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, (data | (1 << 31)));
+    
+    t_start = jiffies;
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            return E_NOE_RET_TRUE;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Write operation Time Out\n");
+            return E_NOE_RET_TIMEOUT;
+        }
+    }
+    return E_NOE_RET_FALSE;
+}
+
+ 
+EN_NOE_RET MHal_NOE_Write45_Mii_Mgr(u32 port_num, u32 dev_addr, u32 reg_addr, u32 write_data)
+{
+    unsigned long t_start = jiffies;
+    u32 data = 0;
+    
+    /* set address first */
+    _MHal_NOE_Set45_Mii_Mgr_Addr(port_num, dev_addr, reg_addr);
+    udelay(10);
+    
+    MHal_NOE_Enable_Mdio(E_NOE_SEL_ENABLE);
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            break;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Read operation is ongoing !!\n");
+            return E_NOE_RET_DEVICE_BUSY;
+        }
+    }
+    
+    data = (dev_addr << 25) | (port_num << 20) | (0x01 << 18) | (0x00 << 16) | write_data;
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, data);
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, (data | (1 << 31)));
+    
+    t_start = jiffies;
+    
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            return E_NOE_RET_TRUE;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Write operation Time Out\n");
+            return E_NOE_RET_TIMEOUT;
+        }
+    }
+    return E_NOE_RET_FALSE;
+}
+
+EN_NOE_RET MHal_NOE_Read45_Mii_Mgr(u32 port_num, u32 dev_addr, u32 reg_addr, u32 *read_data)
+{
+    u32 status = 0;
+    unsigned long t_start = jiffies;
+    u32 data = 0;
+    
+    /* set address first */
+    _MHal_NOE_Set45_Mii_Mgr_Addr(port_num, dev_addr, reg_addr);
+    udelay(10);
+    
+    MHal_NOE_Enable_Mdio(E_NOE_SEL_ENABLE);
+    
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            break;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Read operation is ongoing !!\n");
+            return E_NOE_RET_DEVICE_BUSY;
+        }
+    }
+    data = (dev_addr << 25) | (port_num << 20) | (0x03 << 18) | (0x00 << 16) | reg_addr;
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, data);
+    MHal_NOE_Write_Reg(MDIO_PHY_CONTROL_0, (data | (1 << 31)));
+    t_start = jiffies;
+    while (1) {
+        if (!(MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & (0x1 << 31))) {
+            *read_data = (MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0) & 0x0000FFFF);
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            return E_NOE_RET_TRUE;
+        } else if (time_after(jiffies, t_start + 5 * HZ)) {
+            MHal_NOE_Enable_Mdio(E_NOE_SEL_DISABLE);
+            MHAL_NOE_DBG_INFO("\n MDIO Read operation Time Out!!\n");
+            return E_NOE_RET_TIMEOUT;
+        }
+        status = MHal_NOE_Read_Reg(MDIO_PHY_CONTROL_0);
+    }
+    return E_NOE_RET_FALSE;
+}
+
+EN_NOE_RET MHal_NOE_Write_Mii_Mgr(u32 addr, u32 reg, u32 write_data)
+{
+    MS_U32 an_status = 0;
+    if ((MHal_NOE_Is_Mii_Mgr_Force_Mode(addr) == NOE_ENABLE) && (addr == 31)) {
+        an_status = (MHal_NOE_Read_Reg(ESW_PHY_POLLING) & (1 << 31));
+        if (an_status) {
+            _MHal_NOE_Set_Auto_Polling(E_NOE_SEL_DISABLE);
+        }
+        if(_MHal_NOE_Write_Mii_Mgr(addr, 0x1f, (reg>>6)&0x3FFF) == E_NOE_RET_TRUE) {
+            if(_MHal_NOE_Write_Mii_Mgr(addr, (reg>>2) & 0xF, write_data & 0xFFFF) == E_NOE_RET_TRUE) {
+                if(_MHal_NOE_Write_Mii_Mgr(addr, (0x1 << 4), write_data >> 16) == E_NOE_RET_TRUE) {
+                    if (an_status) {
+                        _MHal_NOE_Set_Auto_Polling(E_NOE_SEL_ENABLE);
+                    }
+                    return E_NOE_RET_TRUE;
+                }
+            }
+        }
+        if (an_status) {
+            _MHal_NOE_Set_Auto_Polling(E_NOE_SEL_ENABLE);
+        }
+    }
+    else {
+        if (_MHal_NOE_Write_Mii_Mgr(addr, reg, write_data) == E_NOE_RET_TRUE) {
+            return E_NOE_RET_TRUE;
+        }
+    }
+    return E_NOE_RET_FALSE;
+}
+
+EN_NOE_RET MHal_NOE_Read_Mii_Mgr(u32 addr, u32 reg, u32 *read_data)
+{
+    u32 low_word;
+    u32 high_word;
+    u32 an_status = 0;
+    if ((MHal_NOE_Is_Mii_Mgr_Force_Mode(addr) == NOE_ENABLE) && (addr == 31)) {
+        an_status = (MHal_NOE_Read_Reg(ESW_PHY_POLLING) & (1 << 31));
+        if (an_status) {
+            _MHal_NOE_Set_Auto_Polling(E_NOE_SEL_DISABLE);
+        }
+        
+        if (_MHal_NOE_Write_Mii_Mgr(addr, 0x1f, (reg >> 6) & 0x3FFF)) {
+            if (_MHal_NOE_Read_Mii_Mgr(addr, (reg >> 2) & 0xF, &low_word)) {
+                if (_MHal_NOE_Read_Mii_Mgr(addr, (0x1 << 4), &high_word)) {
+                    *read_data = (high_word << 16) | (low_word & 0xFFFF);
+                    if (an_status) {
+                        _MHal_NOE_Set_Auto_Polling(E_NOE_SEL_ENABLE);
+                    }
+                    return E_NOE_RET_TRUE;        
+                }
+            }
+        }
+        if (an_status) {
+            _MHal_NOE_Set_Auto_Polling(E_NOE_SEL_ENABLE);
+        }
+    }
+    else
+    {
+        if (_MHal_NOE_Read_Mii_Mgr(addr, reg, read_data)) {
+            return E_NOE_RET_TRUE;
+        }
+    }
+
+    return E_NOE_RET_FALSE;
+}
+
+void MHal_NOE_Get_GSW_Delay_Setting(void)
+{
+	int reg_int_val = 0;
+	int link_speed = 0;
+    reg_int_val = MHal_NOE_Read_Reg(FE_INT_STATUS2);
+    if (reg_int_val & BIT(25)) {
+        /* if link up */
+        if (MHal_NOE_Read_Reg(NOE_REG_ETH_SW_BASE + 0x0208) & 0x1) {
+            link_speed = (MHal_NOE_Read_Reg(NOE_REG_ETH_SW_BASE + 0x0208) >> 2 & 0x3);
+            if (link_speed == 1) {
+                /* delay setting for 100M */
+                MHAL_NOE_DBG_INFO("GE2 link rate to 100M\n");
+            } else if (link_speed == 0) {
+                /* delay setting for 10M */
+                MHAL_NOE_DBG_INFO("GE2 link rate to 10M\n");
+            } else if (link_speed == 2) {
+                /* delay setting for 1G */
+                MHAL_NOE_DBG_INFO("GE2 link rate to 1G\n");
+            }
+        }
+    }
+    MHal_NOE_Write_Reg(FE_INT_STATUS2, reg_int_val);
+}
+
+
+MS_BOOL MHal_NOE_Support_Auto_Polling(void)
+{
+    if (noe_config.version == 0) {
+        if ((noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM) ||
+            (noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_CHIPTOP)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+void MHal_NOE_Set_Auto_Polling(EN_NOE_SEL enable)
+{
+	MS_U32 reg_value;
+
+    if (noe_config.version == 0) {
+        if ((noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM) ||
+            (noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_CHIPTOP)) {
+            return;
+        }
+    }
+
+    /* FIXME: we don't know how to deal with PHY end addr */
+    reg_value = MHal_NOE_Read_Reg(ESW_PHY_POLLING);
+    reg_value &= ~(0x1f);
+    reg_value &= ~(0x1f << 8);
+    
+    if (E_NOE_SEL_ENABLE == enable) {
+    	reg_value |= (1 << 31);
+    }
+    else {
+        reg_value &= 0x7FFFFFFF;
+    }
+
+    /* setup PHY address for auto polling (Start Addr). */
+    reg_value |= noe_config.mii_info[E_NOE_GE_MAC1].phy_addr & 0x1F;
+        
+    /* setup PHY address for auto polling (End Addr). */
+    reg_value |= (noe_config.mii_info[E_NOE_GE_MAC2].phy_addr & 0x1F) << 8;
+
+
+    MHAL_NOE_DBG_INFO("[%s][%d] reg_value=0x%x\n", __FUNCTION__, __LINE__, reg_value);
+    MHal_NOE_Write_Reg(ESW_PHY_POLLING, reg_value);
+}
+
+void MHal_NOE_Force_Link_Mode(EN_NOE_GE_MAC ge, EN_NOE_SPEED speed, EN_NOE_DUPLEX duplex)
+{
+    MS_U32 reg_value = 0;
+
+    if(ge == E_NOE_GE_MAC1) {  
+        reg_value = MHal_NOE_Read_Reg(NOE_MAC_P1_MCR);
+    }
+    else if(ge == E_NOE_GE_MAC2) {
+        reg_value = MHal_NOE_Read_Reg(NOE_MAC_P2_MCR);
+    }
+
+    MHAL_NOE_DBG_INFO("GMAC%d: 0x%x \n", ge+1  , reg_value);
+    if ((duplex == E_NOE_DUPLEX_INVALID) && (speed == E_NOE_SPEED_INVALID)) {
+        reg_value &= (~0x8031);
+    }
+    else { 
+        reg_value &= (~(0x2|0xC));
+        reg_value |= (0x01 | 0x30 | 0xE000);
+           
+        if(speed == E_NOE_SPEED_1000) {
+            reg_value |= 0x8;
+            if (duplex == E_NOE_DUPLEX_FULL) {
+                reg_value |= 0x2;
+            }
+        }
+        else if(speed == E_NOE_SPEED_100) {
+            reg_value |= 0x4;
+            if (duplex == E_NOE_DUPLEX_FULL) {
+                reg_value |= 0x2;
+            }
+        }
+        else {
+            if (duplex == E_NOE_DUPLEX_FULL) {
+                reg_value |= 0x2;
+            }       
+        }
+    }
+   
+    if(ge == E_NOE_GE_MAC1) { 
+        MHal_NOE_Write_Reg(NOE_MAC_P1_MCR, reg_value);
+        MHAL_NOE_DBG_INFO("GMAC1: 0x%x \n",MHal_NOE_Read_Reg(NOE_MAC_P1_MCR));
+    }
+    else if(ge == E_NOE_GE_MAC2) {
+        MHal_NOE_Write_Reg(NOE_MAC_P2_MCR, reg_value);
+        MHAL_NOE_DBG_INFO("GMAC2: 0x%x \n",MHal_NOE_Read_Reg(NOE_MAC_P2_MCR));
+    }
+
+    //FPGA is clock /10 , so 100M Mac vs 10M Phy
+    //MHAL_NOE_DBG_INFO("GMAC: Force mode, Link Up, 100Mbps, Full-Duplex, FC ON\n");
+    //MHal_NOE_Write_Reg(NOE_MAC_P1_MCR, 0x2105e337);//(P0, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
+    //MHal_NOE_Write_Reg(NOE_MAC_P2_MCR, 0x2105e337);//(P1, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
+}
+
+void MHal_NOE_Set_Interface_Mode(EN_NOE_GE_MAC ge, EN_NOE_INTERFACE mode)
+{
+    MS_U32 val = 0;
+    if(ge == E_NOE_GE_MAC1) {
+        val = MHal_NOE_Read_Reg(SYSCFG1) & (~(0x3 << 12)); /* E_NOE_INTERFACE_RGMII_MODE */
+        if (mode == E_NOE_INTERFACE_MII_MODE)
+            val = val | BIT(12);    
+        else if (mode == E_NOE_INTERFACE_RMII_MODE)
+            val = val | BIT(13);
+        MHal_NOE_Write_Reg(SYSCFG1, val);
+    }
+    else if(ge == E_NOE_GE_MAC2) {
+        val = MHal_NOE_Read_Reg(SYSCFG1) & (~(0x3 << 14)); /* E_NOE_INTERFACE_RGMII_MODE */
+        if (mode == E_NOE_INTERFACE_MII_MODE)
+            val = val | BIT(14);    
+        else if (mode == E_NOE_INTERFACE_RMII_MODE)
+            val = val | BIT(15);
+        MHal_NOE_Write_Reg(SYSCFG1, val);
+    }
+}
+
+void MHal_NOE_Init_Mii_Mgr(EN_NOE_GE_MAC ge, u32 phy_addr, unsigned char force_mode)
+{
+    if (ge >= E_NOE_GE_MAC_MAX) {
+        return;
+    }
+    noe_config.mii_info[ge].noe_mii_force_mode = force_mode;
+    noe_config.mii_info[ge].phy_addr = phy_addr;
+
+    if (ge == E_NOE_GE_MAC1) {
+        if ((noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY) ||
+            (noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_PM) ||
+            (noe_config.pin_mux == E_NOE_SEL_PIN_MUX_GE1_TO_GPHY_GE2_TO_CHIPTOP)) {
+                _MHal_NOE_GPHY_Set_Addr(phy_addr);
+                MHal_NOE_GPHY_Write_Mii_Mgr((MS_U8)phy_addr&0xFF, GPHY_REG_BASIC, 0x1000);
+                MHal_NOE_GPHY_Get_Link_Info((MS_U8)phy_addr&0xFF);
+                printk(" Emma PHY \n"); 
+        }
+    }
+}
+
+
+EN_NOE_RET MHal_NOE_LRO_Set_Ring_Cfg(EN_NOE_RING ring_no, unsigned int sip, unsigned int dip, unsigned int sport, unsigned int dport)
+{
+    MS_U32 ring_idx; 
+    if ((ring_no != E_NOE_RING_NO1) &&
+        (ring_no != E_NOE_RING_NO2) &&
+        (ring_no != E_NOE_RING_NO3)) {
+    
+        MHAL_NOE_DBG_INFO("invalid ring_no=%d\n", ring_no);
+        return E_NOE_RET_INVALID_PARAM;
+    }
+    
+    
+    if (ring_no == E_NOE_RING_NO1)
+        ring_idx = ADMA_RX_RING1;
+    else if (ring_no == E_NOE_RING_NO2)
+        ring_idx = ADMA_RX_RING2;
+    else if (ring_no == E_NOE_RING_NO3)
+        ring_idx = ADMA_RX_RING3;
+
+    MHAL_NOE_DBG_INFO("set_fe_lro_ring%d_cfg()\n", ring_idx);
+
+    /* 1. Set RX ring mode to force port */
+    SET_PDMA_RXRING_MODE(ring_idx, PDMA_RX_FORCE_PORT);
+
+    /* 2. Configure lro ring */
+    /* 2.1 set src/destination TCP ports */
+    SET_PDMA_RXRING_TCP_SRC_PORT(ring_idx, sport);
+    SET_PDMA_RXRING_TCP_DEST_PORT(ring_idx, dport);
+    /* 2.2 set src/destination IPs */
+    if(ring_idx == E_NOE_RING_NO1) {
+        MHal_NOE_Write_Reg(LRO_RX_RING1_SIP_DW0, sip);
+        MHal_NOE_Write_Reg(LRO_RX_RING1_DIP_DW0, dip);
+    }
+    else if(ring_idx == E_NOE_RING_NO2) {
+        MHal_NOE_Write_Reg(LRO_RX_RING2_SIP_DW0, sip);
+        MHal_NOE_Write_Reg(LRO_RX_RING2_DIP_DW0, dip);
+    }
+    else if(ring_idx == E_NOE_RING_NO3) {
+        MHal_NOE_Write_Reg(LRO_RX_RING3_SIP_DW0, sip);
+        MHal_NOE_Write_Reg(LRO_RX_RING3_DIP_DW0, dip);
+    }
+    /* 2.3 IPv4 force port mode */
+    SET_PDMA_RXRING_IPV4_FORCE_MODE(ring_idx, 1);
+    /* 2.4 IPv6 force port mode */
+    SET_PDMA_RXRING_IPV6_FORCE_MODE(ring_idx, 1);
+
+    /* 3. Set Age timer: 10 msec. */
+    SET_PDMA_RXRING_AGE_TIME(ring_idx, HW_LRO_AGE_TIME);
+
+    /* 4. Valid LRO ring */
+    SET_PDMA_RXRING_VALID(ring_idx, 1);
+
+    return E_NOE_RET_TRUE;
+}
+
+
+void MHal_NOE_LRO_Set_Cfg(void)
+{
+    unsigned int reg_val = 0;
+
+    MHAL_NOE_DBG_INFO("set_fe_lro_glo_cfg()\n");
+
+    /* 1 Set max AGG timer: 10 msec. */
+    SET_PDMA_LRO_MAX_AGG_TIME(HW_LRO_AGG_TIME);
+
+    /* 2. Set max LRO agg count */
+    SET_PDMA_LRO_MAX_AGG_CNT(HW_LRO_MAX_AGG_CNT);
+
+    /* PDMA prefetch enable setting */
+    SET_PDMA_LRO_RXD_PREFETCH_EN(ADMA_RXD_PREFETCH_EN | ADMA_MULTI_RXD_PREFETCH_EN);
+    /* 2.1 IPv4 checksum update enable */
+    SET_PDMA_LRO_IPV4_CSUM_UPDATE_EN(1);
+
+    /* 3. Polling relinguish */
+    while (1) {
+        if (MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW0) & PDMA_LRO_RELINGUISH) {
+            MHAL_NOE_DBG_INFO("Polling HW LRO RELINGUISH...\n");
+        }
+        else
+            break;
+    }
+
+    /* 4. Enable LRO */
+    reg_val = MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW0);
+    reg_val |= PDMA_LRO_EN;
+    MHal_NOE_Write_Reg(ADMA_LRO_CTRL_DW0, reg_val);
+}
+
+
+void MHal_NOE_LRO_Set_Ip(unsigned int lan_ip)
+{
+	/* Set IP: LAN IP */
+	MHal_NOE_Write_Reg(LRO_RX_RING0_DIP_DW0, lan_ip);
+	MHal_NOE_Write_Reg(LRO_RX_RING0_DIP_DW1, 0);
+	MHal_NOE_Write_Reg(LRO_RX_RING0_DIP_DW2, 0);
+	MHal_NOE_Write_Reg(LRO_RX_RING0_DIP_DW3, 0);
+	SET_PDMA_RXRING_MYIP_VALID(E_NOE_RING_NO0, 1);
+}
+
+
+void MHal_NOE_LRO_Set_Auto_Learn_Cfg(void)
+{
+	unsigned int reg_val = 0;
+
+	/* Set RX ring1~3 to auto-learn modes */
+	SET_PDMA_RXRING_MODE(E_NOE_RING_NO1, PDMA_RX_AUTO_LEARN);
+	SET_PDMA_RXRING_MODE(E_NOE_RING_NO2, PDMA_RX_AUTO_LEARN);
+	SET_PDMA_RXRING_MODE(E_NOE_RING_NO3, PDMA_RX_AUTO_LEARN);
+
+	/* Valid LRO ring */
+	SET_PDMA_RXRING_VALID(E_NOE_RING_NO0, 1);
+	SET_PDMA_RXRING_VALID(E_NOE_RING_NO1, 1);
+	SET_PDMA_RXRING_VALID(E_NOE_RING_NO2, 1);
+	SET_PDMA_RXRING_VALID(E_NOE_RING_NO3, 1);
+
+	/* Set AGE timer */
+	SET_PDMA_RXRING_AGE_TIME(E_NOE_RING_NO1, HW_LRO_AGE_TIME);
+	SET_PDMA_RXRING_AGE_TIME(E_NOE_RING_NO2, HW_LRO_AGE_TIME);
+	SET_PDMA_RXRING_AGE_TIME(E_NOE_RING_NO3, HW_LRO_AGE_TIME);
+
+	/* Set max AGG timer */
+	SET_PDMA_RXRING_AGG_TIME(E_NOE_RING_NO1, HW_LRO_AGG_TIME);
+	SET_PDMA_RXRING_AGG_TIME(E_NOE_RING_NO2, HW_LRO_AGG_TIME);
+	SET_PDMA_RXRING_AGG_TIME(E_NOE_RING_NO3, HW_LRO_AGG_TIME);
+
+	/* Set max LRO agg count */
+	SET_PDMA_RXRING_MAX_AGG_CNT(E_NOE_RING_NO1, HW_LRO_MAX_AGG_CNT);
+	SET_PDMA_RXRING_MAX_AGG_CNT(E_NOE_RING_NO2, HW_LRO_MAX_AGG_CNT);
+	SET_PDMA_RXRING_MAX_AGG_CNT(E_NOE_RING_NO3, HW_LRO_MAX_AGG_CNT);
+
+	/* IPv6 LRO enable */
+	SET_PDMA_LRO_IPV6_EN(1);
+
+	/* IPv4 checksum update enable */
+	SET_PDMA_LRO_IPV4_CSUM_UPDATE_EN(1);
+
+	/* TCP push option check disable */
+	/* SET_PDMA_LRO_IPV4_CTRL_PUSH_EN(0); */
+	/* PDMA prefetch enable setting */
+	SET_PDMA_LRO_RXD_PREFETCH_EN(ADMA_RXD_PREFETCH_EN | ADMA_MULTI_RXD_PREFETCH_EN);
+	/* switch priority comparison to packet count mode */
+	SET_PDMA_LRO_ALT_SCORE_MODE(PDMA_LRO_ALT_PKT_CNT_MODE);
+
+	/* bandwidth threshold setting */
+	SET_PDMA_LRO_BW_THRESHOLD(HW_LRO_BW_THRE);
+
+	/* auto-learn score delta setting */
+	MHal_NOE_Write_Reg(LRO_ALT_SCORE_DELTA, HW_LRO_REPLACE_DELTA);
+
+	/* Set ALT timer to 20us: (unit: 20us) */
+	SET_PDMA_LRO_ALT_REFRESH_TIMER_UNIT(HW_LRO_TIMER_UNIT);
+	/* Set ALT refresh timer to 1 sec. (unit: 20us) */
+	SET_PDMA_LRO_ALT_REFRESH_TIMER(HW_LRO_REFRESH_TIME);
+
+	/* the least remaining room of SDL0 in RXD for lro aggregation */
+	SET_PDMA_LRO_MIN_RXD_SDL(HW_LRO_SDL_REMAIN_ROOM);
+
+	/* Polling relinguish */
+	while (1) {
+		if (MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW0) & PDMA_LRO_RELINGUISH) {
+			MHAL_NOE_DBG_INFO("Polling HW LRO RELINGUISH...\n");
+    	}
+        else
+			break;
+	}
+
+	/* Enable HW LRO */
+	reg_val = MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW0);
+	reg_val |= PDMA_LRO_EN;
+	MHal_NOE_Write_Reg(ADMA_LRO_CTRL_DW0, reg_val);
+
+}
+
+
+
+
+void MHal_NOE_LRO_Update_Calc_Idx(MS_U32 ring_no, MS_U32 dma_owner_idx)
+{
+    MHal_NOE_Write_Reg(CONFIG_NOE_REG_RX_CALC_IDX0 + (ring_no << 4) , dma_owner_idx);
+}
+
+
+void MHal_NOE_LRO_Reset_Rx_Ring(EN_NOE_RING rx_ring_no, u32 phy_addr, u32 desc_num, u32 desc_idx)
+{
+    if (rx_ring_no == E_NOE_RING_NO3) {
+        MHal_NOE_Write_Reg(RX_BASE_PTR3, phy_addr);
+        MHal_NOE_Write_Reg(RX_MAX_CNT3, desc_num);
+        MHal_NOE_Write_Reg(RX_CALC_IDX3, desc_idx);
+        MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX3);
+    }
+    else if (rx_ring_no == E_NOE_RING_NO2) {
+        MHal_NOE_Write_Reg(RX_BASE_PTR2, phy_addr);
+        MHal_NOE_Write_Reg(RX_MAX_CNT2, desc_num);
+        MHal_NOE_Write_Reg(RX_CALC_IDX2, desc_idx);
+        MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX2);
+    }
+    else if (rx_ring_no == E_NOE_RING_NO1) {
+        MHal_NOE_Write_Reg(RX_BASE_PTR1, phy_addr);
+        MHal_NOE_Write_Reg(RX_MAX_CNT1, desc_num);
+        MHal_NOE_Write_Reg(RX_CALC_IDX1, desc_idx);
+        MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX1);
+    }
+}
+
+
+EN_NOE_RET MHal_NOE_LRO_Get_Ring_Info(EN_NOE_DMA dma, EN_NOE_DIR dir, EN_NOE_RING ring_no, struct noe_dma_info * info)
+{
+    EN_NOE_RET ret = E_NOE_RET_FALSE; 
+    if (E_NOE_DIR_TX == dir) {
+        if (dma & E_NOE_DMA_PACKET) {
+            if (ring_no == E_NOE_RING_NO0) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(TX_BASE_PTR0);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(TX_MAX_CNT0);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(TX_CTX_IDX0);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(TX_DTX_IDX0); 
+            }
+            else if (ring_no == E_NOE_RING_NO1) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(TX_BASE_PTR1);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(TX_MAX_CNT1);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(TX_CTX_IDX1);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(TX_DTX_IDX1); 
+            }
+            else if (ring_no == E_NOE_RING_NO2) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(TX_BASE_PTR2);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(TX_MAX_CNT2);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(TX_CTX_IDX2);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(TX_DTX_IDX2); 
+            }
+            else if (ring_no == E_NOE_RING_NO3) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(TX_BASE_PTR3);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(TX_MAX_CNT3);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(TX_CTX_IDX3);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(TX_DTX_IDX3); 
+            }
+        }
+        else if (dma & E_NOE_DMA_QUEUE) {
+            ret = E_NOE_RET_TRUE; 
+            info->adr_st.ctx_adr = MHal_NOE_Read_Reg(QTX_CTX_PTR);
+            info->adr_st.dtx_adr = MHal_NOE_Read_Reg(QTX_DTX_PTR);
+            info->adr_st.crx_adr = MHal_NOE_Read_Reg(QTX_CRX_PTR);
+            info->adr_st.drx_adr = MHal_NOE_Read_Reg(QTX_DRX_PTR); 
+
+        }
+    }
+    else if (E_NOE_DIR_RX == dir){
+        if (dma & E_NOE_DMA_PACKET) {
+            if (ring_no == E_NOE_RING_NO0) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(RX_BASE_PTR0);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(RX_MAX_CNT0);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(RX_CALC_IDX0);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(RX_DRX_IDX0);
+            }
+			else if (ring_no == E_NOE_RING_NO1) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(RX_BASE_PTR1);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(RX_MAX_CNT1);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(RX_CALC_IDX1);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(RX_DRX_IDX1);
+            }
+			else if (ring_no == E_NOE_RING_NO2) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(RX_BASE_PTR2);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(RX_MAX_CNT2);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(RX_CALC_IDX2);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(RX_DRX_IDX2);
+            }
+			else if (ring_no == E_NOE_RING_NO3) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(RX_BASE_PTR3);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(RX_MAX_CNT3);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(RX_CALC_IDX3);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(RX_DRX_IDX3);
+            }
+        }
+        else if (dma & E_NOE_DMA_QUEUE) {
+             if (ring_no == E_NOE_RING_NO0) {
+                ret = E_NOE_RET_TRUE; 
+                info->ring_st.base_adr = MHal_NOE_Read_Reg(QRX_BASE_PTR_0);
+                info->ring_st.max_cnt = MHal_NOE_Read_Reg(QRX_MAX_CNT_0);
+                info->ring_st.cpu_idx = MHal_NOE_Read_Reg(QRX_CRX_IDX_0);
+                info->ring_st.dma_idx = MHal_NOE_Read_Reg(QRX_DRX_IDX_0);
+            }           
+        }
+    }
+
+    return ret;
+}
+
+
+
+void MHal_NOE_LRO_Get_Calc_Idx(struct noe_lro_calc_idx *calc_idx)
+{
+    calc_idx->ring1 = MHal_NOE_Read_Reg(RX_CALC_IDX1);
+    calc_idx->ring2 = MHal_NOE_Read_Reg(RX_CALC_IDX2);
+    calc_idx->ring3 = MHal_NOE_Read_Reg(RX_CALC_IDX3);
+}
+
+void MHal_NOE_Dump_Mii_Mgr(int port_no, int from, int to, int is_local, int page_no)
+{
+/// do nothing
+}
+
+
+
+void MHal_NOE_Init_Sep_Intr(EN_NOE_DMA dma, EN_NOE_DIR dir)
+{
+    if (E_NOE_DIR_TX == dir) {
+        if (E_NOE_DMA_PACKET == dma) {
+            noe_config.intr_info.fe_tx_int_status = (void __iomem *)CONFIG_NOE_REG_FE_INT_STATUS;
+            noe_config.intr_info.fe_tx_int_enable = (void __iomem *)CONFIG_NOE_REG_FE_INT_ENABLE;
+        }
+        else if (E_NOE_DMA_QUEUE & dma) {
+            noe_config.intr_info.fe_tx_int_status = (void __iomem *)QFE_INT_STATUS;
+            noe_config.intr_info.fe_tx_int_enable = (void __iomem *)QFE_INT_ENABLE; 
+        }
+    }
+    else if (E_NOE_DIR_RX == dir) {
+        if (E_NOE_DMA_PACKET == dma) {
+            noe_config.intr_info.fe_rx_int_status = (void __iomem *)CONFIG_NOE_REG_FE_INT_STATUS;
+            noe_config.intr_info.fe_rx_int_enable = (void __iomem *)CONFIG_NOE_REG_FE_INT_ENABLE;
+        }
+        else if (E_NOE_DMA_QUEUE & dma) {
+            noe_config.intr_info.fe_rx_int_status = (void __iomem *)QFE_INT_STATUS;
+            noe_config.intr_info.fe_rx_int_enable = (void __iomem *)QFE_INT_ENABLE;        
+        }
+    }
+}
+
+
+
+MS_U8 MHal_NOE_Get_Sep_Intr_Status(EN_NOE_DIR dir)
+{
+    unsigned int reg_int_val;
+    if (E_NOE_DIR_TX == dir) {
+        reg_int_val = MHal_NOE_Read_Reg(noe_config.intr_info.fe_tx_int_status);
+        if (reg_int_val & (TX_DLY_INT | TX_DONE_INT0)) {
+            return NOE_TRUE;
+        }
+    }
+    else if (E_NOE_DIR_RX == dir) {
+        reg_int_val = MHal_NOE_Read_Reg(noe_config.intr_info.fe_rx_int_status);
+        if (reg_int_val & (RX_DLY_INT | RX_DONE_INT3 | RX_DONE_INT2 | RX_DONE_INT1 | RX_DONE_INT0)) {
+            return NOE_TRUE;
+        }
+    }
+
+    return NOE_FALSE;
+}
+
+void MHal_NOE_Clear_Sep_Intr_Status(EN_NOE_DIR dir)
+{
+    if (E_NOE_DIR_TX == dir) {
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_tx_int_status, (TX_DLY_INT | TX_DONE_INT0));
+    }
+    else if (E_NOE_DIR_RX == dir) {
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_rx_int_status, (RX_DLY_INT | RX_DONE_INT3 | RX_DONE_INT2 | RX_DONE_INT1 | RX_DONE_INT0));
+    }
+}
+
+void MHal_NOE_Clear_Sep_Intr_Specific_Status(EN_NOE_DIR dir, EN_NOE_INTR_CLR_STATUS status)
+{
+    MS_U32 reg_int_val;
+    if (E_NOE_DIR_TX == dir) {
+        reg_int_val = MHal_NOE_Read_Reg(noe_config.intr_info.fe_tx_int_status);
+        if(status == E_NOE_INTR_CLR_EXCEPT_RX) {
+            reg_int_val &= ~(RX_DLY_INT | RX_DONE_INT2 | RX_DONE_INT3 | RX_DONE_INT1 | RX_DONE_INT0); 
+        }
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_tx_int_status, reg_int_val);
+    }
+    else if (E_NOE_DIR_RX == dir) {
+        reg_int_val = MHal_NOE_Read_Reg(noe_config.intr_info.fe_rx_int_status);
+        if(status == E_NOE_INTR_CLR_EXCEPT_TX) {
+            reg_int_val &= ~(TX_DLY_INT | TX_DONE_INT0); 
+        }
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_rx_int_status, reg_int_val);
+    }
+}
+
+void MHal_NOE_Enable_Sep_Intr(EN_NOE_DIR dir, EN_NOE_DELAY e_dly)
+{
+    unsigned int reg_int_mask;
+
+    if (E_NOE_DIR_TX == dir) {
+        reg_int_mask = MHal_NOE_Read_Reg(noe_config.intr_info.fe_tx_int_enable);
+        if (e_dly == E_NOE_DLY_ONLY)
+            MHal_NOE_Write_Reg(noe_config.intr_info.fe_tx_int_enable, reg_int_mask | TX_DLY_INT);
+        else if (e_dly == E_NOE_DLY_DISABLE)
+            MHal_NOE_Write_Reg(noe_config.intr_info.fe_tx_int_enable, reg_int_mask | TX_DONE_INT0);
+        
+    }
+    else if (E_NOE_DIR_RX == dir) {
+        reg_int_mask = MHal_NOE_Read_Reg(noe_config.intr_info.fe_rx_int_enable);
+        if (e_dly == E_NOE_DLY_ONLY)
+            MHal_NOE_Write_Reg(noe_config.intr_info.fe_rx_int_enable, reg_int_mask | RX_DLY_INT);
+        else if (e_dly == E_NOE_DLY_DISABLE)
+            MHal_NOE_Write_Reg(noe_config.intr_info.fe_rx_int_enable, reg_int_mask | RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3);
+    }
+}
+
+
+void MHal_NOE_Disable_Sep_Intr(EN_NOE_DIR dir)
+{
+    unsigned int reg_int_mask;
+    if (E_NOE_DIR_TX == dir) {
+        /* Disable TX interrupt */
+        reg_int_mask = MHal_NOE_Read_Reg(noe_config.intr_info.fe_tx_int_enable);
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_tx_int_enable, reg_int_mask & ~(TX_DLY_INT | TX_DONE_INT0));
+    }
+    else if (E_NOE_DIR_RX == dir) {
+        /* Disable RX interrupt */
+        reg_int_mask = MHal_NOE_Read_Reg(noe_config.intr_info.fe_rx_int_enable);
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_rx_int_enable, reg_int_mask & ~(RX_DLY_INT | RX_DONE_INT2 | RX_DONE_INT3 | RX_DONE_INT1 | RX_DONE_INT0));
+    }
+    else if (E_NOE_DIR_BOTH == dir) {
+        /* Disable TX interrupt */
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_tx_int_enable, 0);
+        /* Disable RX interrupt */
+        MHal_NOE_Write_Reg(noe_config.intr_info.fe_rx_int_enable, 0);
+    }
+}
+
+
+void MHal_NOE_Enable_Sep_Delay_Intr(EN_NOE_DMA dma, EN_NOE_DELAY delay_intr)
+{
+    if (E_NOE_DMA_PACKET & dma) {
+        if(delay_intr == E_NOE_DLY_ONLY) {
+            MHal_NOE_Write_Reg(CONFIG_NOE_REG_DLY_INT_CFG, DELAY_INT_INIT);
+            MHal_NOE_Write_Reg(CONFIG_NOE_REG_FE_INT_ENABLE, FE_INT_DLY_INIT);
+        }
+        else{
+            MHal_NOE_Write_Reg(CONFIG_NOE_REG_FE_INT_ENABLE, FE_INT_ALL);
+        }
+    }
+    else if (E_NOE_DMA_QUEUE & dma){
+        if(delay_intr == E_NOE_DLY_ONLY) {
+            MHal_NOE_Write_Reg(QDMA_DELAY_INT, DELAY_INT_INIT);
+            MHal_NOE_Write_Reg(QFE_INT_ENABLE, QFE_INT_DLY_INIT);
+            MHAL_NOE_DBG_INFO("[%s][%d] QFE_INT_ENABLE = %0X\n",__FUNCTION__,__LINE__, MHal_NOE_Read_Reg(QFE_INT_ENABLE));
+        }
+        else {
+            MHal_NOE_Write_Reg(QFE_INT_ENABLE, QFE_INT_ALL);
+            MHAL_NOE_DBG_INFO("[%s][%d] QFE_INT_ENABLE = %0X\n",__FUNCTION__,__LINE__, MHal_NOE_Read_Reg(QFE_INT_ENABLE));
+        }
+    }
+}
+
+
+void MHal_NOE_Set_Grp_Intr(unsigned char delay_intr)
+{
+    if (delay_intr == NOE_TRUE) {
+        /* PDMA setting */
+        MHal_NOE_Write_Reg(PDMA_INT_GRP1 /*NOE_REG_FRAME_ENGINE_BASE + RAPDMA_OFFSET + 0x250*/ , TX_DLY_INT);
+        MHal_NOE_Write_Reg(PDMA_INT_GRP2 /*NOE_REG_FRAME_ENGINE_BASE + RAPDMA_OFFSET + 0x254*/, RX_DLY_INT);
+        /* QDMA setting */
+        MHal_NOE_Write_Reg(QDMA_INT_GRP1 /*NOE_REG_FRAME_ENGINE_BASE + QDMA_RELATED + 0x220*/, RLS_DLY_INT);
+        MHal_NOE_Write_Reg(QDMA_INT_GRP2 /*NOE_REG_FRAME_ENGINE_BASE + QDMA_RELATED + 0x224*/, RX_DLY_INT);
+    }
+    else {
+        /* PDMA setting */
+        MHal_NOE_Write_Reg(PDMA_INT_GRP1 /*NOE_REG_FRAME_ENGINE_BASE + RAPDMA_OFFSET + 0x250*/, TX_DONE_INT0);
+        MHal_NOE_Write_Reg(PDMA_INT_GRP2 /*NOE_REG_FRAME_ENGINE_BASE + RAPDMA_OFFSET + 0x254*/, RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3);
+        /* QDMA setting */
+        MHal_NOE_Write_Reg(QFE_INT_ENABLE, QFE_INT_ALL);
+        MHal_NOE_Write_Reg(QDMA_INT_GRP1/* NOE_REG_FRAME_ENGINE_BASE + QDMA_RELATED + 0x220 */, RLS_DONE_INT);
+        MHal_NOE_Write_Reg(QDMA_INT_GRP2/* NOE_REG_FRAME_ENGINE_BASE + QDMA_RELATED + 0x224 */, RX_DONE_INT0 | RX_DONE_INT1);
+    }
+    MHal_NOE_Write_Reg(FE_INT_GRP /* NOE_REG_FRAME_ENGINE_BASE + 0x20 */, 0x21021000);
+}
+
+
+
+void MHal_NOE_Set_Vlan_Info(void)
+{
+    /*VLAN_IDX 0 = VLAN_ID 0
+     * .........
+     * VLAN_IDX 15 = VLAN ID 15
+     *
+     */
+    /* frame engine will push VLAN tag
+     * regarding to VIDX feild in Tx desc.
+     */
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xa8, 0x00010000);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xac, 0x00030002);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xb0, 0x00050004);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xb4, 0x00070006);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xb8, 0x00090008);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xbc, 0x000b000a);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xc0, 0x000d000c);
+    MHal_NOE_Write_Reg(NOE_REG_FRAME_ENGINE_BASE + 0xc4, 0x000f000e);
+}
+
+
+void MHal_NOE_Offoad_Checksum(EN_NOE_GE_MAC ge, unsigned char offload)
+{
+    unsigned int reg_val, reg_csg;
+    unsigned int reg_val2 = 0;
+    
+    reg_csg = MHal_NOE_Read_Reg(CDMA_CSG_CFG);
+    reg_val = MHal_NOE_Read_Reg(GDMA1_FWD_CFG);
+    reg_val2 = MHal_NOE_Read_Reg(GDMA2_FWD_CFG);
+    if(ge == E_NOE_GE_MAC1) {
+        /* set unicast/multicast/broadcast frame to cpu */
+        reg_val &= ~0xFFFF;
+        reg_val |= GDMA1_FWD_PORT;
+        reg_csg &= ~0x7;
+        if (offload == NOE_ENABLE) {
+            /* enable ipv4 header checksum check */
+            reg_val |= GDM1_ICS_EN;
+            reg_csg |= ICS_GEN_EN;
+
+            /* enable tcp checksum check */
+            reg_val |= GDM1_TCS_EN;
+            reg_csg |= TCS_GEN_EN;
+
+            /* enable udp checksum check */
+            reg_val |= GDM1_UCS_EN;
+            reg_csg |= UCS_GEN_EN;
+        }
+        else {
+            /* disable ipv4 header checksum check */
+            reg_val &= ~GDM1_ICS_EN;
+            reg_csg &= ~ICS_GEN_EN;
+    
+            /* disable tcp checksum check */
+            reg_val &= ~GDM1_TCS_EN;
+            reg_csg &= ~TCS_GEN_EN;
+    
+            /* disable udp checksum check */
+            reg_val &= ~GDM1_UCS_EN;
+            reg_csg &= ~UCS_GEN_EN;
+        }
+        MHal_NOE_Write_Reg(GDMA1_FWD_CFG, reg_val);
+        MHal_NOE_Write_Reg(CDMA_CSG_CFG, reg_csg);
+    }
+    else if(ge == E_NOE_GE_MAC2) {
+
+        if (offload == NOE_ENABLE) {
+            reg_val2 &= ~0xFFFF;
+            reg_val2 |= GDMA2_FWD_PORT;
+            reg_val2 |= GDM1_ICS_EN;
+            reg_val2 |= GDM1_TCS_EN;
+            reg_val2 |= GDM1_UCS_EN;
+        }
+        else {
+            reg_val2 &= ~GDM1_ICS_EN;
+            reg_val2 &= ~GDM1_TCS_EN;
+            reg_val2 &= ~GDM1_UCS_EN;
+        }
+        MHal_NOE_Write_Reg(GDMA2_FWD_CFG, reg_val2);
+    }
+}
+
+
+void MHal_NOE_GLO_Reset(void)
+{
+    /*FE_RST_GLO register definition -
+     *Bit 0: PSE Rest
+     *Reset PSE after re-programming PSE_FQ_CFG.
+     */
+    MS_U32 reg_val = 0x1;
+    MHal_NOE_Write_Reg(FE_RST_GL, reg_val);
+    MHal_NOE_Write_Reg(FE_RST_GL, 0);   /* update for RSTCTL issue */
+
+    MHAL_NOE_DBG_INFO("CDMA_CSG_CFG = %0X\n", MHal_NOE_Read_Reg(CDMA_CSG_CFG));
+    MHAL_NOE_DBG_INFO("GDMA1_FWD_CFG = %0X\n", MHal_NOE_Read_Reg(GDMA1_FWD_CFG));
+    MHAL_NOE_DBG_INFO("GDMA2_FWD_CFG = %0X\n", MHal_NOE_Read_Reg(GDMA2_FWD_CFG));
+}
+
+
+void MHal_NOE_LRO_Set_Prefetch(void)
+{
+    /* enable RXD prefetch of ADMA */
+    unsigned int reg_val = MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW0);
+    reg_val &= ~PDMA_LRO_RXD_PREFETCH_EN;
+    reg_val |= (ADMA_RXD_PREFETCH_EN | ADMA_MULTI_RXD_PREFETCH_EN);
+    MHal_NOE_Write_Reg(ADMA_LRO_CTRL_DW0, reg_val);
+    MHAL_NOE_DBG_INFO("[%s][%d]ADMA_LRO_CTRL_DW0=0x%X\n",__FUNCTION__,__LINE__,MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW0));
+}
+
+EN_NOE_RET MHal_NOE_Dma_Is_Idle(EN_NOE_DMA dma)
+{
+    unsigned int reg_val, loop_cnt = 0;
+    void __iomem *phy_adr = PDMA_GLO_CFG;
+     
+    MHAL_NOE_DBG_INFO("[%s][%d]dma = 0x%x \n",__FUNCTION__,__LINE__,dma);
+    if (E_NOE_DMA_PACKET & dma) {
+        phy_adr = PDMA_GLO_CFG;
+    }
+    else if (E_NOE_DMA_QUEUE & dma) {
+        phy_adr = QDMA_GLO_CFG;
+    }
+    else {
+        return E_NOE_RET_FALSE;
+    }
+    while (1) {
+        if (loop_cnt++ > NOE_WAIT_IDLE_THRESHOLD)
+            break;
+        reg_val = MHal_NOE_Read_Reg(phy_adr);
+        if ((reg_val & RX_DMA_BUSY)) {
+            MHAL_NOE_DBG_INFO("\n  RX_DMA_BUSY !!! ");
+            continue;
+        }
+        if ((reg_val & TX_DMA_BUSY)) {
+            MHAL_NOE_DBG_INFO("\n  TX_DMA_BUSY !!! ");
+            continue;
+        }
+        return E_NOE_RET_TRUE;
+    }
+    return E_NOE_RET_FALSE;
+}
+
+void MHal_NOE_Dma_Init_Global_Config(EN_NOE_DMA dma)
+{
+    unsigned int reg_val;
+    if (E_NOE_DMA_PACKET == dma) {
+        reg_val = (TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN | PDMA_BT_SIZE_16DWORDS | MULTI_EN | ADMA_RX_BT_SIZE_32DWORDS);
+        reg_val |= (RX_2B_OFFSET);
+        MHal_NOE_Write_Reg(PDMA_GLO_CFG, reg_val);
+        MHAL_NOE_DBG_INFO("[%s][%d]PDMA_GLO_CFG=0x%x\n",__FUNCTION__,__LINE__,MHal_NOE_Read_Reg(PDMA_GLO_CFG));
+    }
+    else if (E_NOE_DMA_QUEUE & dma) {
+        reg_val = MHal_NOE_Read_Reg(QDMA_GLO_CFG);
+        reg_val &= 0x000000FF;
+        
+        MHal_NOE_Write_Reg(QDMA_GLO_CFG, reg_val);
+        reg_val = MHal_NOE_Read_Reg(QDMA_GLO_CFG);
+        
+        /* Enable randon early drop and set drop threshold automatically */
+        if (E_NOE_DMA_QUEUE_WITH_SFQ != dma)
+            MHal_NOE_Write_Reg(QDMA_FC_THRES, 0x174444);
+
+        MHal_NOE_Write_Reg(QDMA_HRED2, 0x0);
+        
+        reg_val = (TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN | PDMA_BT_SIZE_16DWORDS);
+        reg_val |= (RX_2B_OFFSET);
+        MHal_NOE_Write_Reg(QDMA_GLO_CFG, reg_val);
+        
+        MHAL_NOE_DBG_INFO("Enable QDMA TX NDP coherence check and re-read mechanism\n");
+        reg_val = MHal_NOE_Read_Reg(QDMA_GLO_CFG);
+        reg_val = reg_val | 0x400 | 0x100000;
+        MHal_NOE_Write_Reg(QDMA_GLO_CFG, reg_val);
+        MHAL_NOE_DBG_INFO("***********QDMA_GLO_CFG=0x%x\n", MHal_NOE_Read_Reg(QDMA_GLO_CFG));
+    }
+}
+
+void MHal_NOE_DMA_Init(EN_NOE_DMA dma, EN_NOE_DIR dir, EN_NOE_RING ring_no, struct noe_dma_info *dma_info)
+{
+    int i = 0;
+    int page, queue;
+
+    MHAL_NOE_DBG_INFO("dma,dir  = 0x%0X,0x%0X  \n",dma,dir);
+    if ((dma & E_NOE_DMA_QUEUE) && (dir == E_NOE_DIR_TX)) {
+        MHAL_NOE_DBG_INFO("ctx = 0x%0X \n",(MS_U32) dma_info->adr_st.ctx_adr);
+        MHAL_NOE_DBG_INFO("dtx = 0x%0X \n",(MS_U32) dma_info->adr_st.dtx_adr);
+        MHAL_NOE_DBG_INFO("crx = 0x%0X \n",(MS_U32) dma_info->adr_st.crx_adr);
+        MHAL_NOE_DBG_INFO("drx = 0x%0X \n",(MS_U32) dma_info->adr_st.drx_adr);
+    }
+    else {
+        MHAL_NOE_DBG_INFO("base_adr = 0x%0X\n",(MS_U32)dma_info->ring_st.base_adr);
+        MHAL_NOE_DBG_INFO("max_cnt  = 0x%0X\n",dma_info->ring_st.max_cnt);
+        MHAL_NOE_DBG_INFO("cpu_idx  = 0x%0X \n\n",dma_info->ring_st.cpu_idx);
+    }
+    
+
+    if(dma & E_NOE_DMA_PACKET) {
+        if (dir == E_NOE_DIR_RX) {
+			if (ring_no == E_NOE_RING_NO0) { 
+				/* Tell the adapter where the RX rings are located. */
+				MHal_NOE_Write_Reg(RX_BASE_PTR0, dma_info->ring_st.base_adr);
+				MHal_NOE_Write_Reg(RX_MAX_CNT0, dma_info->ring_st.max_cnt);
+				MHal_NOE_Write_Reg(RX_CALC_IDX0, dma_info->ring_st.cpu_idx);
+				MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX0);
+			}
+			else if (ring_no == E_NOE_RING_NO3) {
+				MHal_NOE_Write_Reg(RX_BASE_PTR3, dma_info->ring_st.base_adr);
+				MHal_NOE_Write_Reg(RX_MAX_CNT3, dma_info->ring_st.max_cnt);
+				MHal_NOE_Write_Reg(RX_CALC_IDX3, dma_info->ring_st.cpu_idx);
+				MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX3);
+			}
+			else if (ring_no == E_NOE_RING_NO2) {
+				MHal_NOE_Write_Reg(RX_BASE_PTR2, dma_info->ring_st.base_adr);
+				MHal_NOE_Write_Reg(RX_MAX_CNT2, dma_info->ring_st.max_cnt);
+				MHal_NOE_Write_Reg(RX_CALC_IDX2, dma_info->ring_st.cpu_idx);
+				MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX2);
+			}
+			else if (ring_no == E_NOE_RING_NO1) {
+				MHal_NOE_Write_Reg(RX_BASE_PTR1, dma_info->ring_st.base_adr);
+				MHal_NOE_Write_Reg(RX_MAX_CNT1, dma_info->ring_st.max_cnt);
+				MHal_NOE_Write_Reg(RX_CALC_IDX1, dma_info->ring_st.cpu_idx);
+				MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DRX_IDX1);
+			}
+        }
+        else if (dir == E_NOE_DIR_TX) {
+            /* Tell the adapter where the TX rings are located. */
+            MHal_NOE_Write_Reg(TX_BASE_PTR0, dma_info->ring_st.base_adr);
+            MHal_NOE_Write_Reg(TX_MAX_CNT0, dma_info->ring_st.max_cnt);
+            MHal_NOE_Write_Reg(TX_CTX_IDX0, dma_info->ring_st.cpu_idx);
+            MHal_NOE_Write_Reg(PDMA_RST_CFG, PST_DTX_IDX0);
+        }
+    }
+    else if(dma & E_NOE_DMA_QUEUE) {
+        if (dir == E_NOE_DIR_RX) {
+            /* Tell the adapter where the RX rings are located. */
+            MHal_NOE_Write_Reg(QRX_BASE_PTR_0, dma_info->ring_st.base_adr);
+            MHal_NOE_Write_Reg(QRX_MAX_CNT_0, dma_info->ring_st.max_cnt);
+            MHal_NOE_Write_Reg(QRX_CRX_IDX_0, dma_info->ring_st.cpu_idx);
+            MHal_NOE_Write_Reg(QDMA_RST_CFG, PST_DRX_IDX0);
+        }
+        else if (dir == E_NOE_DIR_TX) {
+            MHal_NOE_Write_Reg(QTX_CTX_PTR, dma_info->adr_st.ctx_adr);
+            MHal_NOE_Write_Reg(QTX_DTX_PTR, dma_info->adr_st.dtx_adr);
+            MHal_NOE_Write_Reg(QTX_CRX_PTR, dma_info->adr_st.crx_adr);
+            MHal_NOE_Write_Reg(QTX_DRX_PTR, dma_info->adr_st.drx_adr);
+
+            for (i = 0; i < NUM_PQ; i++) {
+                page = i / QUEUE_OFFSET;
+                queue = i & (QUEUE_OFFSET - 1);
+                MHal_NOE_Write_Reg(QDMA_PAGE, page);
+                MHal_NOE_Write_Reg(QTX_CFG_0 + QUEUE_OFFSET * queue, (NUM_PQ_RESV | (NUM_PQ_RESV << 8)));
+            }
+            MHal_NOE_Write_Reg(QDMA_PAGE, 0);
+        }
+    }
+}
+
+
+
+void MHal_NOE_Get_Intr_Info(struct noe_intr_info *info)
+{
+    info->fe_intr_enable = MHal_NOE_Read_Reg(FE_INT_ENABLE);
+    info->fe_intr_mask = MHal_NOE_Read_Reg(INT_MASK);
+    info->fe_intr_status = MHal_NOE_Read_Reg(FE_INT_STATUS);
+    info->delay_intr_cfg = MHal_NOE_Read_Reg(DLY_INT_CFG);
+    info->qfe_intr_enable = MHal_NOE_Read_Reg(QFE_INT_ENABLE);
+    info->qfe_intr_mask = MHal_NOE_Read_Reg(QDMA_INT_MASK);
+    info->qfe_intr_status = MHal_NOE_Read_Reg(QFE_INT_STATUS);
+}
+
+
+
+void MHal_NOE_Get_Mac_Info(EN_NOE_GE_MAC ge, struct noe_mac_info *info)
+{
+    void __iomem *reg_base;
+
+    if(ge == E_NOE_GE_MAC1) {
+        reg_base = NOE_REG_FRAME_ENGINE_BASE + 0x2400;
+        info->stat.control = MHal_NOE_Read_Reg(NOE_MAC_P1_MCR);
+        info->stat.status = MHal_NOE_Read_Reg(NOE_MAC_P1_SR);
+    }
+    else if (ge == E_NOE_GE_MAC2) {
+        reg_base = NOE_REG_FRAME_ENGINE_BASE + 0x2440;
+        info->stat.control = MHal_NOE_Read_Reg(NOE_MAC_P2_MCR);
+        info->stat.status = MHal_NOE_Read_Reg(NOE_MAC_P2_SR);
+    }
+    else
+        return;
+
+    info->rx.good_cnt = MHal_NOE_Read_Reg(reg_base);   
+    info->rx.good_pkt = MHal_NOE_Read_Reg(reg_base + 0x08);
+    info->rx.overflow_err = MHal_NOE_Read_Reg(reg_base + 0x10);
+    info->rx.fcs_err = MHal_NOE_Read_Reg(reg_base + 0x14);
+    info->rx.ser_cnt = MHal_NOE_Read_Reg(reg_base + 0x18);
+    info->rx.ler_pkt = MHal_NOE_Read_Reg(reg_base + 0x1C);
+    info->rx.chk_err = MHal_NOE_Read_Reg(reg_base + 0x20);
+    info->rx.flow_ctrl = MHal_NOE_Read_Reg(reg_base + 0x24);
+    
+    info->tx.skip_cnt = MHal_NOE_Read_Reg(reg_base + 0x28);
+    info->tx.collision_cnt = MHal_NOE_Read_Reg(reg_base + 0x2C);
+    info->tx.good_cnt = MHal_NOE_Read_Reg(reg_base + 0x30);
+    info->tx.good_pkt = MHal_NOE_Read_Reg(reg_base + 0x38);
+}
+
+void MHal_NOE_Get_Pse_Info(struct noe_pse_info *info)
+{
+    info->min_free_cnt = (MHal_NOE_Read_Reg(FE_PSE_FREE) & 0xff0000) >> 16;
+    info->free_cnt = MHal_NOE_Read_Reg(FE_PSE_FREE) & 0x00ff;
+    info->fq_drop_cnt = MHal_NOE_Read_Reg(FE_DROP_FQ);
+    info->fc_drop_cnt = MHal_NOE_Read_Reg(FE_DROP_FC);
+    info->ppe_drop_cnt = MHal_NOE_Read_Reg(FE_DROP_PPE);
+}
+
+static void _MHal_NOE_PDMA_Get_Dbg(void *dbg_info)
+{
+    struct noe_pdma_dbg *info = (struct noe_pdma_dbg *)dbg_info;
+    info->rx[0] = MHal_NOE_Read_Reg(INT_MASK + 0x10);
+    info->rx[1] = MHal_NOE_Read_Reg(INT_MASK + 0x14);
+    info->tx[0] = MHal_NOE_Read_Reg(INT_MASK + 0x8);
+    info->tx[1] = MHal_NOE_Read_Reg(INT_MASK + 0xC);
+}
+
+
+static void _MHal_NOE_QDMA_Get_Cnt(void *cnt_info)
+{
+    struct noe_qdma_cnt *info = (struct noe_qdma_cnt *) cnt_info;
+    unsigned int page_no = 0, queue_no = 0;
+    if (queue_no >= NUM_PQ)
+        return;
+
+    page_no = info->pq_no / QUEUE_OFFSET;
+    queue_no = info->pq_no & (QUEUE_OFFSET - 1);
+
+    MHal_NOE_Write_Reg(QTX_MIB_IF, 0x90000000);
+    MHal_NOE_Write_Reg(QDMA_PAGE, page_no);
+    info->pkt_cnt = MHal_NOE_Read_Reg(QTX_CFG_0 + queue_no * QUEUE_OFFSET);
+    info->drop_cnt = MHal_NOE_Read_Reg(QTX_SCH_0 + queue_no * QUEUE_OFFSET);
+
+    MHal_NOE_Write_Reg(QDMA_PAGE, 0);
+    MHal_NOE_Write_Reg(QTX_MIB_IF, 0x0);
+}
+
+static void _MHal_NOE_QDMA_Get_Fq(void *fq_info)
+{
+    struct noe_qdma_fq *info = (struct noe_qdma_fq *) fq_info;
+    info->sw_fq = (MHal_NOE_Read_Reg(QDMA_FQ_CNT) & 0xFFFF0000) >> 16; 
+    info->hw_fq = MHal_NOE_Read_Reg(QDMA_FQ_CNT) & 0x0000FFFF;
+}
+
+static void _MHal_NOE_QDMA_Get_Sch(void *rate_info)
+{
+    struct noe_qdma_sch *info = (struct noe_qdma_sch *) rate_info;
+    unsigned int temp = MHal_NOE_Read_Reg(QDMA_TX_SCH);
+    unsigned int max_rate, i;
+    info->sch[0].max_en = (temp & 0x00000800) >> 11;  
+    max_rate = (temp & 0x000007F0) >> 4;
+    for (i = 0; i < (temp & 0x0000000F); i++)
+        max_rate *= 10;
+    info->sch[0].max_rate = max_rate;
+
+    info->sch[1].max_en = (temp & 0x08000000) >> 27;
+    max_rate = (temp & 0x07F00000) >> 20;
+    for (i = 0; i < (temp & 0x000F0000); i++)
+        max_rate *= 10;
+    info->sch[1].max_rate = max_rate;  
+}
+
+static void _MHal_NOE_QDMA_Get_Fc(void *fc_info)
+{
+    struct noe_qdma_fc *info = (struct noe_qdma_fc *) fc_info;
+    unsigned int temp = MHal_NOE_Read_Reg(QDMA_FC_THRES);
+    info->sw.en = (temp & 0x1000000) >> 24;            
+    info->sw.ffa = (temp & 0x200000) >> 25;
+    info->sw.mode = (temp & 0x30000000) >> 28;
+    info->sw.fst_vq_en = (temp & 0x08000000) >> 27;
+    info->sw.fst_vq_mode = (temp & 0xC0000000) >> 30;
+    info->hw.en = (temp & 0x10000) >> 16;
+    info->hw.ffa = (temp & 0x2000) >> 17;
+    info->hw.mode = (temp & 0x300000) >> 20;
+    info->hw.fst_vq_en = (temp & 0x080000) >> 19;
+    info->hw.fst_vq_mode = (temp & 0xC00000) >> 22;
+}
+
+static void _MHal_NOE_QDMA_Get_Fsm(void *fsm_info)
+{
+    struct noe_qdma_fsm *info = (struct noe_qdma_fsm *) fsm_info;
+    unsigned int temp = MHal_NOE_Read_Reg(QDMA_DMA);
+    info->vqtb = (temp & 0x0F000000) >> 24; 
+    info->fq = (temp & 0x000F0000) >> 16;
+    info->tx = (temp & 0x00000F00) >> 8;
+    info->rx = temp & 0x0000001F;
+    temp = MHal_NOE_Read_Reg(QDMA_BMU);
+    info->rls = (temp & 0x07FF0000) >> 16;
+    info->fwd = temp & 0x00007FFF;
+}
+
+static void _MHal_NOE_QDMA_Get_Vq(void *vq_info)
+{
+    struct noe_qdma_vq *info = (struct noe_qdma_vq *) vq_info;
+    unsigned int temp = MHal_NOE_Read_Reg(VQTX_NUM);
+    info->vq_num[E_NOE_VQ_NO0]=temp & 0xF;
+    info->vq_num[E_NOE_VQ_NO1]=(temp & 0xF0) >> 4;
+    info->vq_num[E_NOE_VQ_NO2]=(temp & 0xF00) >> 8;
+    info->vq_num[E_NOE_VQ_NO3]=(temp & 0xF000) >> 12;
+}
+
+static void _MHal_NOE_QDMA_Get_Pq(void *pq_info)
+{
+    struct noe_qdma_pq *info = (struct noe_qdma_pq *) pq_info;
+    unsigned int temp, i, rate, queue;
+    queue = info->queue;
+    temp = MHal_NOE_Read_Reg(QTX_CFG_0 + QUEUE_OFFSET * queue);
+    info->txd_cnt = (temp & 0xffff0000) >> 16;
+    info->hw_resv = (temp & 0xff00) >> 8;
+    info->sw_resv = (temp & 0xff);
+    temp = MHal_NOE_Read_Reg(QTX_CFG_0 + (QUEUE_OFFSET * queue) + 0x4);
+    info->sch = (temp >> 31) + 1;
+    info->min_en = (temp & 0x8000000) >> 27;
+    rate = (temp & 0x7f00000) >> 20;
+    for (i = 0; i < (temp & 0xf0000) >> 16; i++)
+        rate *= 10;
+    info->min_rate = rate;
+    info->max_en = (temp & 0x800) >> 11;
+    rate = (temp & 0x7f0) >> 4;
+    for (i = 0; i < (temp & 0xf); i++)
+        rate *= 10;
+    info->max_rate = rate;
+    info->weight = (temp & 0xf000) >> 12;
+    info->queue_head = MHal_NOE_Read_Reg(QTX_HEAD_0 + 0x10 * queue);
+    info->queue_tail = MHal_NOE_Read_Reg(QTX_TAIL_0 + 0x10 * queue);    
+}
+
+void MHal_NOE_Get_Qdma_Info(EN_NOE_QDMA_INFO_TYPE type, void *info)
+{
+    if ((type >= E_NOE_QDMA_INFO_MAX) || (_mhal_noe_qdma_get_info_pfn[type] == NULL))
+        return;
+    _mhal_noe_qdma_get_info_pfn[type](info);
+}
+
+
+void MHal_NOE_IO_Enable_Coherence(void)
+{
+    MS_U32 reg_val = MHal_NOE_Read_Reg(REG_NOE_IOC_ETH);
+    reg_val |= IOC_ETH_PDMA | IOC_ETH_QDMA;
+    MHal_NOE_Write_Reg(REG_NOE_IOC_ETH, reg_val);
+}
+
+
+
+void MHal_NOE_MAC_Enable_Link_Intr(EN_NOE_GE_MAC ge)
+{
+    MS_U32 val;
+    val = MHal_NOE_Read_Reg(FE_INT_ENABLE2);
+    if (ge == E_NOE_GE_MAC1) {
+        val = val | (1 << 24);
+    }
+    else if (ge == E_NOE_GE_MAC2) {
+        val = val | (1 << 25);
+    }
+    MHal_NOE_Write_Reg(FE_INT_ENABLE2, val);
+}
+
+
+void MHal_NOE_DMA_Update_Calc_Idx(EN_NOE_DIR dir, MS_U32 owner_idx)
+{
+    if (dir == E_NOE_DIR_RX)
+        MHal_NOE_Write_Reg(CONFIG_NOE_REG_RX_CALC_IDX0, owner_idx);
+    else if (dir == E_NOE_DIR_TX)
+        MHal_NOE_Write_Reg(TX_CTX_IDX0, owner_idx);
+}
+
+MS_U32 MHal_NOE_DMA_Get_Calc_Idx(EN_NOE_DIR dir)
+{
+    if (dir == E_NOE_DIR_RX)
+        return MHal_NOE_Read_Reg(CONFIG_NOE_REG_RX_CALC_IDX0);
+    else if (dir == E_NOE_DIR_TX)
+        return MHal_NOE_Read_Reg(TX_CTX_IDX0);
+    return NOE_INVALID_CALC_IDX;
+}
+
+
+void MHal_NOE_Get_Intr_Status(EN_NOE_DMA dma, MS_BOOL dly, MS_U32 *recv, MS_U32 *xmit)
+{
+    MS_U32 reg_int_val;
+    noe_config.intr_info.reg_int_val_q = 0;
+    noe_config.intr_info.reg_int_val_p = MHal_NOE_Read_Reg(CONFIG_NOE_REG_FE_INT_STATUS);
+    if (dma & E_NOE_DMA_QUEUE) {
+        noe_config.intr_info.reg_int_val_q = MHal_NOE_Read_Reg(QFE_INT_STATUS);
+        if (MHal_NOE_Read_Reg(QFE_INT_STATUS) != 0)
+            MHAL_NOE_INTR_INFO("QQ.STATUS = 0x%08x \n", MHal_NOE_Read_Reg(QFE_INT_STATUS));
+    }
+    reg_int_val = noe_config.intr_info.reg_int_val_p | noe_config.intr_info.reg_int_val_q; 
+    if (dly == NOE_TRUE) {
+        if ((reg_int_val & RX_DLY_INT))
+            *recv = 1;
+        if (reg_int_val & CONFIG_NOE_REG_TX_DLY_INT)
+            *xmit = 1;
+    }
+    else {
+        if ((reg_int_val & (RX_DONE_INT0 | RX_DONE_INT3 | RX_DONE_INT2 | RX_DONE_INT1)))
+            *recv = 1;
+        if (reg_int_val & CONFIG_NOE_REG_TX_DONE_INT0)
+            *xmit |= CONFIG_NOE_REG_TX_DONE_INT0;
+    } 
+}
+
+void MHal_NOE_Clear_Intr_Status(EN_NOE_DMA dma)
+{
+    
+    if (MHal_NOE_Read_Reg(QFE_INT_STATUS) != 0)
+        MHAL_NOE_INTR_INFO("0.STATUS = 0x%08x \n", MHal_NOE_Read_Reg(QFE_INT_STATUS));
+    /* Clear Interrupt */
+    if (dma & E_NOE_DMA_QUEUE) {
+        MHal_NOE_Write_Reg(QFE_INT_STATUS, noe_config.intr_info.reg_int_val_q);
+    }
+    /* QWERT */
+    MHal_NOE_Write_Reg(CONFIG_NOE_REG_FE_INT_STATUS, noe_config.intr_info.reg_int_val_p);
+}
+
+
+void MHal_NOE_Enable_Intr_Status(EN_NOE_DMA dma,  MS_BOOL dly)
+{
+    MS_U32 reg_int_mask;
+    reg_int_mask = MHal_NOE_Read_Reg(CONFIG_NOE_REG_FE_INT_ENABLE);
+    if (dly == NOE_TRUE)
+        MHal_NOE_Write_Reg(CONFIG_NOE_REG_FE_INT_ENABLE, reg_int_mask & ~(RX_DLY_INT));
+    else
+        MHal_NOE_Write_Reg(CONFIG_NOE_REG_FE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3));
+    
+    if (dma & E_NOE_DMA_QUEUE) {
+        reg_int_mask = MHal_NOE_Read_Reg(QFE_INT_ENABLE);
+        //MHAL_NOE_DBG_INFO("[%s][%d] dly=%d, QFE_INT_ENABLE = %0X\n",__FUNCTION__,__LINE__, dly, MHal_NOE_Read_Reg(QFE_INT_ENABLE));
+
+        if (dly == NOE_TRUE)
+            MHal_NOE_Write_Reg(QFE_INT_ENABLE, reg_int_mask & ~(RX_DLY_INT));
+        else
+            MHal_NOE_Write_Reg(QFE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3));
+    }  
+
+}
+
+void MHal_NOE_MAC_Get_Link_Status(EN_NOE_GE_MAC ge, struct noe_mac_link_status *link_status)
+{
+
+
+}
+
+EN_NOE_RET MHal_NOE_Need_Reset(void)
+{
+    unsigned int val_1, val_2, info;
+    unsigned int tmp[4];
+    val_1 = MHal_NOE_Read_Reg(NOE_REG_SYSCTL_BASE);
+    val_2 = MHal_NOE_Read_Reg(NOE_REG_SYSCTL_BASE + 4);
+    tmp[3] = ((val_1 >> 16) & 0xff) - 0x30;
+    tmp[2] = ((val_1 >> 24) & 0xff) - 0x30;
+    tmp[1] = ((val_2 >> 0) & 0xff) - 0x30;
+    tmp[0] = ((val_2 >> 8) & 0xff) - 0x30;
+    info = (tmp[3] * 1000) + (tmp[2] * 100) + (tmp[1] * 10) + tmp[0];
+    /* reset is not necessary */
+    return E_NOE_RET_FALSE;
+}
+
+static void _MHal_NOE_FE_Reset(void)
+{
+    MS_U32 adma_rx_dbg0_r = 0;
+    MS_U32 dbg_rx_curr_state, rx_fifo_wcnt;
+    MS_U32 dbg_cdm_lro_rinf_afifo_rempty, dbg_cdm_eof_rdy_afifo_empty;
+    MS_U32 reg_tmp, loop_count;
+    
+    /* do CDM/PDMA reset */
+    reg_tmp = MHal_NOE_Read_Reg(FE_GLO_MISC);
+    MHal_NOE_Write_Reg(FE_GLO_MISC, reg_tmp | reg_tmp);
+    //mdelay(10);
+    reg_tmp = MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW3);
+    MHal_NOE_Write_Reg(ADMA_LRO_CTRL_DW3, reg_tmp | (0x1 << 14));
+    loop_count = 0;
+    do {
+        adma_rx_dbg0_r = MHal_NOE_Read_Reg(ADMA_RX_DBG0);
+        dbg_rx_curr_state = (adma_rx_dbg0_r >> 16) & 0x7f;
+        rx_fifo_wcnt = (adma_rx_dbg0_r >> 8) & 0x3f;
+        dbg_cdm_lro_rinf_afifo_rempty = (adma_rx_dbg0_r >> 7) & 0x1;
+        dbg_cdm_eof_rdy_afifo_empty = (adma_rx_dbg0_r >> 6) & 0x1;
+        loop_count++;
+        if (loop_count >= 100) {
+            MHAL_NOE_DBG_INFO("[%s] loop_count timeout!!!\n", __func__);
+            break;
+        }
+        //mdelay(10);
+    } while (((dbg_rx_curr_state != 0x17) && (dbg_rx_curr_state != 0x00)) || (rx_fifo_wcnt != 0) || (!dbg_cdm_lro_rinf_afifo_rempty) || (!dbg_cdm_eof_rdy_afifo_empty));
+    reg_tmp = MHal_NOE_Read_Reg(ADMA_LRO_CTRL_DW3);
+    MHal_NOE_Write_Reg(ADMA_LRO_CTRL_DW3, reg_tmp & 0xffffbfff);
+    reg_tmp = MHal_NOE_Read_Reg(FE_GLO_MISC);
+    MHal_NOE_Write_Reg(FE_GLO_MISC, reg_tmp & 0xfffffffe);
+
+}
+
+void MHal_NOE_Do_Reset(void)
+{
+
+    MS_U32 adma_rx_dbg0_r = 0;
+    MS_U32 dbg_rx_curr_state, rx_fifo_wcnt;
+    MS_U32 dbg_cdm_lro_rinf_afifo_rempty, dbg_cdm_eof_rdy_afifo_empty;
+
+    adma_rx_dbg0_r = MHal_NOE_Read_Reg(ADMA_RX_DBG0);
+    dbg_rx_curr_state = (adma_rx_dbg0_r >> 16) & 0x7f;
+    rx_fifo_wcnt = (adma_rx_dbg0_r >> 8) & 0x3f;
+    dbg_cdm_lro_rinf_afifo_rempty = (adma_rx_dbg0_r >> 7) & 0x1;
+    dbg_cdm_eof_rdy_afifo_empty = (adma_rx_dbg0_r >> 6) & 0x1;
+    
+    /* check if PSE P0 hang */
+    if (dbg_cdm_lro_rinf_afifo_rempty && dbg_cdm_eof_rdy_afifo_empty && (rx_fifo_wcnt & 0x20) && ((dbg_rx_curr_state == 0x17) || (dbg_rx_curr_state == 0x00))) {
+        _MHal_NOE_FE_Reset();
+    }
+}
+
+
+void MHal_NOE_DMA_SFQ_Init(struct noe_sfq_base *adr_info)
+{
+    MS_U32 reg_val;
+    reg_val = MHal_NOE_Read_Reg(VQTX_GLO);
+    reg_val = reg_val | VQTX_MIB_EN;
+    /* Virtual table extends to 32bytes */
+    MHal_NOE_Write_Reg(VQTX_GLO, reg_val);
+    reg_val = MHal_NOE_Read_Reg(VQTX_GLO);
+    MHal_NOE_Write_Reg(VQTX_NUM, (VQTX_NUM_0) | (VQTX_NUM_1) | (VQTX_NUM_2) | (VQTX_NUM_3) | (VQTX_NUM_4) | (VQTX_NUM_5) | (VQTX_NUM_6) | (VQTX_NUM_7));
+    
+    /* 10 s change hash algorithm */
+    MHal_NOE_Write_Reg(VQTX_HASH_CFG, 0xF002710);
+    MHal_NOE_Write_Reg(VQTX_VLD_CFG, 0xeca86420);
+    MHal_NOE_Write_Reg(VQTX_HASH_SD, 0x0D);
+    MHal_NOE_Write_Reg(QDMA_FC_THRES, 0x9b9b4444);
+    MHal_NOE_Write_Reg(QDMA_HRED1, 0);
+    MHal_NOE_Write_Reg(QDMA_HRED2, 0);
+    MHal_NOE_Write_Reg(QDMA_SRED1, 0);
+    MHal_NOE_Write_Reg(QDMA_SRED2, 0);
+    MHal_NOE_Write_Reg(VQTX_0_3_BIND_QID, (VQTX_0_BIND_QID) | (VQTX_1_BIND_QID) | (VQTX_2_BIND_QID) | (VQTX_3_BIND_QID));
+    MHal_NOE_Write_Reg(VQTX_4_7_BIND_QID, (VQTX_4_BIND_QID) | (VQTX_5_BIND_QID) | (VQTX_6_BIND_QID) | (VQTX_7_BIND_QID));
+    MHAL_NOE_DBG_INFO("VQTX_0_3_BIND_QID =%x\n", MHal_NOE_Read_Reg(VQTX_0_3_BIND_QID));
+    MHAL_NOE_DBG_INFO("VQTX_4_7_BIND_QID =%x\n", MHal_NOE_Read_Reg(VQTX_4_7_BIND_QID));
+    MHal_NOE_Write_Reg(VQTX_TB_BASE0, (MS_U32)adr_info->phy_adr[0]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE1, (MS_U32)adr_info->phy_adr[1]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE2, (MS_U32)adr_info->phy_adr[2]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE3, (MS_U32)adr_info->phy_adr[3]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE4, (MS_U32)adr_info->phy_adr[4]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE5, (MS_U32)adr_info->phy_adr[5]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE6, (MS_U32)adr_info->phy_adr[6]);
+    MHal_NOE_Write_Reg(VQTX_TB_BASE7, (MS_U32)adr_info->phy_adr[7]);
+}
+
+MS_U32 MHal_NOE_DMA_Get_Queue_Cfg(MS_U32 pq_no)
+{
+#if 1
+    #define _HQOS_REG(x)    (*((volatile u32 *)(NOE_REG_FRAME_ENGINE_BASE + QDMA_RELATED + x)))
+    return _HQOS_REG(pq_no);
+
+#else
+
+
+    int page_no = 0, queue_no = 0;
+
+    if (pq_no >= NUM_PQ)
+        return 0;
+
+    page_no = pq_no / QUEUE_OFFSET;
+    queue_no = pq_no & (QUEUE_OFFSET - 1);
+    MHal_NOE_Write_Reg(QDMA_PAGE, page_no);
+    return MHal_NOE_Read_Reg(QTX_CFG_0 + queue_no * QUEUE_OFFSET);
+#endif
+
+}
+
+void MHal_NOE_DMA_Set_Queue_Cfg(MS_U32 pq_no, MS_U32 cfg)
+{
+
+#if 1
+    #define _HQOS_REG(x)    (*((volatile u32 *)(NOE_REG_FRAME_ENGINE_BASE + QDMA_RELATED + x)))
+    _HQOS_REG(pq_no) = cfg;
+    MHAL_NOE_DBG_INFO(" 0x%x = 0x%x\n", QDMA_RELATED + pq_no, cfg);
+#else
+    int page = 0, queue = 0;
+
+    if (pq_no >= NUM_PQ)
+        return ;
+
+    page = pq_no / QUEUE_OFFSET;
+    queue = pq_no & (QUEUE_OFFSET - 1);
+    MHAL_NOE_DBG_INFO("page: 0x%x, queue = 0x%x\n", page, queue);
+    MHal_NOE_Write_Reg(QDMA_PAGE, page);
+    MHal_NOE_Write_Reg(QTX_CFG_0 + QUEUE_OFFSET * queue, cfg);
+#endif
+}
+
+
+void MHal_NOE_DMA_Enable_Specific_Intr(EN_NOE_DMA dma, EN_NOE_INTR_INFO e_intr)
+{
+    MS_U32 reg_val;
+    if (dma & E_NOE_DMA_QUEUE) {
+        reg_val = MHal_NOE_Read_Reg(QFE_INT_ENABLE);
+        if (MHal_NOE_Read_Reg(QFE_INT_STATUS) != 0)
+            MHAL_NOE_INTR_INFO("MASK = 0x%08x, STATUS = 0x%08x \n", MHal_NOE_Read_Reg(QFE_INT_ENABLE),MHal_NOE_Read_Reg(QFE_INT_STATUS));
+        if (e_intr == E_NOE_INTR_INFO_RLS_DLY) {
+#if 1 //EMMA Modify
+            reg_val |= (BIT(15)|BIT(14)|BIT(13)|BIT(12)|BIT(8)|BIT(4)|BIT(0)|BIT(29)); 
+#endif //AMME
+            MHal_NOE_Write_Reg(QFE_INT_ENABLE, reg_val | RLS_DLY_INT);
+        }
+        else {
+            MHal_NOE_Write_Reg(QFE_INT_ENABLE, reg_val | RLS_DONE_INT);
+        }
+        //MHAL_NOE_INTR_INFO("2. 0x%x QFE_INT_ENABLE = 0x%08x\n", e_intr, MHal_NOE_Read_Reg(QFE_INT_ENABLE));
+    }
+}
+
+
+void MHal_NOE_DMA_FQ_Init(struct noe_fq_base *info)
+{
+    MHal_NOE_Write_Reg(QDMA_FQ_HEAD, (MS_U32) info->head);
+    MHal_NOE_Write_Reg(QDMA_FQ_TAIL, (MS_U32) info->tail);
+    MHal_NOE_Write_Reg(QDMA_FQ_CNT, ((info->txd_num << 16) | info->page_num));
+    MHal_NOE_Write_Reg(QDMA_FQ_BLEN, info->page_size << 16);
+}
+
+MS_U32 MHal_NOE_QDMA_Get_Tx(void)
+{
+    return MHal_NOE_Read_Reg(QTX_DRX_PTR);
+}
+
+void MHal_NOE_QDMA_Update_Tx(EN_NOE_QDMA_TX_TYPE type, MS_U32 adr)
+{
+    if (type == E_NOE_QDMA_TX_FORWARD)
+        MHal_NOE_Write_Reg(QTX_CTX_PTR, adr);
+    else if (type == E_NOE_QMDA_TX_RELEASE)
+        MHal_NOE_Write_Reg(QTX_CRX_PTR, adr);
+}
+
+void MHal_NOE_LRO_Control(EN_NOE_LRO_CTRL_TYPE type, MS_U32 param)
+{
+    if (type == E_NOE_LRO_CTRL_AGG_CNT) {
+        SET_PDMA_RXRING_MAX_AGG_CNT(ADMA_RX_RING1, param);
+        SET_PDMA_RXRING_MAX_AGG_CNT(ADMA_RX_RING2, param);
+        SET_PDMA_RXRING_MAX_AGG_CNT(ADMA_RX_RING3, param);
+    }
+    else if (type == E_NOE_LRO_CTRL_AGG_TIME) {
+        SET_PDMA_RXRING_AGG_TIME(ADMA_RX_RING1, param);
+        SET_PDMA_RXRING_AGG_TIME(ADMA_RX_RING2, param);
+        SET_PDMA_RXRING_AGG_TIME(ADMA_RX_RING3, param);
+    }
+    else if (type == E_NOE_LRO_CTRL_AGE_TIME) {
+        SET_PDMA_RXRING_AGE_TIME(ADMA_RX_RING1, param);
+        SET_PDMA_RXRING_AGE_TIME(ADMA_RX_RING2, param);
+        SET_PDMA_RXRING_AGE_TIME(ADMA_RX_RING3, param);
+    }
+    else if (type == E_NOE_LRO_CTRL_BW_THRESHOLD) {
+        SET_PDMA_LRO_BW_THRESHOLD(param);
+    }
+    else if (type == E_NOE_LRO_CTRL_SWITCH) {
+        if (param == NOE_DISABLE) {
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING0, 0);
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING1, 0);
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING2, 0);
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING3, 0);
+        }
+        else {
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING0, 1);
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING1, 1);
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING2, 1);
+            SET_PDMA_RXRING_VALID(ADMA_RX_RING3, 1);
+        } 
+    }
+}
+
+
+void MHal_NOE_Get_Pdma_Info(EN_NOE_PDMA_INFO_TYPE type, void *info)
+{
+    if ((type >= E_NOE_PDMA_INFO_MAX) || (_mhal_noe_pdma_get_info_pfn[type] == NULL))
+        return;
+    _mhal_noe_pdma_get_info_pfn[type](info);
+}
+
+void _MHal_NOE_Disable_Miu_Protect(void)
+{
+#if 0
+    printk(" Remove MIU Protect \n");
+#else
+    /* MIU */
+    NOE_RIU_REG(0x1012, 0x20) = 0x0000;  
+    NOE_RIU_REG(0x1012, 0x22) = 0x0000;  
+    NOE_RIU_REG(0x1012, 0x24) = 0x0000;  
+    NOE_RIU_REG(0x1012, 0x26) = 0x0000;
+ 
+    NOE_RIU_REG(0x1012, 0x30) = NOE_RIU_REG(0x1012, 0x30) & 0xFF00;  
+    NOE_RIU_REG(0x1012, 0x32) = NOE_RIU_REG(0x1012, 0x32) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0x34) = NOE_RIU_REG(0x1012, 0x34) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0x36) = NOE_RIU_REG(0x1012, 0x36) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0x38) = NOE_RIU_REG(0x1012, 0x38) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0x3A) = NOE_RIU_REG(0x1012, 0x3A) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0x3C) = NOE_RIU_REG(0x1012, 0x3C) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0x2E) = NOE_RIU_REG(0x1012, 0x2E) & 0xFF00;
+    NOE_RIU_REG(0x1012, 0xD2) = NOE_RIU_REG(0x1012, 0xD2) & 0xFF00;
+
+    NOE_RIU_REG(0x1012, 0xC0) = 0x0000;
+    NOE_RIU_REG(0x1012, 0xC2) = 0x0000;
+    NOE_RIU_REG(0x1012, 0xC4) = 0x0000;
+    NOE_RIU_REG(0x1012, 0xC6) = 0x0000;
+
+    /* MIU2 */
+    NOE_RIU_REG(0x1006, 0x20) = 0x0000;  
+    NOE_RIU_REG(0x1006, 0x22) = 0x0000;  
+    NOE_RIU_REG(0x1006, 0x24) = 0x0000;  
+    NOE_RIU_REG(0x1006, 0x26) = 0x0000;
+ 
+    NOE_RIU_REG(0x1006, 0x30) = NOE_RIU_REG(0x1006, 0x30) & 0xFF00;  
+    NOE_RIU_REG(0x1006, 0x32) = NOE_RIU_REG(0x1006, 0x32) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0x34) = NOE_RIU_REG(0x1006, 0x34) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0x36) = NOE_RIU_REG(0x1006, 0x36) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0x38) = NOE_RIU_REG(0x1006, 0x38) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0x3A) = NOE_RIU_REG(0x1006, 0x3A) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0x3C) = NOE_RIU_REG(0x1006, 0x3C) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0x2E) = NOE_RIU_REG(0x1006, 0x2E) & 0xFF00;
+    NOE_RIU_REG(0x1006, 0xD2) = NOE_RIU_REG(0x1006, 0xD2) & 0xFF00;
+
+    NOE_RIU_REG(0x1006, 0xC0) = 0x0000;
+    NOE_RIU_REG(0x1006, 0xC2) = 0x0000;
+    NOE_RIU_REG(0x1006, 0xC4) = 0x0000;
+    NOE_RIU_REG(0x1006, 0xC6) = 0x0000;
+#endif
+}
+
+
+
+
+void MHal_NOE_Init(struct noe_sys *info)
+{
+    ethdma_sysctl_base = info->sysctl_base;
+    _MHal_NOE_Disable_Miu_Protect();
+    _MHal_NOE_Init_Clock();
+
+    /* GMAC1/2 RGMII mode */
+    MHal_NOE_Write_Reg(SYSCFG1, MHal_NOE_Read_Reg(SYSCFG1) & (~(0x3 << 12)));
+    MHal_NOE_Write_Reg(SYSCFG1, MHal_NOE_Read_Reg(SYSCFG1) & (~(0x3 << 14)));
+
+    /* GMAC Mux of GPIO */
+    NOE_RIU_REG(NOE_RIU_BANK_PMSLEEP, 0x1C << 1) = 0x0000;
+
+    noe_config.version = NOE_RIU_REG(NOE_RIU_BANK_PMTOP, 0x1 << 1) >> 8;
+    MHAL_NOE_DBG_INFO("Revision: 0x%x\n", noe_config.version);
+}
+
+

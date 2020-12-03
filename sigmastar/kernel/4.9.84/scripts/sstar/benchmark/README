@@ -1,0 +1,69 @@
+[Introduction]
+The following shell scripts utilize 'perf' with ARM/PL310 PMU for memcpy
+profiling.
+ - perf_memcpy_I2_l2x0.sh
+   script for I2 with both ARM Cortex-A9 PMU & PL310 PMU profiling.
+ - perf_memcpy_I3.sh
+   script for I2 with both ARM Cortex-A9 PMU & LLC PMU profiling.
+
+[Prerequisites]
+for I2:
+ - Linux 3.18 Kernel with the follwoing CONFIGs:
+   CONFIG_HAVE_PERF_EVENTS=y
+   CONFIG_PERF_EVENTS=y
+   CONFIG_HW_PERF_EVENTS=y
+   CONFIG_CACHE_L2X0_PMU=y
+ - perf executable
+ - mstar ms_sys driver
+ - shell script (perf_memcpy_I2_l2x0.sh)
+
+for I3:
+ - Linux 3.18 Kernel with the follwoing CONFIGs:
+   CONFIG_HAVE_PERF_EVENTS=y
+   CONFIG_PERF_EVENTS=y
+   CONFIG_HW_PERF_EVENTS=y
+ - perf executable
+ - mstar ms_sys driver
+ - shell script (perf_memcpy_I3.sh)
+
+[Usage]
+
+for I2:
+
+Usage: ./perf_memcpy_I2_l2x0.sh BUFFER_SIZE L2_PMU_SELECT [memcpy scheme]
+[memory type] [cachable]
+    BUFFER_SIZE: number of KB for each iteration (total bytes transfer: 64KB *
+10000)
+    L2_PMU_SELECT: valid option r|w|e|x
+                          r: drreq and drhit
+                          w: dwreq and dwhit
+                          e: cc and ipfalloc
+                          x: dwtreq and wa
+    [memcpy scheme]: valid option 0|1|2
+                          0: C runtime memcpy
+                          1: memcpy.S with NEON
+                          2: memcpy.S without NEON
+    [memory type]: valid option MIU|IMI
+    [cachable]: valid option 0|1
+
+EXAMPLE: ./perf_memcpy_I2_l2x0.sh 32 r 0
+    [CRT] memcpy scheme test with [32]KB buffer for 20000 iterations and use
+perf PMU for profiling with addtional L2 PMU [drreq/drhit].
+
+for I3:
+
+Usage: ./perf_memcpy_I3.sh BUFFER_SIZE L2_PMU_SELECT [memcpy scheme] [memory
+type] [cachable]
+    BUFFER_SIZE: number of KB for each iteration (total bytes transfer: 64KB *
+10000)
+    L2_PMU_SELECT:  not valid for  I3
+    [memcpy scheme]: valid option 0|1|2
+                          0: C runtime memcpy
+                          1: memcpy.S with NEON
+                          2: memcpy.S without NEON
+    [memory type]: valid option MIU|IMI
+    [cachable]: valid option 0|1
+
+EXAMPLE: ./perf_memcpy_I3.sh 32 r 0
+    [CRT] memcpy scheme test with [32]KB buffer for 20000 iterations and use
+perf PMU for profiling with LLC PMU.

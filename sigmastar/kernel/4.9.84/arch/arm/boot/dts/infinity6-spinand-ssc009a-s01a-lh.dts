@@ -1,0 +1,98 @@
+/*
+* infinity6-spinand-ssc009a-s01a-lh.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/dts-v1/;
+#include "infinity6.dtsi"
+
+/ {
+    model = "INFINITY6 SSC009A-S01A QFN88 LH";
+    compatible = "sstar,infinity6";
+
+    memory {
+        reg = <0x20000000 0x05400000>;
+    };
+
+    chosen {
+        /*rootfs in mtd:ubi:ubifs*/
+        bootargs = "console=ttyS0 ubi.mtd=10,2048 root=ubi:rootfs rw rootfstype=ubifs init=/linuxrc rootwait=1";
+        /*bootargs = "console=ttyS0 ubi.mtd=10,2048 root=ubi:rootfs rw rootfstype=ubifs init=/linuxrc rootwait=1 loglevel=2 initcall_debug=1";*/
+        /*bootargs = "console=ttyS0 ubi.mtd=10,2048 root=ubi:rootfs rw rootfstype=ubifs init=/linuxrc rootwait=1 loglevel=2";*/
+
+        /*rootfs in mtd:squashfs*/
+        /*bootargs = "console=ttyS0 ubi.mtd=10,2048 root=/dev/mtdblock8 rootfstype=squashfs ro init=/linuxrc rootwait=1 loglevel=2";*/
+        /*bootargs = "console=ttyS0,115200n8r androidboot.console=ttyS0 root=/dev/mtdblock2 init=/linuxrc";*/
+
+		/*initrd*/
+         /* bootargs = "console=ttyS0,115200n8r root=/dev/ram rdinit=/linuxrc rootwait";
+        	linux,initrd-start = <0x20E00000>;
+        	linux,initrd-end =   <0x20F80000>;*/
+    };
+
+/*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        cma0 {
+            compatible = "shared-dma-pool";
+            size = <0x400000>;
+            reusable;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+    };
+
+    soc {
+        Sstar-ehci-1 {
+            compatible = "Sstar-ehci-1";
+            dpdm_swap=<0>;
+            power-enable-pad = <PAD_SAR_GPIO2>;
+        };
+
+        vif {
+            vif_sr0_par_mode = <4>;
+            vif_sr0_mipi_mode = <2>;
+            vif_sr0_bt656_mode = <3>;
+            vif_sr0_mclk_mode = <1>;
+            vif_sr0_pdn_mode  = <1>;
+            vif_sr0_rst_mode  = <1>;
+            vif_sr0_parallel_rst_mode  = <2>;
+            vif_sr0_parallel_pdn_mode  = <2>;
+            vif_sr0_mipi_rst_mode  = <1>;
+            vif_sr0_mipi_pdn_mode  = <1>;
+            vif_sr0_hvsync_mode  = <1>;
+            vif_sr0_pck_mode  = <1>;
+            /* Config sensor 1 pad mux */
+            vif_sr1_par_mode = <2>;
+            vif_sr1_mipi_mode = <2>;
+            vif_sr1_bt656_mode = <2>;
+        };
+
+        core_voltage {
+            vid_width = <1>;
+            vid_gpios = <PAD_SAR_GPIO3>;
+            vid_voltages = <900 1000>;  //2b'00 2b'01
+        };
+    };
+
+};
+
+&emac0 {
+    pad_led = <0x00000000 0x0000 0x0000>;
+    status = "ok";
+};

@@ -1,0 +1,58 @@
+config MS_EMAC
+select NET
+select NET_ETHERNET
+select MII
+select PACKET
+select USE_POLICY_FWD
+select INET
+select NETDEVICES
+
+tristate "EMAC"
+default n
+
+---help---
+Enable compilation option for driver EMAC
+
+if MS_EMAC
+config EMAC_SUPPLY_RNG
+bool "Supply to random number generator device"
+default n
+help
+    Supply to random number generator device
+
+config MSTAR_HW_TX_CHECKSUM
+bool "Supply to hardware TX checksum"
+default n
+help
+    Supply to hardware TX checksum
+    
+config K3_RX_SWPATCH
+bool "Supply to K3 RX SW Patch"
+default n
+help
+    Supply to K3 RX frame drop due to padding 4 bytes issue
+
+config DISCONNECT_DELAY_S
+int "Disconnect delay in second"
+default 1
+help
+    Disconnect delay in second
+
+config MSTAR_EEE
+bool "Supply to EEE function"
+default n
+help
+    Supply to EEE function
+
+config EMAC_PHY_RESTART_AN
+bool "Supply to phy restart AN"
+default n
+help
+    Supply to phy restart AN
+
+config EMAC_SPEED10_HALF_PATCH
+bool "Supply to speed 10M duplex half patch"
+default n
+help
+    Supply to hw write out of range to skb in 10M half case
+endif

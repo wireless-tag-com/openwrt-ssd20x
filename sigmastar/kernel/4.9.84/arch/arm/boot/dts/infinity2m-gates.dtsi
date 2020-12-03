@@ -1,0 +1,174 @@
+/*
+* infinity2m-gates.dtsi- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+GATE_MCM_vhe: GATE_MCM_vhe {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+GATE_MCM_mfe: GATE_MCM_mfe {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+GATE_MCM_jpe: GATE_MCM_jpe {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+
+GATE_MCM_aesdma: GATE_MCM_aesdma {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+
+GATE_MCM_emac: GATE_MCM_emac {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+
+GATE_MCM_gop: GATE_MCM_gop {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+
+GATE_MCM_bach: GATE_MCM_bach {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+GATE_MCM_usb: GATE_MCM_usb {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+
+GATE_MCM_fcie: GATE_MCM_fcie {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+GATE_MCM_sdio: GATE_MCM_sdio {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+
+/*
+GATE_MCM_urdma: GATE_MCM_urdma {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+*/
+
+GATE_SRAM_vhe: GATE_SRAM_vhe {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+GATE_SRAM_mfe: GATE_SRAM_mfe {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <9>;
+};
+
+GATE_SRAM_jpe: GATE_SRAM_jpe {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <8>;
+};
+
+GATE_SRAM_aesdma: GATE_SRAM_aesdma {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <1>;
+};
+
+GATE_SRAM_emac: GATE_SRAM_emac {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <3>;
+};
+
+GATE_SRAM_gop: GATE_SRAM_gop {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <5>;
+};
+
+GATE_SRAM_bach: GATE_SRAM_bach {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <0>;
+};
+
+GATE_SRAM_usb: GATE_SRAM_usb {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <11>;
+};
+
+
+GATE_SRAM_fcie: GATE_SRAM_fcie {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <4>;
+};
+
+GATE_SRAM_sdio: GATE_SRAM_sdio {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <10>;
+};
+
+
+GATE_SRAM_mailbox: GATE_SRAM_mailbox {
+    #clock-cells = <0>;
+    compatible = "sstar,composite-clock";
+    reg = <0x1F200804 0x4>;
+    gate-shift = <2>;
+};

@@ -1,0 +1,203 @@
+/*
+* infinity2-msc006a-s01a-s.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/dts-v1/;
+#include "infinity2.dtsi"
+
+
+/ {
+    model = "INFINITY2 MSC006A-S01A-S";
+    compatible = "sstar,infinity2";
+
+    memory {
+        reg = <0x20000000 0x20000000>;
+    };
+
+    chosen {
+        bootargs = "console=ttyS0,115200n8r androidboot.console=ttyS0 root=/dev/mtdblock2 init=/linuxrc";
+        /*linux,initrd-start = <0x21FE0000>;
+        linux,initrd-end =   <0x22000000>;*/
+    };
+
+/*	rootfsp:rammtd@0 {
+		compatible = "mtd-ram";
+		reg= <0x2D000000 0x03000000>;
+		bank-width = <1>;
+		linux,mtd-name = "ROOTFS";
+	};
+*/
+
+/*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+/*
+        XM6_reserved: XM6_reserved@500000 {
+            reg = <0x3FB00000  0x500000>;
+            status = "okay";
+        };
+
+        miu_bist_mem: miu_bist_mem@27F00000 {
+            reg = <0x27F00000 0x00100000>;
+            no-map ;
+            status = "okay";
+        };
+*/
+/*
+        cma0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            size = <0x6400000>;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+*/
+    };
+
+    soc{
+        isp: isp {
+            //clk-pad = <PAD_SPI0_CK>; //be compatible with the previous QFN, so it must reserved 4 pins for SPI0 pads
+            //isp-flag = <0x3>; //enable DNR and ROT
+            //isp-res = <0x5>; //max image size 5M
+        };
+        vif {
+            ccir0_ctrl_mode = <1>;
+            ccir1_ctrl_mode = <1>;
+            ccir2_ctrl_mode = <1>;
+            ccir3_ctrl_mode = <1>;
+
+            ccir0_8b_mode = <1>;
+            ccir1_8b_mode = <1>;
+            ccir2_8b_mode = <1>;
+            ccir3_8b_mode = <1>;
+
+            ccir0_clk_mode = <1>;
+            ccir1_clk_mode = <1>;
+            ccir2_clk_mode = <1>;
+            ccir3_clk_mode = <1>;
+
+            ccir0_16b_mode = <0>;
+            ccir2_16b_mode = <0>;
+            mcu = <1>; //1:Enable MCU 0:Disable MCU
+        };
+        ispmid {
+            compatible = "mstar,ispmid";
+            status = "ok";
+        };
+        sensorif {
+            compatible = "sigma,sensorif";
+            status = "ok";
+            sensorif_grp0_i2c = <1>;
+            sensorif_grp1_i2c = <1>;
+            sensorif_grp2_i2c = <2>;
+            sensorif_grp3_i2c = <2>;
+        };
+        pwm{
+            /*PWM0: PAD_PWM0   (PAD_PWM0, PAD_MIPI_TX_IO0, PAD_SNR3_D0)
+            *  PWM1: PAD_PWM1   (PAD_PWM1, PAD_MIPI_TX_IO1, PAD_SNR3_D1)
+            *  PWM2: PAD_GPIO8       (PAD_GPIO8, PAD_MIPI_TX_IO2, PAD_SNR3_D2)
+            *  PWM3: PAD_GPIO9       (PAD_GPIO9, PAD_MIPI_TX_IO3, PAD_SNR3_D3)
+            *  PWM4: PAD_GPIO10     (PAD_GPIO10, PAD_MIPI_TX_IO4, PAD_SNR3_D8)
+            *  PWM5: PAD_SNR3_D9   (PAD_GPIO11, PAD_MIPI_TX_IO5, PAD_SNR3_D9)
+            *  PWM6: PAD_PM_LED0   (PAD_GPIO12, PAD_MIPI_TX_IO6, PAD_PW_LED0)
+            *  PWM7: PAD_PM_LED1   (PAD_GPIO13, PAD_MIPI_TX_IO7, PAD_PW_LED1)
+            */
+            pad-ctrl = <PAD_PWM0 PAD_PWM1 PAD_GPIO8 PAD_GPIO9 PAD_GPIO10 PAD_SNR3_D9 PAD_PM_LED0 PAD_PM_LED1>;
+        };
+        i2c0@0 {
+            /*
+             * padmux: 1 -> PAD_I2C0_SCL, PAD_I2C0_SDA
+             * padmux: 2 -> PAD_SNR3_GPIO6   , PAD_SNR3_GPIO7
+            */
+            i2c-padmux = <1>;
+        };
+
+        i2c1@1 {
+            /*
+             * padmux: 1 -> PAD_SNR0_GPIO6, PAD_SNR0_GPIO7
+             * padmux: 2 -> PAD_SNR1_GPIO6, PAD_SNR1_GPIO7
+             * padmux: 3 -> PAD_SNR0_GPIO6, PAD_SNR0_GPIO7
+             *                   +PAD_SNR1_GPIO6, PAD_SNR1_GPIO7
+             * padmux: 4 -> PAD_SNR1_GPIO6, PAD_SNR1_GPIO7
+             *                   +PAD_SNR2_GPIO6, PAD_SNR2_GPIO7
+             *                   +PAD_SNR3_GPIO6, PAD_SNR3_GPIO7
+            */
+            i2c-padmux = <3>;
+        };
+
+        i2c2@2 {
+            /*
+             * padmux: 1 -> PAD_I2C2_SDA, PAD_I2C2_SCL
+             * padmux: 2 -> MIPI_TX_IO8, MIPI_TX_IO9
+             * padmux: 3 -> PAD_GPIO5, PAD_GPIO4
+             * padmux: 4 -> PAD_NAND_DA6, PAD_NAND_DA7
+             * padmux: 5 -> PAD_SNR3_GPIO6, PAD_SNR3_GPIO7
+             * padmux: 6 -> PAD_SNR3_GPIO6, PAD_SNR3_GPIO7
+             * padmux: 7 -> PAD_SNR2_GPIO6, PAD_SNR2_GPIO7
+             *                   +PAD_SNR3_GPIO6, PAD_SNR3_GPIO7
+            */
+            i2c-padmux = <7>;
+        };
+        i2c3@3 {
+            /*
+             * padmux: 1 -> PAD_I2C3_SDA, PAD_I2C3_SCL
+             * padmux: 2 -> PAD_TTL_GPIO2, PAD_TTL_GPIO1
+             * padmux: 3 -> PAD_SNR1_GPIO6 , PAD_SNR1_GPIO7
+             * padmux: 4 -> PAD_SNR2_GPIO6, PAD_SNR2_GPIO7
+             * padmux: 5 -> PAD_HDMITX_SDA , PAD_HDMITX_SCL
+             */
+              i2c-padmux = <1>;
+        };
+        
+        Sstar-ehci-1 {
+            compatible = "Sstar-ehci-1";
+            power-enable-pad = <PAD_GPIO0>;
+            power-enable-voltage = <1>;
+           
+        };
+        
+        Sstar-ehci-2 {
+            compatible = "Sstar-ehci-2";
+            power-enable-pad = <PAD_GPIO1>;
+            power-enable-voltage = <1>;
+           
+        };
+        
+        Sstar-ehci-3 {
+            compatible = "Sstar-ehci-3";
+            power-enable-pad = <PAD_GPIO2>;
+            power-enable-voltage = <1>;
+           
+        };
+        
+        Sstar-ehci-4 {
+            compatible = "Sstar-ehci-4";
+            power-enable-pad = <PAD_GPIO0>;
+            power-enable-voltage = <1>;
+           
+        };
+
+        vcore_info {
+            compatible = "sstar,vcore_info";
+            gpio_total_num = <2>;
+            gpio_pins = <PAD_PM_GPIO7 PAD_PM_GPIO8>;
+            voltages = <903 950 1000 1050>;
+            status = "ok";
+        };
+    };
+};

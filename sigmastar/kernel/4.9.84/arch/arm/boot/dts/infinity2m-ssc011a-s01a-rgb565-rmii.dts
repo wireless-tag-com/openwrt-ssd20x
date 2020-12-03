@@ -1,0 +1,51 @@
+/*
+* infinity2m-ssc011a-s01a-rgb565-rmii.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+/dts-v1/;
+#include "infinity2m.dtsi"
+#include "infinity2m-ssc011a-s01a-rgb565-rmii.dtsi"
+#include "infinity2m-ssc011a-s01a-padmux-rgb565-rmii.dtsi"
+
+/ {
+    model = "INFINITY2M SSC011A-S01A-S";
+    compatible = "sstar,infinity2m";
+
+    /* memory setting will be replaced with LX_MEM*/
+    memory {
+        reg = <0x20000000 0x03E00000>;
+    };
+	/* this cmdline will be replaced with uboot bootargs*/
+    chosen {
+        bootargs = "console=ttyS0,115200n8r androidboot.console=ttyS0 root=/dev/mtdblock2 init=/linuxrc cma=4m";
+    };
+
+    /*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        /*cma0 {
+            compatible = "shared-dma-pool";
+            size = <0x400000>;
+            reusable;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };*/
+    };
+
+};

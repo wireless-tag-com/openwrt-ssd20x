@@ -1,0 +1,5 @@
+config SS_VOLTAGE_CTRL
+    tristate "SStar Voltage Control"
+    depends on MS_GPIO && !ARCH_INFINITY2
+    default y
+    help

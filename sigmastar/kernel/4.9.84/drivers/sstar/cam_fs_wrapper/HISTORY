@@ -1,0 +1,19 @@
+===============================================================================
+=                        cam_fs_wrapper change log                            =
+===============================================================================
+
+v0.0.3 - 2019-05-03
+  Fixed
+    - CamFsRead for RTK read NAND flash by block number.
+
+v0.0.2 - 2019-04-26
+  Fixed
+    - Handle file position in CamFsRead / CamFsWrite.
+
+v0.0.1 - 2019-04-26
+  First version support linux kernel space and RTK.
+  Added
+    - CamFsOpen
+    - CamFsClose
+    - CamFsRead
+    - CamFsWrite

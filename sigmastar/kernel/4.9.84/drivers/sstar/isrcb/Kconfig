@@ -1,0 +1,7 @@
+#config MS_ISRCB
+#    boolean "Mstar ISRCB driver"
+#    help
+#        MStar ISRCB driver function
+
+config SS_ISP_ISRCB
+    tristate "ISRCB driver support"

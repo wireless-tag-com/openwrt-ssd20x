@@ -1,0 +1,11 @@
+--- a/watchdog.c
++++ b/watchdog.c
+@@ -142,7 +142,7 @@
+ 
+ char* watchdog_fd(void)
+ {
+-	static char fd_buf[3];
++	static char fd_buf[12];
+ 
+ 	if (wdt_fd < 0)
+ 		return NULL;

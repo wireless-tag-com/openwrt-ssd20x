@@ -1,0 +1,7 @@
+config REBOOT_STATE
+
+tristate "REBOOT_STATE"
+
+help
+    SStar reboot state driver function
+

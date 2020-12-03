@@ -1,0 +1,5 @@
+config MS_SERIAL
+    bool "Serial / UART driver"
+    select SERIAL_CORE
+    select SERIAL_CORE_CONSOLE
+    default y

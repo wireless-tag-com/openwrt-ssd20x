@@ -1,0 +1,3 @@
+config MS_IVE
+	tristate "Mstar IVE driver"
+	help

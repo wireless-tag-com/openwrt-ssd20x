@@ -1,0 +1,172 @@
+--- a/include/mtd/ubi-user.h
++++ b/include/mtd/ubi-user.h
+@@ -176,6 +176,7 @@
+ #define UBI_IOCATT _IOW(UBI_CTRL_IOC_MAGIC, 64, struct ubi_attach_req)
+ /* Detach an MTD device */
+ #define UBI_IOCDET _IOW(UBI_CTRL_IOC_MAGIC, 65, int32_t)
++#define UBI_IOCFDET _IOW(UBI_CTRL_IOC_MAGIC, 99, int32_t)
+ 
+ /* ioctl commands of UBI volume character devices */
+ 
+--- a/include/libubi.h
++++ b/include/libubi.h
+@@ -235,34 +235,37 @@
+  * @desc: UBI library descriptor
+  * @node: name of the UBI control character device node
+  * @mtd_num: MTD device number to detach
++ * @force: force detach even busy
+  *
+  * This function detaches MTD device number @mtd_num from UBI, which means the
+  * corresponding UBI device is removed. Returns zero in case of success and %-1
+  * in case of failure.
+  */
+-int ubi_detach_mtd(libubi_t desc, const char *node, int mtd_num);
++int ubi_detach_mtd(libubi_t desc, const char *node, int mtd_num, int force);
+ 
+ /**
+  * ubi_detach - detach an MTD device by its node path.
+  * @desc: UBI library descriptor
+  * @node: name of the UBI control character device node
+  * @mtd_dev_node: path to an MTD device node
++ * @force: force detach even busy
+  *
+  * This function detaches an MTD device @mtd_dev_node from UBI. Returns zero in
+  * case of success and %-1 in case of failure.
+  */
+-int ubi_detach(libubi_t desc, const char *node, const char *mtd_dev_node);
++int ubi_detach(libubi_t desc, const char *node, const char *mtd_dev_node, int force);
+ 
+ /**
+  * ubi_remove_dev - remove an UBI device.
+  * @desc: UBI library descriptor
+  * @node: name of the UBI control character device node
+  * @ubi_dev: UBI device number to remove
++ * @force: force detach even busy
+  *
+  * This function removes UBI device number @ubi_dev and returns zero in case of
+  * success and %-1 in case of failure.
+  */
+-int ubi_remove_dev(libubi_t desc, const char *node, int ubi_dev);
++int ubi_remove_dev(libubi_t desc, const char *node, int ubi_dev, int force);
+ 
+ /**
+  * ubi_mkvol - create an UBI volume.
+--- a/lib/libubi.c
++++ b/lib/libubi.c
+@@ -803,7 +803,7 @@
+ 	return ret;
+ }
+ 
+-int ubi_detach_mtd(libubi_t desc, const char *node, int mtd_num)
++int ubi_detach_mtd(libubi_t desc, const char *node, int mtd_num, int force)
+ {
+ 	int ret, ubi_dev;
+ 
+@@ -813,10 +813,10 @@
+ 		return ret;
+ 	}
+ 
+-	return ubi_remove_dev(desc, node, ubi_dev);
++	return ubi_remove_dev(desc, node, ubi_dev, force);
+ }
+ 
+-int ubi_detach(libubi_t desc, const char *node, const char *mtd_dev_node)
++int ubi_detach(libubi_t desc, const char *node, const char *mtd_dev_node, int force)
+ {
+ 	int mtd_num;
+ 
+@@ -829,10 +829,10 @@
+ 	if (mtd_num == -1)
+ 		return -1;
+ 
+-	return ubi_detach_mtd(desc, node, mtd_num);
++	return ubi_detach_mtd(desc, node, mtd_num, force);
+ }
+ 
+-int ubi_remove_dev(libubi_t desc, const char *node, int ubi_dev)
++int ubi_remove_dev(libubi_t desc, const char *node, int ubi_dev, int force)
+ {
+ 	int fd, ret;
+ 	(void)desc;
+@@ -840,7 +840,10 @@
+ 	fd = open(node, O_RDONLY);
+ 	if (fd == -1)
+ 		return sys_errmsg("cannot open \"%s\"", node);
+-	ret = ioctl(fd, UBI_IOCDET, &ubi_dev);
++	if (force)
++		ret = ioctl(fd, UBI_IOCFDET, &ubi_dev);
++	else
++		ret = ioctl(fd, UBI_IOCDET, &ubi_dev);
+ 	if (ret == -1)
+ 		goto out_close;
+ 
+--- a/ubi-utils/ubidetach.c
++++ b/ubi-utils/ubidetach.c
+@@ -40,6 +40,7 @@
+ 	int mtdn;
+ 	const char *node;
+ 	const char *dev;
++	int force;
+ };
+ 
+ static struct args args = {
+@@ -47,6 +48,7 @@
+ 	.mtdn = -1,
+ 	.node = NULL,
+ 	.dev = NULL,
++	.force = 0,
+ };
+ 
+ static const char doc[] = PROGRAM_NAME " version " VERSION
+@@ -56,6 +58,7 @@
+ "-d, --devn=<UBI device number>  UBI device number to delete\n"
+ "-p, --dev-path=<path to device> or alternatively, MTD device node path to detach\n"
+ "-m, --mtdn=<MTD device number>  or alternatively, MTD device number to detach\n"
++"-f, --force					 Force UBI detach even busy\n"
+ "-h, --help                      print help message\n"
+ "-V, --version                   print program version";
+ 
+@@ -83,7 +86,7 @@
+ 	while (1) {
+ 		int key, error = 0;
+ 
+-		key = getopt_long(argc, argv, "p:m:d:hV", long_options, NULL);
++		key = getopt_long(argc, argv, "p:m:d:fhV", long_options, NULL);
+ 		if (key == -1)
+ 			break;
+ 
+@@ -105,6 +108,10 @@
+ 
+ 			break;
+ 
++		case 'f':
++			args.force = 1;
++			break;
++
+ 		case 'h':
+ 			printf("%s\n\n", doc);
+ 			printf("%s\n\n", usage);
+@@ -176,20 +183,20 @@
+ 	}
+ 
+ 	if (args.devn != -1) {
+-		err = ubi_remove_dev(libubi, args.node, args.devn);
++		err = ubi_remove_dev(libubi, args.node, args.devn, args.force);
+ 		if (err) {
+ 			sys_errmsg("cannot remove ubi%d", args.devn);
+ 			goto out_libubi;
+ 		}
+ 	} else {
+ 		if (args.dev != NULL) {
+-			err = ubi_detach(libubi, args.node, args.dev);
++			err = ubi_detach(libubi, args.node, args.dev, args.force);
+ 			if (err) {
+ 				sys_errmsg("cannot detach \"%s\"", args.dev);
+ 				goto out_libubi;
+ 			}
+ 		} else {
+-			err = ubi_detach_mtd(libubi, args.node, args.mtdn);
++			err = ubi_detach_mtd(libubi, args.node, args.mtdn, args.force);
+ 			if (err) {
+ 				sys_errmsg("cannot detach mtd%d", args.mtdn);
+ 				goto out_libubi;

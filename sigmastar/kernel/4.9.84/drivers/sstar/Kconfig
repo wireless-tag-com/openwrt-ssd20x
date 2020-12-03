@@ -1,0 +1,48 @@
+menuconfig MSTAR_DRIVERS
+    bool "SStar SoC platform drivers"
+    depends on ARCH_SSTAR
+    default n
+
+menuconfig CAM_DRIVERS
+    bool "SStar Cam drivers"
+    depends on MSTAR_DRIVERS
+    default n
+if ( CAM_DRIVERS )
+source "drivers/sstar/camdriver/Kconfig"
+endif
+
+menuconfig DLA_DRIVER
+    bool "SStar DLA driver"
+    depends on MSTAR_DRIVERS
+    default n
+if ( DLA_DRIVER )
+source "drivers/sstar/cambricon/Kconfig"
+endif
+
+if ( MSTAR_DRIVERS )
+
+source "drivers/sstar/irqchip/Kconfig"
+source "drivers/sstar/clocksource/Kconfig"
+source "drivers/sstar/msys/Kconfig"
+source "drivers/sstar/serial/Kconfig"
+source "drivers/sstar/clk/Kconfig"
+source "drivers/sstar/flash_isp/Kconfig"
+source "drivers/sstar/pwm/Kconfig"
+source "drivers/sstar/spinand/Kconfig"
+source "drivers/sstar/spi/Kconfig"
+
+source "drivers/sstar/include/$SSTAR_CHIP_NAME/Kconfig"
+
+source "drivers/sstar/ir/Kconfig"
+source "drivers/sstar/i2c/Kconfig"
+source "drivers/sstar/gpio/Kconfig"
+source "drivers/sstar/padmux/Kconfig"
+source "drivers/sstar/rtc/Kconfig"
+source "drivers/sstar/watchdog/Kconfig"
+source "drivers/sstar/sar/Kconfig"
+source "drivers/sstar/mma_heap/Kconfig"
+source "drivers/sstar/netphy/Kconfig"
+source "drivers/sstar/voltage/Kconfig"
+source "drivers/sstar/iopower/Kconfig"
+
+endif

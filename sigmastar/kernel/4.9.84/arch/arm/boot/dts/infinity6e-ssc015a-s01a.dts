@@ -1,0 +1,156 @@
+/*
+* infinity6e-ssc015a-s01a.dts- Sigmastar
+*
+* Copyright (c) [2019~2020] SigmaStar Technology.
+*
+*
+* This software is licensed under the terms of the GNU General Public
+* License version 2, as published by the Free Software Foundation, and
+* may be copied, distributed, and modified under those terms.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License version 2 for more details.
+*
+*/
+
+ /*
+ * Memory Layout
+ * 0x20000000-0x24000000 64M Kernel
+ * 0x24000000-0x24800000 8M  system
+ * 0x24800000-0x24900000 1M  data
+ * 0x24900000-0x25000000 7M  temp0
+ * 0x25000000-0x28000000 48M temp1
+ */
+/dts-v1/;
+#include "infinity6e.dtsi"
+#include "infinity6e-padmux.dtsi"
+
+/ {
+    model = "INFINITY6E SSC015A-S01A";
+    compatible = "sstar,infinity6e";
+
+    memory {
+        reg = <0x20000000 0x06000000>;
+    };
+
+    chosen {
+        bootargs = "console=ttyS0,38400n8r androidboot.console=ttyS0 root=/dev/mtdblock0 init=/linuxrc LX_MEM=0x3ee0000 mma_heap=mma_heap_name0,miu=0,sz=0x2000000 mma_memblock_remove=1";
+    };
+
+    /*!!IMPORTANT!! The reserved memory must be 1MB aligned*/
+    /*
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        cma0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            size = <0x04000000>;
+            alignment = <0x1000>;
+            linux,cma-default;
+        };
+    };
+    */
+    soc {
+        /* mipi0 4lane setting */
+#if 1
+        csi {
+            /* Config lane selection */
+            csi_sr0_lane_select = <2 4 3 1 0>;
+            csi_sr1_lane_select = <2 0 1 3 4>;
+            csi_sr2_lane_select = <0 0 0>;
+            /* Config lane P/N swap */
+            csi_sr0_lane_pn_swap = <1 1 1 1 1>;
+            csi_sr1_lane_pn_swap = <0 0 0 0 0>;
+            csi_sr2_lane_pn_swap = <0 0 0>;
+        };
+#endif
+
+        /* mipi0 2+2 setting */
+#if 0
+        csi {
+            /* Config lane selection */
+            csi_sr0_lane_select = <2 1 0 3 4>;
+            csi_sr1_lane_select = <2 0 1 3 4>;
+            csi_sr2_lane_select = <2 1 0>;
+            /* Config lane P/N swap */
+            csi_sr0_lane_pn_swap = <1 1 1 1 1>;
+            csi_sr1_lane_pn_swap = <0 0 0 0 0>;
+            csi_sr2_lane_pn_swap = <1 1 1>;
+        };
+#endif
+
+        /* mipi0 4lane setting */
+#if 1        
+        vif {
+            /* Config sensor 0 pad mux */
+            vif_sr0_par_mode = <2>;
+            vif_sr0_mipi_mode = <1>;
+            vif_sr0_bt656_mode = <1>;
+            vif_sr0_mclk_mode = <0>;
+            //vif_sr0_rst_mode  = <0>;
+            //vif_sr0_pdn_mode  = <0>;
+            vif_sr0_parallel_rst_mode  = <0>;
+            vif_sr0_parallel_pdn_mode  = <0>;
+            vif_sr0_mipi_rst_mode  = <0>;
+            vif_sr0_mipi_pdn_mode  = <0>;
+            vif_sr0_mipi_ctrl_mode = <1>;
+            //vif_sr0_hvsync_mode  = <0>; /* Not used in I6E */
+            //vif_sr0_pck_mode  = <0>; /* Not used in I6E */
+            /* Config sensor 1 pad mux */
+            vif_sr1_par_mode = <0>;
+            vif_sr1_mipi_mode = <1>;
+            vif_sr1_bt656_mode = <0>;
+            vif_sr1_mipi_ctrl_mode = <1>;
+            vif_sr1_mclk_mode = <0>;
+            vif_sr1_rst_mode  = <0>;
+            /* Config sensor 2 pad mux */
+            vif_sr2_mipi_mode = <0>; /* MIPI sensor only */
+            vif_sr2_mipi_ctrl_mode = <0>;
+            vif_sr2_mclk_mode = <0>;
+            vif_sr2_rst_mode  = <0>;
+        };
+#endif
+        /* mipi0 2+2 setting */
+#if 0
+        vif {
+            /* Config sensor 0 pad mux */
+            vif_sr0_par_mode = <2>;
+            vif_sr0_mipi_mode = <3>;
+            vif_sr0_bt656_mode = <1>;
+            vif_sr0_mclk_mode = <0>;
+            //vif_sr0_rst_mode  = <0>;
+            //vif_sr0_pdn_mode  = <0>;
+            vif_sr0_parallel_rst_mode  = <0>;
+            vif_sr0_parallel_pdn_mode  = <0>;
+            vif_sr0_mipi_rst_mode  = <0>;
+            vif_sr0_mipi_pdn_mode  = <0>;
+            vif_sr0_mipi_ctrl_mode = <1>;
+            //vif_sr0_hvsync_mode  = <0>; /* Not used in I6E */
+            //vif_sr0_pck_mode  = <0>; /* Not used in I6E */
+            /* Config sensor 1 pad mux */
+            vif_sr1_par_mode = <0>;
+            vif_sr1_mipi_mode = <1>;
+            vif_sr1_bt656_mode = <0>;
+            vif_sr1_mipi_ctrl_mode = <1>;
+            vif_sr1_mclk_mode = <0>;
+            vif_sr1_rst_mode  = <0>;
+            /* Config sensor 2 pad mux */
+            vif_sr2_mipi_mode = <1>; /* MIPI sensor only */
+            vif_sr2_mipi_ctrl_mode = <1>;
+            vif_sr2_mclk_mode = <0>;
+            vif_sr2_rst_mode  = <0>;
+        };
+#endif
+        iopower {
+            pm_sar_atop_vddp1 = <0>; /* 0: 1.8V 1: 3.3V */
+            pm_sar_atop_pmspi = <0>; /* 0: 1.8V 1: 3.3V */
+            status = "disabled";
+        };
+
+    };
+};

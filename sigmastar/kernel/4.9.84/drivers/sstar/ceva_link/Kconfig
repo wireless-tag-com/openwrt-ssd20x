@@ -1,0 +1,3 @@
+config SSTAR_CEVAXM6
+	tristate "XM6 driver"
+	help

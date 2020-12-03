@@ -1,0 +1,3 @@
+config MS_USB_OLD_PLATFORM
+    tristate "USB support for platform"
+    depends on CONFIG_USB_SUPPORT

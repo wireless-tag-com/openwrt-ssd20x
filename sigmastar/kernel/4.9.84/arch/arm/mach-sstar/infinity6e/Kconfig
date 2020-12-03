@@ -1,0 +1,18 @@
+config ARCH_INFINITY6E
+    bool "SoC iNfinity6E (ARCH_MULTI_V7)" if ARCH_MULTI_V7
+    select SOC_BUS
+    select ARM_GIC
+    select VFP
+    select VFPv3
+    select WIRELESS_EXT if WIRELESS && NET
+    select WEXT_PRIV    if WIRELESS && NET
+    help
+      Support for iNfinity6E SoC
+
+config SS_PROFILING_TIME
+    bool "Record timestamp in sram"
+    default y
+
+config SS_MIU_ARBITRATION
+    bool "SigmaStar MIU arbitration"
+    default y

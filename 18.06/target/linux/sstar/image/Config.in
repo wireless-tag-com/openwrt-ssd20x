@@ -1,0 +1,4 @@
+config SSTAR_MEM_64MB
+	bool "system memory 64MB"
+	default y if (TARGET_sstar_ssd20x_WT2011)
+
