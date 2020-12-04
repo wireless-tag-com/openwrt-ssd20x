@@ -1,0 +1,23 @@
+#!/bin/sh /etc/rc.common
+
+START=16
+
+start()
+{
+	/config/riu_w e 30 11
+	/config/riu_w 103c 8 00
+	echo "start sstar wifi"
+	/config/riu_w 103c 8 10
+
+	insmod ssw101b_wifi_HT40_usb.ko
+}
+
+stop()
+{
+	killall hostapd
+	killall wpa_supplicant
+	sleep 1
+	ifconfig wlan0 down
+
+	rmmod ssw101b_wifi_HT40_usb
+}
