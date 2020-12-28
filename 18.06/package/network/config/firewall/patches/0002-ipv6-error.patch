@@ -1,0 +1,12 @@
+--- a/iptables.c
++++ b/iptables.c
+@@ -61,7 +61,9 @@
+ 
+ 	union {
+ 		struct ipt_entry e;
++#ifndef DISABLE_IPV6
+ 		struct ip6t_entry e6;
++#endif
+ 	};
+ 
+ 	struct xtables_rule_match *matches;
