@@ -35,3 +35,7 @@ CONFIG_BUILD_PATENTED=y
 CONFIG_PACKAGE_dnsmasq=y
 CONFIG_PACKAGE_kmod-zram=y
 CONFIG_PACKAGE_zram-swap=y
+CONFIG_PACKAGE_libwtinfo=y
+CONFIG_PACKAGE_libwtinfo-lua=y
+CONFIG_PACKAGE_wtinfo=y
+CONFIG_PACKAGE_liblvgl=y

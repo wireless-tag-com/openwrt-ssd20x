@@ -4,8 +4,50 @@
 
 RAMFS_COPY_DATA=/lib/sstar.sh
 
+UPGRADE_UBI_STATUS=1
+
 platform_check_image() {
 	return 0
+}
+
+wt_nand_upgrade_ubi() {
+	local ubi_name="$1"
+	local file_name="$2"
+
+	local mtdnum="$(find_mtd_index "${ubi_name}")"
+
+	if [ ! "$mtdnum" ]; then
+		UPGRADE_UBI_STATUS=0
+		return
+	fi
+
+	local mtddev="/dev/mtd${mtdnum}"
+	ubidetach -f -p "${mtddev}"
+	sync
+	ubiformat "${mtddev}" -y -f "${file_name}"
+
+	if [ $? -eq 0 ]; then
+		sync
+
+		UPGRADE_UBI_STATUS=0
+		if [ "$SAVE_CONFIG" -eq 1 ]; then
+			mkdir -p /tmp/new_overlay
+			ubiattach -p "${mtddev}"
+			local ubi_index=$(nand_find_ubi "$ubi_name")
+			mount -t ubifs $ubi_index:rootfs_data /tmp/new_overlay
+			if [ $? -eq 0 ]; then
+				cp /tmp/sysupgrade.tgz /tmp/new_overlay/
+				sync
+				umount /tmp/new_overlay
+				UPGRADE_UBI_STATUS=0
+			else
+				UPGRADE_UBI_STATUS=1
+			fi
+			ubidetach -f -p "${mtddev}"
+		fi
+	else
+		UPGRADE_UBI_STATUS=1
+	fi
 }
 
 wt_nand_upgrade() {
@@ -15,39 +57,17 @@ wt_nand_upgrade() {
 
 	if [ -n "${board_dir}" ]; then
 		rm -rf /tmp/${board_dir}
-		tar xzf $tar_file ${board_dir}/kernel -C /tmp
-
-		export CI_KERNPART="KERNEL"
-		export CI_UBIPART="ubi"
-
-		mtd write /tmp/${board_dir}/kernel KERNEL
-		mtd write /tmp/${board_dir}/kernel RECOVERY
-		rm -rf /tmp/${board_dir}/kernel
 
 		tar xzf $tar_file ${board_dir}/root -C /tmp
 
-		local mtdnum="$(find_mtd_index "$CI_UBIPART")"
+		if [ $? -eq 0 ]; then
+			UPGRADE_UBI_STATUS=1
+			wt_nand_upgrade_ubi "ubi2" /tmp/${board_dir}/root
 
-		if [ ! "$mtdnum" ]; then
-			echo "cannot find mtd device $CI_UBIPART"
-			umount -a
-			reboot -f
-		fi
-
-		local mtddev="/dev/mtd${mtdnum}"
-		ubidetach -f -p "${mtddev}" || true
-		sync
-		ubiformat "${mtddev}" -y -f /tmp/${board_dir}/root
-		sync
-
-		if [ "$SAVE_CONFIG" -eq 1 ]; then
-			mkdir -p /tmp/new_overlay
-			ubiattach -p "${mtddev}"
-			echo "save config"
-			mount -t ubifs ubi0:rootfs_data /tmp/new_overlay
-			cp /tmp/sysupgrade.tgz /tmp/new_overlay/
-			sync
-			umount /tmp/new_overlay
+			if [ $UPGRADE_UBI_STATUS -eq 0 ]; then
+				UPGRADE_UBI_STATUS=1
+				wt_nand_upgrade_ubi "ubi" /tmp/${board_dir}/root
+			fi
 		fi
 	fi
 }

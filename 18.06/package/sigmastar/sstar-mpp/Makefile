@@ -43,12 +43,11 @@ endif
 
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/lib/modules/$(LINUX_VERSION)
-	$(INSTALL_DIR) $(1)/config $(1)/appconfigs $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/config $(1)/appconfigs $(1)/usr/sbin $(1)/etc/uci-defaults
 	$(CP) ./files/$(LIBC)/modules/4.9.84/*.ko $(1)/lib/modules/$(LINUX_VERSION)/
 	$(CP) ./files/config/* $(1)/config/
 	$(CP) ./files/$(SSTAR_MPP_DIR)/* $(1)/config/
-	$(INSTALL_BIN) ./files/sstar-mpp $(1)/etc/init.d/sstar-mpp
+	$(INSTALL_BIN) ./files/sstar-mpp $(1)//usr/sbin/sstar-mpp
 	$(INSTALL_BIN) ./files/sstar.default $(1)/etc/uci-defaults/99-sstar
 endef
 

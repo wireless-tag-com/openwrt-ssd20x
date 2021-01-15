@@ -523,6 +523,7 @@
             status = "disabled";
         };
 
+	/*
         ircut {
             compatible = "sstar,infinity-ircut";
             ircut-gpio-num = <PAD_PM_IRIN>;///PM_GPIO_IRIN
@@ -537,7 +538,7 @@
             clocks = <&CLK_ir>;
             interrupts = <GIC_SPI INT_FIQ_IR  IRQ_TYPE_LEVEL_HIGH>;
             status = "ok";
-        };
+        };*/
 
         pwm {
             compatible = "sstar,infinity-pwm";

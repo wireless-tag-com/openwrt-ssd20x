@@ -10,6 +10,7 @@ OTHER_MENU:=Other modules
 define KernelPackage/usb-sstar
   TITLE:=sstar EHCI controller support
   DEPENDS:=@TARGET_sstar
+  KCONFIG:= CONFIG_USB_EHCI_HCD
   FILES:= \
 	$(LINUX_DIR)/drivers/usb/host/ehci-hcd.ko
   AUTOLOAD:=$(call AutoLoad,35,ehci-hcd)
@@ -21,14 +22,15 @@ $(eval $(call KernelPackage,usb-sstar))
 define KernelPackage/mmc-sstar
   SUBMENU:=Other modules
   TITLE:=sstar MMC
-  DEPENDS:=@TARGET_sstar
+  DEPENDS:=@TARGET_sstar +kmod-mmc
+  KCONFIG:=
+  	CONFIG_SS_FAST_MMC=y \
+  	CONFIG_PWRSEQ_EMMC=n \
+	CONFIG_PWRSEQ_SIMPLE=n \
+  	CONFIG_MS_SDMMC
   FILES:= \
-	$(LINUX_DIR)/drivers/mmc/core/mmc_core.ko \
-	$(LINUX_DIR)/drivers/mmc/core/pwrseq_simple.ko \
-	$(LINUX_DIR)/drivers/mmc/core/pwrseq_emmc.ko \
-	$(LINUX_DIR)/drivers/mmc/card/mmc_block.ko \
 	$(LINUX_DIR)/drivers/sstar/sdmmc/kdrv_sdmmc.ko
-  AUTOLOAD:=$(call AutoLoad,40,mmc_core pwrseq_simple pwrseq_emmc mmc_block kdrv_sdmmc)
+  AUTOLOAD:=$(call AutoProbe,kdrv_sdmmc)
 endef
 
 $(eval $(call KernelPackage,mmc-sstar))
@@ -37,6 +39,8 @@ define KernelPackage/emac-sstar
   SUBMENU:=Other modules
   TITLE:=sstar netphy
   DEPENDS:=@TARGET_sstar +kmod-of-mdio +kmod-libphy
+  KCONFIG:= CONFIG_MS_EMAC \
+  	CONFIG_SSTAR_NETPHY 
   FILES:= \
 	$(LINUX_DIR)/drivers/sstar/netphy/sstar_100_phy.ko \
 	$(LINUX_DIR)/drivers/sstar/emac/kdrv_emac.ko

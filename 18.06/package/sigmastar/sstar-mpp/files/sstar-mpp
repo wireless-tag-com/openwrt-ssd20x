@@ -1,7 +1,4 @@
-#!/bin/sh /etc/rc.common
-
-START=15
-STOP=75
+#!/bin/sh
 
 . /lib/functions.sh 
 
@@ -94,17 +91,24 @@ start() {
 		echo 1 >/sys/class/gpio/gpio$mute/value
 	fi
 
+	/usr/sbin/sstar-init &
+
+	/usr/sbin/demo &
+
 	if [ "$blacklight" == "pwm0" ]; then
-		#to enable backlight , 4.3 and 86box both need it#
+		# to enable backlight , 4.3 and 86box both need it#
 		echo 0 > /sys/class/pwm/pwmchip0/export
-		#10kHz
+		# 10kHz
 		echo 10000 >/sys/class/pwm/pwmchip0/pwm0/period
-		#%60 brightness
-		echo 60 >/sys/class/pwm/pwmchip0/pwm0/duty_cycle
+		# %100 brightness
+		echo 100 >/sys/class/pwm/pwmchip0/pwm0/duty_cycle
 		echo 1 >/sys/class/pwm/pwmchip0/pwm0/enable
 	fi
 }
 
 stop() {
-	echo "skip stop"
+	killall demo
+	killall sstar-init
 }
+
+$1

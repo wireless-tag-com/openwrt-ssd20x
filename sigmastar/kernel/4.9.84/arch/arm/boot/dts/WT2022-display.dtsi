@@ -104,7 +104,16 @@
             sda-gpio = <PAD_GPIO12>;
             status = "disabled";
         };
-		
+
+      pwm {
+                compatible = "sstar,infinity-pwm";
+                reg = <0x1F003400 0x600>;
+                clocks = <&CLK_xtali_12m>;
+                npwm = <2>;
+                pad-ctrl = <PAD_GPIO4 PAD_GPIO5>;
+                status = "ok";  // no available pads
+            };
+
 		disp: disp {
             compatible = "sstar,disp";
             status = "ok";

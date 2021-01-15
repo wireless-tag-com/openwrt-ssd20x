@@ -25,3 +25,5 @@ wtinclude wt_sstar_usb_storage
 wtinclude wt_sstar_wifi
 wtinclude wt_sstar_mpp
 
+CONFIG_PACKAGE_sstar-init=y
+CONFIG_SSTAR_LCD_CC0702I50R=y

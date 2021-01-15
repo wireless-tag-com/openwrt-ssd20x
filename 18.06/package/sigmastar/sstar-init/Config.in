@@ -1,0 +1,13 @@
+if PACKAGE_sstar-init
+
+choice
+	prompt "Selected LCD"
+	default SSTAR_LCD_CC0702I50R
+
+	config SSTAR_LCD_CC0702I50R
+		bool "LCD CC0702I50R(1024*600)"
+
+endchoice
+
+endif
+

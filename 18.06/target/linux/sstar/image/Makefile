@@ -16,6 +16,9 @@ endef
 
 define Image/BuildKernel
 	cp $(KDIR)/uImage.xz $(BIN_DIR)/wt-$(BOARD)-uImage.xz
+ifeq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),y)
+	cp $(KDIR)/uImage.xz $(BIN_DIR)/wt-$(BOARD)-uImage-initramfs.bin
+endif
 endef
 
 define Image/Build
@@ -47,7 +50,6 @@ define Image/Build/WTSysupgradeNAND
 	mkdir -p "$(KDIR_TMP)/sysupgrade-$(if $(4),$(4),$(1))/"
 	echo "BOARD=$(if $(4),$(4),$(1))" > "$(KDIR_TMP)/sysupgrade-$(if $(4),$(4),$(1))/CONTROL"
 	$(CP) "$(2)" "$(KDIR_TMP)/sysupgrade-$(if $(4),$(4),$(1))/root"
-	$(CP) "$(3)" "$(KDIR_TMP)/sysupgrade-$(if $(4),$(4),$(1))/kernel"
 	(cd "$(KDIR_TMP)"; $(TAR) czvf \
 		"$(BIN_DIR)/$(1)/$(1)-sysupgrade.bin" sysupgrade-$(if $(4),$(4),$(1)) \
 	)
@@ -56,12 +58,13 @@ endef
 define Image/Build/WTNAND
 	mkdir -p $(KDIR_TMP)
 	mkdir -p $(BIN_DIR)/$(1)
+	$(CP) $(KDIR)/uImage.xz $(KDIR_TMP)/uImage.xz
 	$(CP) $(KDIR)/uImage.xz $(KDIR_TMP)/$(1)-uImage.xz
 	$(CP) $(KDIR)/uImage.xz $(BIN_DIR)/$(1)/$(1)-uImage.xz
 	$(CP) $(KDIR)/root.squashfs-raw $(KDIR_TMP)/root.squashfs
 	$(call ubinize,ubinize-sstar.cfg,$(KDIR_TMP),$(KDIR_TMP)/$(1)-root.ubi,128KiB,2048,-E 5)
 	$(CP) $(KDIR_TMP)/$(1)-root.ubi $(BIN_DIR)/$(1)/$(1)-root-ubi.img
-	$(call Image/Build/WTSysupgradeNAND,$(1),$(KDIR_TMP)/$(1)-root.ubi,$(KDIR_TMP)/$(1)-uImage.xz)
+	$(call Image/Build/WTSysupgradeNAND,$(1),$(KDIR_TMP)/$(1)-root.ubi)
 endef
 
 define Image/Build
