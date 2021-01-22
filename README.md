@@ -93,28 +93,32 @@ sysupgrade WT2022-sysupgrade.bin
 uboot下通过串口和网口进行升级（上电阶段按下enter按键），执行如下命令：
 
 设置环境变量，启动网络
+
 ```
 setenv serverip 192.168.1.88
 setenv ipaddr 192.168.1.11
+setenv ethinitauto 1
 saveenv
 reset
 ```
 
+重启之后，按下Enter按键重新进入uboot
+
 ## SPI NAND
-升级kernel
-
-```
-tftp 0x21000000 WT2022-uImage.xz
-nand erase.part KERNEL
-nand write.e 0x21000000 KERNEL ${filesize}
-nand erase.part RECOVERY
-nand write.e 0x21000000 RECOVERY ${filesize}
-```
-
-升级rootfs
+升级
 
 ```
 tftp 0x21000000 WT2022-root-ubi.img
-nand erase.part UBI
-nand write.e 0x21000000 UBI ${filesize}
+nand erase.part ubi
+nand write.e 0x21000000 ubi ${filesize}
+```
+
+## 刷系统
+如果第一次系统不是openwrt系统，请再uboot下先使用以下命令刷机成openwrt系统,，然后使用上面步骤进行升级
+
+```
+tftp 0x21000000 SSD202_openwrt.bin
+nand erase.chip
+nand write.e 0x21000000 0x00 ${filesize}
+reset
 ```
