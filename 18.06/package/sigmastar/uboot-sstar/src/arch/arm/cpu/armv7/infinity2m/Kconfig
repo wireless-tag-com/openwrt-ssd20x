@@ -1,0 +1,22 @@
+if INFINITY2M
+
+config SYS_CONFIG_NAME
+    default "infinity2m"
+    ---help---
+    To load the "include/configs/infinity2m.h"
+
+
+config SYS_SOC
+    default "infinity2m"
+    ---help---
+    To generate correct  "arch/arm/include/asm/arch"
+
+config SYS_GENERIC_BOARD
+    bool
+    default y
+
+config VERSION_FPGA
+    bool "FPGA version"
+    default n
+
+endif

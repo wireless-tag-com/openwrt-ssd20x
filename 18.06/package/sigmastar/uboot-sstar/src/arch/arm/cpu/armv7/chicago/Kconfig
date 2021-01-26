@@ -1,0 +1,24 @@
+if CHICAGO
+
+config SYS_CONFIG_NAME
+    default "chicago"
+    ---help---
+    To load the "include/configs/chicago.h"
+
+
+config SYS_SOC
+    default "chicago"
+    ---help---
+    To generate correct  "arch/arm/include/asm/arch"
+    
+config SYS_GENERIC_BOARD
+    bool
+    default y    
+ 
+config MS_LIB_TYPE_2BYTE_STRING
+    string "UBOOT type string, 2 byte only"
+    default "00"    
+    ---help---
+    This can only be edited in defconfig only
+    
+endif

@@ -1,0 +1,25 @@
+if INFINITY6B0
+
+config SYS_CONFIG_NAME
+    default "infinity6b0"
+    ---help---
+    To load the "include/configs/infinity6b0.h"
+
+
+config SYS_SOC
+    default "infinity6b0"
+    ---help---
+    To generate correct  "arch/arm/include/asm/arch"
+
+config SYS_GENERIC_BOARD
+    bool
+    default y
+
+config VERSION_FPGA
+    bool "FPGA version"
+    default n
+
+config SS_BOOTING_PERF
+    bool "booting time"
+    default y
+endif

@@ -1,0 +1,158 @@
+config SSTAR_IR
+    bool "SSTAR IR"
+
+config MS_ISP_FLASH
+    bool "MSTAR ISP NOR FLASH"
+
+config MS_SAVE_ENV_IN_ISP_FLASH
+    bool "Save environment to ISP NOR FLASH"
+    depends on MS_ISP_FLASH
+
+config MS_MTD_ISP_FLASH
+    bool "MTD device for ISP NOR FLASH"
+    depends on MS_ISP_FLASH
+
+config MS_PARTITION
+    bool 'Enable Mstar partition support'
+    depends on MS_ISP_FLASH
+
+config MS_SDMMC
+    bool 'MSTAR SDMMC'
+
+config MS_EMMC
+    bool 'MSTAR eMMC'
+
+config SUPPORT_EMMC_BOOT
+    bool 'Support eMMC BOOT'
+    depends on INFINITY6E
+    depends on MS_EMMC
+
+config MS_GPIO
+    bool 'MSTAR Gpio'
+    default y
+
+config MS_NAND
+    bool 'MSTAR NAND'
+
+config MS_SAVE_ENV_IN_NAND_FLASH
+    bool "Save environment to NAND FLASH"
+    depends on MS_NAND
+
+config MS_CMD_EYE
+    bool 'EYE'
+
+config MS_USB
+    bool 'MSTAR USB'
+
+config MS_EMAC
+    select CMD_NET
+    bool 'MSTAR EMAC'
+
+config MS_EMAC1
+    bool "MSTAR EMAC 1"
+    depends on MS_EMAC
+
+config ETHERNET_ALBANY
+    bool "Supply to internel PHY"
+    depends on MS_EMAC
+
+config ETHERNET_RMII
+    bool "Supply to RMII"
+    depends on MS_EMAC
+
+config ETHERNET_ICPLUS
+    bool "Supply to IC+ Phy"
+    depends on MS_EMAC
+
+config ETHERNET_FIXLINK
+    bool "EMAC fix link to mii/rmii"
+    depends on MS_EMAC
+
+config ENABLE_FIRST_EHC
+    bool 'Enable 1st EHC'
+    depends on MS_USB
+
+config ENABLE_SECOND_EHC
+    bool 'Enable 2nd EHC'
+    depends on MS_USB
+
+config ENABLE_THIRD_EHC
+    bool 'Enable 3rd EHC'
+    depends on MS_USB
+    default y
+
+config MS_ENABLE_USB_LAN_MODULE
+    bool 'Enable USB lan module'
+    depends on MS_USB
+
+config MS_AESDMA
+    bool 'Enable AESDMA'
+
+config MS_SPINAND
+    bool "MSTAR SPINAND"
+
+choice
+    prompt "Read mode"
+    default MS_SPINAND_SINGLE_READ
+	depends on MS_SPINAND
+    config MS_SPINAND_SINGLE_READ
+        bool "Use single read"
+    config MS_SPINAND_QUAD_READ
+        bool "Use Quad read"
+endchoice
+
+choice
+    prompt "Write mode"
+    default MS_SPINAND_SINGLE_WRITE
+        depends on MS_SPINAND
+    config MS_SPINAND_SINGLE_WRITE
+        bool "Use single write"
+    config MS_SPINAND_QUAD_WRITE
+        bool "Use Quad write"
+endchoice
+
+config MS_SAVE_ENV_IN_NAND_FLASH
+    bool "Save environment to NAND FLASH"
+    depends on MS_SPINAND
+
+config IMAGE_POSTFIX
+	string "Append postfix name to compressed file"
+	default ""
+	help
+	  u-boot"CONFIG_IMAGE_POSTFIX"
+
+config SSTAR_DISP
+	bool "SSTAR DISP"
+
+config SSTAR_DISP_HDMITX_VGA
+	bool "SSTAR DISP HDMITX VGA"
+
+config SSTAR_PNL
+	bool "SSTAR PNL"
+
+config SSTAR_HDMITX
+	bool "SSTAR HDMITX"
+
+config SSTAR_JPD
+	bool "SSTAR JPD"
+
+config SSTAR_RGN
+	bool "SSTAR RGN"
+
+config SSTAR_MSPI
+    bool "SSTAR MSPI"
+
+config SSTAR_SAR
+    bool "SSTAR SAR"
+	
+config SSTAR_WDT
+    bool "SSTAR WDT"
+
+config SSTAR_PWM
+    bool "SSTAR PWM"
+
+config SSTAR_UPGRADE_UI
+	bool "SSTAR UPGRADE UI"
+	depends on SSTAR_RGN
+	depends on SSTAR_DISP
+

@@ -1,0 +1,22 @@
+if INFINITY3
+
+config SYS_CONFIG_NAME
+    default "infinity3"
+    ---help---
+    To load the "include/configs/infinity3.h"
+
+
+config SYS_SOC
+    default "infinity3"
+    ---help---
+    To generate correct  "arch/arm/include/asm/arch"
+
+config SYS_GENERIC_BOARD
+    bool
+    default y
+
+config VERSION_FPGA
+    bool "FPGA version"
+    default n
+
+endif

@@ -1,0 +1,2264 @@
+[33mcommit b9cb780c222bf6bb3b7a8a18416deca2e30fd483[m
+Merge: af227c3 e199514
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Mon May 6 19:53:00 2019 +0800
+
+    Merge branch 'master' of ssh://hcgit04:29518/mstar/uboot/201501
+
+[33mcommit e199514b985bf3d59aa9ce415bdabe54292d800c[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Mon May 6 19:42:42 2019 +0800
+
+    [I2m][gpio] add MDrv_padmux setting functions
+    
+    1. add MDrv_GPIO_PadGroupMode_Set
+    2. sync gpio from kernel gpio
+
+[33mcommit af227c341faf159bf21743ea003a82584ece2c86[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Mon May 6 19:42:42 2019 +0800
+
+    [I2m][gpio] add MDrv_padmux setting functions
+    
+    1. add MDrv_GPIO_PadGroupMode_Set
+    2. sync gpio from kernel gpio
+
+[33mcommit 9cf9c7a092f25f56cd6bcaec79a3e059cb0d7ca3[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Fri May 3 18:02:26 2019 +0800
+
+    [spinand] add winbond otp function
+
+[33mcommit f78b7d8d403e681a7ad23591c8a9e23ccbe129a3[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Fri May 3 10:24:47 2019 +0800
+
+    Fix license1
+
+[33mcommit bdd079840f0b55c114a11501e406d78f6edc2caf[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Fri May 3 10:14:25 2019 +0800
+
+    Fix license
+
+[33mcommit 25f996117a1c91bca1f75fe17a48c2277f7e9395[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Thu May 2 20:43:02 2019 +0800
+
+    [I2m] move usb_defconfig to configs/
+
+[33mcommit 50aa6ced48ac9ce039322c381d07175b60d3a10a[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Thu May 2 20:30:41 2019 +0800
+
+    [I2m][WDT] fix watchdog clock
+
+[33mcommit 96e2fc9f1aeb329db7ee009dcf5b7de863972d8c[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Thu May 2 20:22:52 2019 +0800
+
+    [usb_host] add CONFIG_CMD_FAT
+
+[33mcommit dd55d2f19407a34774ed7af265fb4e2d4f771521[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Thu Apr 25 17:46:03 2019 +0800
+
+    [I2m][usb_host] add usb_defconfig for norflash platform
+
+[33mcommit 8b28ab41c99cd60911f08f4662974bbccaacd4df[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Thu Apr 25 13:49:08 2019 +0800
+
+    [I2m][gpio] fix compile error
+
+[33mcommit c3177a0fc9ad0d8c9c16b3f7f075469548b52ba3[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Thu Apr 25 13:41:47 2019 +0800
+
+    [I2m][gpio] fix BASE_RIU_PA
+
+[33mcommit 66716ecce1ceeaf1d23e98ca0dbce8ca5726156f[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Wed Apr 24 16:51:36 2019 +0800
+
+    [spinand] Environment offset
+    
+    While SNI UBOOT_PBA==0 and no PNI.
+    It reported error and stop env from saving.
+    Now it also provides default offset.
+
+[33mcommit 150969aac42c00854bc7f3a018f75117069a4534[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Tue Apr 23 13:54:28 2019 +0800
+
+    [WDT] fix compile warning
+
+[33mcommit 32c07277bf940e3c1111f213c1a2395ecc5a20f5[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Apr 19 23:45:07 2019 +0800
+
+    [spinand] Support new commands for new partition
+    
+    writecis could assign number of copies.
+    nand write.e could assign number of copies.
+    partition env is now with partition sequence number.
+
+[33mcommit 0ac3dfa860219d85c5107574445b07609c8eeeec[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Mon Apr 15 17:05:57 2019 +0800
+
+    [boot] Fix i2m & i6 boot type funtion
+    
+    Fix ms_devinfo_boot_type
+    This function reports the most possible boot type.
+
+[33mcommit 09ee681f5751663285738eca1dbef05731150853[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Mon Apr 15 15:11:38 2019 +0800
+
+    replace sigmastar copyright
+
+[33mcommit fc79ebec6328f8d9f688a7a4165cc3054adbd628[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Mon Apr 15 13:45:41 2019 +0800
+
+    [i2m][gpio] fix padmux table
+
+[33mcommit a30db629049a593ce6ed24434488995d0f4dc71c[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Fri Apr 12 15:17:11 2019 +0800
+
+    fix coverity
+    13386	Resource leak	Processed	himport_r
+    13385	Uninitialized scalar variable	Processed	abortboot_keyed
+
+[33mcommit 0f2c71113715bfbdecd92ec8ff06a451675f3fe6[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Fri Apr 12 14:51:06 2019 +0800
+
+    fix coverity
+    13440 Uninitialized scalar variable
+
+[33mcommit 1ded03e59bf0d5f422204be5a4fd00dfb8bc0752[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Thu Apr 11 16:25:09 2019 +0800
+
+    [spinand] Change defconfig to Quad Read
+    
+    Change defconfig to Quad Read
+
+[33mcommit e5d79e64eeda986cf5979ed655f7963f7dec4957[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Thu Apr 4 00:31:24 2019 +0800
+
+    [spinand] Add i2m support
+    
+    - Support i2m. Fixed compilation.
+    - Display SNI version while using writecis command.
+    - Remove some unused code
+
+[33mcommit abf37156f37838aed3f82ac75214fe9d411c44c3[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Thu Apr 4 00:24:13 2019 +0800
+
+    [spinand] Always report SPINAND as SLC
+    
+    Always report SPINAND as SLC
+
+[33mcommit ef43dde150abfec78c0c0d719644227499405ea4[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Mon Apr 1 10:53:16 2019 +0800
+
+    add MX25L51273G nor flash support
+
+[33mcommit c05f97d90fcd7e7c45de72a0ef0b09ea09ced1ea[m
+Author: raul.wang <raul.wang@sigmastar.com.tw>
+Date:   Wed Mar 27 16:38:28 2019 +0800
+
+    add command sigauth to nand config
+
+[33mcommit 9b7e5d4e15dd2c8082e6108d08a458fa38959d31[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Wed Mar 27 12:08:02 2019 +0800
+
+    [I2m] bootlogo, refine debug message
+
+[33mcommit aabac1b75ee1ef000a6741171b056e545023f9a0[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Wed Mar 27 11:19:36 2019 +0800
+
+    [I2m] bootlogo , add YUV444ToYUV422 and GetImageConfig
+
+[33mcommit 269883b03e2b2a61aafefa6f66ad859166bca334[m
+Author: raul.wang <raul.wang@sigmastar.com.tw>
+Date:   Tue Mar 26 18:23:12 2019 +0800
+
+    add command sigauth for verify digital signature without aes
+
+[33mcommit 2c3e28ce42c0c99e6aec190321cf3bca8886d9f0[m
+Author: david.tsai <david.tsai@sigmastar.com.tw>
+Date:   Tue Mar 26 15:14:20 2019 +0800
+
+    [I2m] Fix compile warning
+
+[33mcommit 04b49e31e0d3cf3f1e2bc7ec211c6a74317bd0f2[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Mon Mar 25 16:10:12 2019 +0800
+
+    [I2m] jpd, add libjpeg
+
+[33mcommit 6b59f461a024c8d15b060cca8e977f9b23a7dffb[m
+Author: david.tsai <david.tsai@sigmastar.com.tw>
+Date:   Mon Mar 25 11:40:45 2019 +0800
+
+    [I2m] Add initr_sstar for sstar hw-dependent init
+
+[33mcommit 292861d45dde540948f7d9a3d1080d07d970ba85[m
+Author: david.tsai <david.tsai@sigmastar.com.tw>
+Date:   Fri Mar 22 10:44:40 2019 +0800
+
+    [I2m] Move usb_folder default setting to usb command
+
+[33mcommit 0427fb18f0d4beb15627a5bf9bec19ded28ede33[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Thu Mar 21 18:22:43 2019 +0800
+
+    [i2m] bootlogo, refine cmd_bootlog.c and dips driver
+
+[33mcommit 26c7840ec9bb8e6dcfdd137a5890f79a53e04145[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Thu Mar 21 22:16:29 2019 +0800
+
+    [spinand] Add OTP feature
+    
+    Add command nand otpr|otpw|otplock
+
+[33mcommit 20e27fd7cc8e2746162ad5302aaf17336f07f6cd[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Thu Mar 21 14:51:20 2019 +0800
+
+    [I2m] bootlogo, fix compile error
+
+[33mcommit 467535aee055fcac1aeb2d4c4514c5ed4a769cce[m
+Author: david.tsai <david.tsai@sigmastar.com.tw>
+Date:   Thu Mar 21 14:16:09 2019 +0800
+
+    [I2m] Add default env: usb_folder = images in ustar
+
+[33mcommit c734054078cb52b0a41cece58b08a49fc71f7e43[m
+Author: david.tsai <david.tsai@sigmastar.com.tw>
+Date:   Wed Mar 20 20:29:49 2019 +0800
+
+    [UBOOT] Disable EMAC and net cmd in infinity2m_fpga_defconfig
+
+[33mcommit 0049948c0cbe57583b1c3de7755827e84fb0673f[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Wed Mar 20 15:21:07 2019 +0800
+
+    [I2m] bootlogo, add hdmitx driver
+
+[33mcommit 8e20e07842c64bf331794db57bcea62f8d8fcfe6[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Tue Mar 19 15:34:17 2019 +0800
+
+    [I2m] bootlogo, add cmd_bootlogo.c and refine code for disp and panel
+
+[33mcommit ae0f09d2777644fbc2e24eae3b3387ecefaf6c61[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Tue Mar 19 12:10:10 2019 +0800
+
+    [spinand] Fix ENV error for dual OS
+    
+    Add 3 argument for writecis command.
+    modify CIS_PBAs in mma file.
+    
+    also modify the rule for ENV offset.
+    Now it UBOOT == 0, then it sees PNI.
+
+[33mcommit cda37cf6b542a9caf293efa4dfe84d42b4e661aa[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Tue Mar 19 09:49:03 2019 +0800
+
+    [wdt] update watchdog clock
+
+[33mcommit 388048ad47d4479203668c17eca95694899af5ce[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Mon Mar 18 18:57:09 2019 +0800
+
+    [I2m] add gpio driver
+
+[33mcommit 26e5765ea4760e8c5a3d4ab4a19a293b79228154[m
+Author: sylvia.nain <sylvia.nain@sigmastar.com.tw>
+Date:   Mon Mar 18 14:32:38 2019 +0800
+
+    [usb_host] support I2m usb host
+    
+    1. add infinity2m_usb_defconfig for enabling usb host(based on infinity2m_defconfig)
+    2. split chip-specfic define from usb/hal/platform.h
+
+[33mcommit 9a7f6ae06a6887fc9303d1450b4069f8e79a4775[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Mon Mar 18 12:14:30 2019 +0800
+
+    [I2m] add panel driver
+
+[33mcommit 2faa46858f6f09096613af9421402db9b380394e[m
+Author: ryan.hsiao <ryan.hsiao@sigmastar.com.tw>
+Date:   Mon Mar 18 09:45:54 2019 +0800
+
+    [I2m] add disp driver
+
+[33mcommit 2dd28f1e92627ed9d27146512957904da6b65253[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Mar 15 22:56:35 2019 +0800
+
+    [unfd/spinand/nor] Remove chip define
+    
+    remove unfd module
+    remove chip define of spinand/nor modules
+
+[33mcommit cd45019a5dfd8d53ffc7fc715022e4b8dffd788c[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Mar 15 16:55:50 2019 +0800
+
+    [sd] Fix SD init
+    
+    on i6 SSC009A
+    mssdmmc init 1
+    before
+    mssdmmc init 0
+    is no longer needed.
+
+[33mcommit 3e6166b5c447641da7c04565994824b333f8f5a5[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Mar 15 15:50:09 2019 +0800
+
+    [sd] Fix SD file read
+    
+    Fixed file reading.
+    
+    test Steps:
+    mssdmmc init 1
+    mssdmmc init 0
+    mmc rescan 0
+    fatload mmc 0 0x21000000 BOOT.bin
+    
+    [ticket] = mantis_1679019
+
+[33mcommit 85c4e02b45c0415cce3c8860a371ff1e69a538a1[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Mon Mar 11 22:50:31 2019 +0800
+
+    [spinand] Fix quad mode
+    
+    Fix GD quad mode init.
+    Remove unused BDMA_REVERT.
+    Read use only 1 cmd. remove other unused versions.
+
+[33mcommit 4989563e48d1f44de2b608d1d7fe3ab277ed1ada[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Mon Mar 11 18:27:22 2019 +0800
+
+    [spinand] Fix Winbond ID
+    
+    Now i6 on-board Winbond 1G should work.
+    
+    The condition for ID bytes:
+    if (CIS.cnt == 3) cnt=3;
+    else if (id[2] == id[0] || id[2] == 0xFF) cnt = 2;
+    else cnt = 3;
+
+[33mcommit 7c2cacf3fa07f1d5db29cc4f0ea704337dd217bf[m
+Author: Paul Wang <paul-pc.wang@sigmastar.com.tw>
+Date:   Thu Mar 7 21:12:33 2019 +0800
+
+    fixed data abort due option '-fstore-merging' enabled by default for '-O2'.
+
+[33mcommit 12964bdae57a6be30ae5289bc41a1da340dfe3bc[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Fri Dec 21 19:14:21 2018 +0800
+
+    add eye script
+
+[33mcommit e91a3822d5c1114436fd33b1598059cbcb8872e7[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Wed Mar 6 20:42:02 2019 +0800
+
+    show gcc version
+
+[33mcommit af6c357236d4b7766f8eb3c39a93af5bf429007d[m
+Author: richard.guo <richard.guo@sigmastar.com.tw>
+Date:   Wed Mar 6 15:30:02 2019 +0800
+
+    [emac] correct pad mux for emac0
+
+[33mcommit 77332a1d56956242866b1b7540d1ba99e0438f9d[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Wed Mar 6 12:04:44 2019 +0800
+
+    [spinand] Fixed 3 Bytes ID
+    
+    Now write cis works on 3 bytes ID NAND,
+    such as on-board Winbond 1G.
+    It was recognized as 512MiB.
+    
+    Also enable UBOOT BDMA write.
+    because of RIU 15 byte alignment fix. REVERT is no longer needed.
+
+[33mcommit 321a879bed6192f94a6ed03a7d571c7fec977eee[m
+Author: david.tsai <david.tsai@sigmastar.com.tw>
+Date:   Tue Mar 5 19:48:32 2019 +0800
+
+    [UBOOT] Merge from I2m/master code line
+
+[33mcommit 6894f6018dd65ea2730a1d3b5a58c195d3fd447b[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Tue Mar 5 17:51:57 2019 +0800
+
+    release script support i6
+
+[33mcommit 6ad569219911b77ce093129e167cdede1d833dab[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Tue Mar 5 17:45:47 2019 +0800
+
+    Fixed undefined reference to `Usb_host_SetEverInited'
+    usb function was declared inline function that have no symbol in newer GCC
+
+[33mcommit 14eb1ae0329657bfed65d18792f754757ad0fdf9[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Tue Mar 5 17:29:02 2019 +0800
+
+    fixed warning with gcc8.2.1 and infinity6_spinand_defconfig
+
+[33mcommit 3826bfdfa51793845b35d7265ef2d90e7ed74be5[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Tue Mar 5 16:39:02 2019 +0800
+
+    Remove show dram size
+
+[33mcommit 6b9941a1df6f9b1aaa2c0da4aaefa4388921356e[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Wed Feb 27 11:40:15 2019 +0800
+
+    [spinand] Fix write by RIU results in bad block
+    
+    Root cause: FSP write size was hard-coded as 15-bytes.
+    When write with OOB, the total size is 3+2048+64, the multiples of 15.
+    However, if write without OOB, the total size is 3+2048, not the
+    multiples of 15, causing garbage written.
+
+[33mcommit aa7002f215187e4ff9c5d0174b2625e9edce8904[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Tue Feb 26 18:07:26 2019 +0800
+
+    [mtd] Add mtd parsing for extra cust partition
+    
+    Add CUST, UBI, and hidden partition.
+
+[33mcommit 7d374e997491f61fd4c9b4cb31a12719e64ad82d[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Tue Feb 26 12:01:17 2019 +0800
+
+    [uboot] Fix i6 dual OS burning.
+    
+    Revert oob setting & BDMA for ENV partition writting.
+    Now use single mode for writing so that i6 EVB 009A could work.
+
+[33mcommit 0abdb45b0fbee874c1f8c2c28893a077661d950e[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Wed Feb 20 15:25:46 2019 +0800
+
+    [spinand] I5 support BDMA write
+    
+    Support spinand BDMA write.
+    To enable it, please set BDMA_W_FLAG to TRUE in drvSPINAND_uboot.h.
+
+[33mcommit f58eb0b43a3e9db0b52857e1babc68af0cd2de2b[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Wed Feb 20 15:10:44 2019 +0800
+
+    [i2c] fix compile warning
+    
+    mstar_i2c.c:194:22: warning: array subscript is above array bounds [-Warray-bounds]
+                 HWI2C_DMA[i2cgroup].i2c_virt_addr = malloc(4096);
+
+[33mcommit a77cda1c4bf5f514ac6b11f22a3a1f42c340addf[m
+Author: weicheng.dai <weicheng.dai@sigmastar.com.tw>
+Date:   Mon Feb 18 16:13:07 2019 +0800
+
+    snr_cfg    fix compile warning
+
+[33mcommit 390cd1504369451ff7dd5daae799c5b2f80226b0[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Mon Feb 18 12:19:17 2019 +0800
+
+    fixed warning in GCC7.21 and GCC8.2.0
+
+[33mcommit 7bef6362b7af6177050ba2babeeef87ea5299cbe[m
+Author: kylin.zhang <kylin.zhang@sigmastar.com.cn>
+Date:   Mon Feb 18 09:16:33 2019 +0800
+
+    [spinand] remove not use code to improve write speed
+
+[33mcommit 57d68c7c8f99d460fff0bab855c54abeee1eacc9[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Feb 15 10:39:56 2019 +0800
+
+    [spinand] Fix the bug for GD ID checking
+    
+    It misused ID[0]
+    
+    Also make i6 take setting of Kconfig
+    Make Kconfig quad mode depends on SPINAND
+
+[33mcommit 431e49b524bcf67ad1ab7ea553684d3261d29699[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Thu Feb 14 18:30:01 2019 +0800
+
+    [spinand] Support quad mode by config
+    
+    Support to enable read quad mode by config
+
+[33mcommit 1bc4e8411496aaccbf266820b6a1207cd2686dad[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Wed Feb 13 22:30:23 2019 +0800
+
+    [spinand] Add i6 QUAD mode support
+    
+    Restore back to normal QSPI after quad reading.
+    Now it could write after reading from SPINAND.
+
+[33mcommit 85893691e2a5f20a8ff22a21a13c60cbea00e9ff[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Feb 1 17:56:30 2019 +0800
+
+    [spinand] Update PNI parsing
+    
+    new partition would have type C000 as CIS.
+    It requires ignoring the first partition.
+    
+    The code assumed C000 is always in the last partition.
+
+[33mcommit a6603f78f50b9545c4894b726a12cf703fe5c364[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Tue Jan 29 18:17:31 2019 +0800
+
+    [spinand] Fix SPINAND as MTD SLC
+    
+    It was regarded as MLC.
+
+[33mcommit 6b064957c80f6e168b833b346d8c706f2339771c[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Thu Jan 24 18:12:48 2019 +0800
+
+    [sd] Fix build error
+    
+    add drivers/mstar/sdmmc/src/hal_card_platform_iNF6.c
+
+[33mcommit b6279feaf78076df4d9fb587a6b78d45dff3fe6e[m
+Author: weicheng.dai <weicheng.dai@sigmastar.com.tw>
+Date:   Thu Jan 24 17:38:53 2019 +0800
+
+    Add I6 sensor pad & mclk configuration
+
+[33mcommit 7bbd93b6d08006dd761e8c19c92f9287661db1e6[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Thu Jan 24 12:24:43 2019 +0800
+
+    [sd] Add command mssdmmc
+    
+    Also update defconfig for default enabling SD
+    
+    mssdmmc init 1
+    mssdmmc init 0
+    first
+    then start testing your commands.
+
+[33mcommit 644e3253b5f5b65ae3be59bdd4525b3618193686[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Wed Jan 23 18:32:01 2019 +0800
+
+    [spinand] i6 scans MTD env for IPS_CUS
+    
+    I6 was not included.
+
+[33mcommit c741cd8bcc52f832e52f9fd43f978eeaa86b3cb1[m
+Author: raul.wang <raul.wang@sigmastar.com.tw>
+Date:   Tue Jan 22 20:37:22 2019 +0800
+
+    [USBD] support usb gadget driver
+
+[33mcommit fc475f63bceb54111f249d4fd75463adba602785[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Wed Jan 2 09:47:37 2019 +0800
+
+    [misc] Update release path in release_to_alkaid.sh
+    
+    Update release script due to release path updated in Alkaid SDK.
+
+[33mcommit 9bb6270fb31a30058022d8f0bd973dcef82c54fd[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Tue Dec 25 20:14:23 2018 +0800
+
+    [spinand] Fix "Magic number Error 23ad7c40"
+    
+    Using ESMT F50L1G41A, there will be a "Magic number Error xxxx".
+    After check, need to polling OIP status instead of fixed delay.
+
+[33mcommit 0eb42ac9fecd628077028504c2b349f23559a31a[m
+Author: eroy.yang <eroy.yang@sigmastar.com>
+Date:   Fri Dec 21 11:06:26 2018 +0800
+
+    Modify srcfg command powerdown pin control flow
+
+[33mcommit e4e69a7b11127005f766316dc2a1e0829240af22[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Wed Dec 12 14:34:00 2018 +0800
+
+    fixed one block bad, all partition can not use
+    
+    Sync e35a76b1357fc10314900af74601620d958f6433 from I2/master branch
+    
+    http://hcgit04:9080/#/c/21157/
+
+[33mcommit 345ee01905df0bff6b2f4dc4d417e2f1d56d28b4[m
+Author: nick.lin <nick.lin@sigmastar.com.tw>
+Date:   Tue Dec 11 16:32:32 2018 +0800
+
+    [Secure Boot] Add secure boot flow for I5
+    
+    1. Add do_auth command to run secure boot.
+    2. do_auth will do SHA, RSA and AES operations.
+
+[33mcommit 8f44209014fbcbd09ffc796047a00d2803184d72[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Dec 10 18:23:54 2018 +0800
+
+    [spinand] Mark GD 108MHz support
+    
+    Revert http://hcgit04:9080/#/c/25840/1/drivers/mstar/spinand/drvSPINAND.c
+    It results in write failed in image updating.
+    
+    http://mantis.sigmastar.com.tw/view.php?id=1679787
+
+[33mcommit 7088406eb5d331ff0eb56f48a2512381f39d5ea3[m
+Author: Derek.lee <derek.lee@sigmastar.com.tw>
+Date:   Mon Dec 10 15:06:52 2018 +0800
+
+    [config] support flash update by USB for spinand
+    
+    1. enable USB,GPIO for infinity6_spinand_defconfig
+
+[33mcommit dea571cdb267826e3b0480249035d34ab06037e9[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Dec 10 09:44:02 2018 +0800
+
+    [misc] Add script for releasing I5 uboot to Alkaid
+    
+    Add release_to_alkaid.sh for releasing I5 u-boot to Alkaid
+
+[33mcommit 91c016b30866bdf92eb34f0fa628f1537795825a[m
+Author: eroy.yang <eroy.yang@sigmastar.com>
+Date:   Thu Dec 6 11:18:13 2018 +0800
+
+    Update srcfg command flow for pad select
+
+[33mcommit 0558476681ed4f0cd907f25401637e5a4adb3f00[m
+Author: eroy.yang <eroy.yang@sigmastar.com>
+Date:   Wed Dec 5 18:23:11 2018 +0800
+
+    Update srcfg command flow for sensor1
+
+[33mcommit e3aa471bd7465ea91ee5dd4898eadcfec3622518[m
+Author: eroy.yang <eroy.yang@sigmastar.com>
+Date:   Wed Dec 5 14:13:04 2018 +0800
+
+    Update srcfg command flow for infinity5
+
+[33mcommit 77c71427b4b2182b5075c4d85398b13524d7f971[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Wed Nov 28 21:18:11 2018 +0800
+
+    [spinand] Add nand read stop watch
+    
+    'nand read' command now show time and
+    KByte/s (TIME_MEASUREMENT in cmd_nand.c)
+
+[33mcommit 63c3e580f84abfa0d30d72f545cc5d7ea7be8990[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Wed Nov 28 21:09:56 2018 +0800
+
+    [spinand] Add GD 108MHz support
+    
+    define CKG_TIMING 2 at drvSPINAND.h
+    reduce HAL_SPINAND_RFC from 3 commands to 1 command (RFC_CMD == 1)
+
+[33mcommit d99a5259f5d59728a218d37bac00fcd2ad106a19[m
+Author: Derek.lee <derek.lee@sigmastar.com.tw>
+Date:   Mon Nov 26 09:34:52 2018 +0800
+
+    [USB] Support USB update SPI flash
+
+[33mcommit cbf987a47a983421875b67f2cef17373c588d415[m
+Author: GiggsHuang <giggshuang@sigmastar.com.tw>
+Date:   Fri Nov 23 16:52:01 2018 +0800
+
+    Fix I6 gpio driver cause I5 make error.
+
+[33mcommit b175a051e377117547a8887ae9d8f008a79d8b5f[m
+Author: GiggsHuang <giggshuang@sigmastar.com.tw>
+Date:   Fri Nov 23 16:35:45 2018 +0800
+
+    Support gpio and padmux on I6.
+
+[33mcommit 0a1e8f095507d5b9e6acedb30b34d41af92b19d2[m
+Author: Truman Yang <truman.yang@sigmastar.com.tw>
+Date:   Fri Nov 16 21:19:31 2018 +0800
+
+    [spinand] Fixed CSZ pad. Add i6 spinand support.
+    
+    Reset PM CSZ pad back to default value.
+    Add spinand defconfig.
+
+[33mcommit 383a9e57385ccf80636575d70c6b3ba96def94c4[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Thu Nov 15 22:45:14 2018 +0800
+
+    [FSP] set bdma channel0 to miu
+
+[33mcommit 95d33701ef5f8f23037b14163f05e0f5c26918a3[m
+Author: jiang ann (安正) <jiang.ann@hcbc6401.sigmastar.com.tw>
+Date:   Fri Nov 16 11:49:29 2018 +0800
+
+    [USB] Support USB mass storage read/write.
+    
+    Sync from I2 for the supporting of NOR/NAMD flash upgrading through
+    USB storage device.
+
+[33mcommit 6f95c1c1341036cddb0ce7752e6458bf01d3d4c6[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Fri Nov 9 18:42:09 2018 +0800
+
+    [I6] add infinity6_defconfig
+    verified on I3 EVB
+
+[33mcommit 38fab875ffc08ac71dc807e0380486a069272954[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Fri Nov 9 08:22:52 2018 +0800
+
+    [spinand] Allow customized boot layout by SNI
+    
+    Support customized boot layout by SNI
+
+[33mcommit e9a9de0b0095a975651d8293abc0165b112d0653[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Thu Nov 1 16:28:36 2018 +0800
+
+    [MXP] Change MXP default offset to 0xF000
+    
+    Reorder mxp_offset[] to make default offset as 0xF000
+
+[33mcommit 8f57293c108caa9245ab247f4d2737fb37540c29[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Oct 15 10:55:33 2018 +0800
+
+    [MXP] Change one of MXP offset to 0xF000
+    
+    Change one of MXP offset from 0x3000 to 0xF000
+
+[33mcommit 95d53aa3c2b9dd016bc5ea7e4fadfb2443e4a874[m
+Author: Joe Su <joe.su@sigmastar.com.tw>
+Date:   Wed Sep 12 19:21:43 2018 +0800
+
+    [SDMMC] fix compile warnings.
+
+[33mcommit 47ba55cddddc0caec3e807e15761eade991b7d5f[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Wed Sep 12 17:58:43 2018 +0800
+
+    Intialize for I6  verified on V72000
+    bit file:iNfinity6_v7-2000_philip.chuang_diamond_case1_32KL1_20180808.bit
+    
+    1, Add arch part
+    2. Add emac hal part
+    3. Add flash hal part
+
+[33mcommit d6fcb3a531d261d30d01440ed3aed73553693bb0[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Wed Aug 22 00:29:53 2018 +0800
+
+    [emac] Not to overwrite analog trim in clock enable
+    
+    keep ALBANY2 offset 0x40 bit[3:0] from analog trim
+
+[33mcommit b6a02cc384cc0a389b07e2b576fa9b64fb4014f5[m
+Author: Joe Su <joe.su@sigmastar.com.tw>
+Date:   Mon Aug 6 21:55:57 2018 +0800
+
+    [SDMMC] 1) add SDIO DAT1 INT detect. 2) correct FCIE clock switch on SC_GP_CTRL register. 3) add PWR Save mode on SDIO.
+
+[33mcommit 39ccef69d86c32bb51f862eb85e60043ef6b33dc[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Aug 6 10:18:24 2018 +0800
+
+    [spinand] Use SPI#1 as chip select
+    
+    To release PM_GPIO8 as a normal GPIO usage, change spinand chip
+    select to spi#1.
+
+[33mcommit bb81fd58d7219e56bc36088bb37704a3a8c594de[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Fri Jul 20 19:53:40 2018 +0800
+
+    rename mstar_emac to sstar_emac
+    
+    as title
+
+[33mcommit 9c7ede5089ce62bdb0db6d2f20535fc9e726456c[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Fri Jul 20 19:44:20 2018 +0800
+
+    Change command prompt
+    
+    Change command prompt to SigmaStar #.
+
+[33mcommit 583214caa8dd8c84e274d9faedd240e057338adc[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Jul 9 22:03:26 2018 +0800
+
+    Enlarge console I/O buffer size
+    
+    Enlarge console I/O buffer size for longer bootargs.
+
+[33mcommit 7daca3df98a6b71df73a5e1d4d919ead3a388b44[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Jul 9 15:08:14 2018 +0800
+
+    [spinand] change to use riu mode
+    
+    Change program method to riu mode
+
+[33mcommit bea71725d952526fcfe95579e657ac6a629ef9af[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Mon Jul 2 13:22:42 2018 +0800
+
+    [gpio] Update gpio driver for I5
+    
+    Update GPIO driver.
+
+[33mcommit ddb7be3fcbcb8b4a8478e16087381f205e9b5913[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Tue May 15 23:18:27 2018 +0800
+
+    FPGA bring up by SPI-NOR
+    
+    Able to boot from ROM->IPL->IPL_CUST->Uboot
+
+[33mcommit 1c3bb6ef62507bc834420b77fe415dcacbabc994[m
+Author: alterman.lin <alterman.lin@sigmastar.com.tw>
+Date:   Tue May 15 10:37:01 2018 +0800
+
+    Initial commit for I5
+    
+    Based on master branch with commit SHA
+    
+    b2b26382deb3b775a2666993696cf5fac319f21f
+    
+    The following items are TBD:
+     1. emac driver
+     2. emmc driver
+     3. flash_isp driver
+     4. gpio driver
+     5. sdmmc driver
+     6. spinand driver
+     7. nand driver
+     8. arch\arm\include\asm\arch-infinity5\mach\platform.h
+     9. arch\arm\cpu\armv7\infinity5\infinity5.c
+    10. uboot\last\201501\common\cmd_mstar.c
+    11. include\configs\infinity5.h
+
+[33mcommit d41c4f78fc2ef871f83d874d93e3f96e0da3070e[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Mon May 14 15:45:53 2018 +0800
+
+    [EMAC] clone HAL codes from I3 to I5
+
+[33mcommit dc517c308ac100aa64f362ca629b3ca20c2b947d[m
+Author: benis.chen <benis.chen@mstarsemi.com>
+Date:   Fri Aug 17 17:46:43 2018 +0800
+
+    support new list of spi-flash
+
+[33mcommit 50a6d560c3d91568a0560f1b9134905cf446ef83[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Fri Aug 10 15:56:38 2018 +0800
+
+    Fix spinand read function
+
+[33mcommit 5b4de9a28f745aac3e2d97ebdaab82e2eac4a294[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Mon Aug 6 14:10:27 2018 +0800
+
+    [spinand] Optimize read function
+
+[33mcommit 8a8322319fda3d1c0a4cee969514f54a2b7e7903[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Wed Jul 4 15:45:04 2018 +0800
+
+    [FSP] fixed mtd interface
+
+[33mcommit 625b12f7e1cbdb08572561653e949251588f1739[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Tue Jul 3 13:38:43 2018 +0800
+
+    [spinand] Support customized partition v1
+
+[33mcommit 2cab2d885cef30547bc032fbfe28d1a220a15f9b[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Tue Jul 3 11:43:11 2018 +0800
+
+    [spinand] Support customized partition
+
+[33mcommit 0deba7a350c275e85657daf4f9b4a52206178f11[m
+Author: edie.chen <edie.chen@sigmaster.com.tw>
+Date:   Wed Jun 27 17:23:19 2018 +0800
+
+    Fix spinand coverity
+
+[33mcommit 8de9098b7b256c14dd175380f16ce15a26e99017[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Thu Jun 14 11:51:32 2018 +0800
+
+    fixed ms_devinfo_boot_type use wrong address
+
+[33mcommit b2b26382deb3b775a2666993696cf5fac319f21f[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Tue May 8 11:22:43 2018 +0800
+
+    [FSP] check sector erase has 4k-alignment
+    fixed logic error at end of forloop
+
+[33mcommit c3ae792fae741b94dac757ae2f0f6fb18177700a[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Fri Apr 27 12:54:33 2018 +0800
+
+    [FSP] refine read/write status function
+
+[33mcommit 7ee7c2c3002cb28c62aa0fef60a4a1da7db33988[m
+Author: karl.xiao <karl.xiao@sigmastar.com.tw>
+Date:   Wed Apr 25 18:51:36 2018 +0800
+
+    add _spinand postfix to filename
+
+[33mcommit 4de1aad000cca57ec11424faaf34df4ceff4dcbd[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jan 12 18:29:12 2018 +0800
+
+    Update spinand driver write by BDMA
+    
+    Change-Id: I5758c9b72cfb02115528a277a0ac128fd37e35ac
+
+[33mcommit bd8bebe9ba3ff5f9518d80a1aec97194e378154a[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jan 12 17:48:12 2018 +0800
+
+    Update spinand driver
+    
+    Change-Id: I0af5bec8db0ae98a68a25f72e494d26a7d0fe285
+
+[33mcommit 79c0f72e4152b15d582f2621f6a22c56e2f4bdb5[m
+Author: jeremy.wang <jeremy.wang@mstarsemi.com>
+Date:   Mon Nov 13 14:37:25 2017 +0800
+
+    [iNF] SD UBoot Driver Ver1.3
+    
+    Change-Id: I988fa39533969cb17264e4732b2a39640e3147e7
+
+[33mcommit 9b1349003333a106d6184029961251100a67594e[m
+Author: jack.huang <jack.huang@mstarsemi.com>
+Date:   Wed Oct 11 14:45:06 2017 +0800
+
+    fix bug: modify the bootm address in net_upgrate
+
+[33mcommit f922add3c075dcf8177ca620ccc204dbe5321813[m
+Author: alterman.lin <alterman.lin@mstarsemi.com>
+Date:   Wed Sep 27 16:09:58 2017 +0800
+
+    [iNF1] fix build error
+    
+    Change-Id: Id01784f3d876fe5038f431c478a1cbf7da4651e6
+
+[33mcommit c037459f2320de5bbfdf7f5eb0f80a65adb4f148[m
+Author: alterman.lin <alterman.lin@mstarsemi.com>
+Date:   Wed Sep 27 15:33:58 2017 +0800
+
+    add GD25Q256C norflash support
+    
+    Change-Id: I8b552e700be586ba1ae6f03dd4d4c1e0e935e8d7
+
+[33mcommit 2f45579d848caf87f319e9b0f8f09854a09647cd[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 13 12:10:54 2017 +0800
+
+    [flash] remove useless code
+
+[33mcommit 4853e466002adc4629afd33de5f80c7621d91073[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 13 12:10:03 2017 +0800
+
+    correct L3 pipe flush
+
+[33mcommit 95e956f5378d80600e600f6b16363d68b3265032[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 13 12:08:13 2017 +0800
+
+    1. refine trim ephy, but it isn't executed
+    2. remove rollback workaround
+
+[33mcommit 82979d4662aeca9c041556aca8cc2ae1bf8d039b[m
+Author: claude.rao <claude.rao@mstarsemi.com>
+Date:   Fri Sep 1 11:58:19 2017 +0800
+
+    add flash support for ZB25Q64 & ZB25Q128
+
+[33mcommit b87395ceae8d116a4beca0ff4f833c6e4923ebf2[m
+Author: jeremy.wang <jeremy.wang@mstarsemi.com>
+Date:   Mon Aug 21 21:15:06 2017 +0800
+
+    [iNF3] SD Power Timing Tuning
+    
+    Change-Id: If26ad42d1e0fbabadd261ab44e06642f82e5bbc5
+
+[33mcommit 6302110a9a20fa26a99b0acbcd471c9a90143300[m
+Author: Mingjhe.Syue <mingjhe.syue@mstarsemi.com>
+Date:   Tue Aug 15 09:36:37 2017 +0800
+
+    modfiy Makefile for C4P
+    
+    short title description on first line within 65 char
+    
+    more detailed description of your patch,
+    which is likely to take up multiple lines. maxlength within 70 char
+    if possible, please describe the root cause and solution here
+    [ticket] = na
+    [red flag] = y/n
+    
+    Change-Id: Ia608b743fab058975371063153ee78ae60bfa14a
+
+[33mcommit 37cbe863b82063cffef1343d1ae5700e13f1ce01[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Aug 14 11:56:49 2017 +0800
+
+    support Erase with buffering
+
+[33mcommit 2cb4cb503edac950cce919885e53e6921efea79e[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Aug 11 22:17:40 2017 +0800
+
+    correct env offset with MXP
+
+[33mcommit c65af8e5c645fa71965d8780c23f6348778c31e6[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Tue Jul 25 10:47:38 2017 +0800
+
+    bug fix: 1421853:do double system image check for ZTE
+
+[33mcommit 447a1d23d57a0adbf5f956a40c5388cfa7b8b5bc[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Tue Jul 25 10:24:09 2017 +0800
+
+    Revert "bug fix: 1421853: ZTE需求：uboot新增校验kernel功能"
+    
+    This reverts commit cc2bca2d262a67a2aa56ae169e19fb5956cf09f0.
+
+[33mcommit cc2bca2d262a67a2aa56ae169e19fb5956cf09f0[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Mon Jul 24 17:35:33 2017 +0800
+
+    bug fix: 1421853: ZTE需求：uboot新增校验kernel功能
+
+[33mcommit c827f57cb608bf1dbf5ccf1a5ee8bab5b8b47a68[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jul 21 16:27:14 2017 +0800
+
+    Fix error
+    
+    Change-Id: I3527c0d059f15473cc62e4582f396c1c805735c8
+
+[33mcommit 86f4857dc32b6aa4065933c1bb983c73b759a056[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jul 21 16:11:22 2017 +0800
+
+    Fix I1 WDT option
+    
+    Change-Id: I265c491acae9828c8c7c9eafe1a3c61533ccf8ef
+
+[33mcommit ef870b67cfef0c72023efd67b900f7fe5dfb2016[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jul 21 15:40:21 2017 +0800
+
+    Disable WDT at bootm
+    
+    Change-Id: I504ce3701c548e22ffb604b3c02befb795db448e
+
+[33mcommit d167970eb7fa17065b78df2c905c30c4454ae597[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jul 21 14:15:48 2017 +0800
+
+    Reset WDT when cmd idle
+    
+    Change-Id: Iba813d3b9dea5ee6607bc5b4d1a0455f8695d612
+
+[33mcommit 1447c1e0eeba4e45987e926a16e59f2d4c5cc3cf[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Wed Jul 19 22:59:05 2017 +0800
+
+    Enable watchdog, timer is 60s.
+    
+    Change-Id: I47aceb62e3cfaea1f9885221465a30c85faea757
+
+[33mcommit fa5d8934d6536b1e2f64ef9a4a84b1e69a7ccba3[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Tue Jul 18 17:55:05 2017 +0800
+
+    bug fix: [I1/I3]fix MHal_GPIO_Set_Input/Output() typo
+
+[33mcommit 9e39e6e8cb9fb8cc61b5080d3440324dbe83cde9[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Mon Jul 17 19:31:36 2017 +0800
+
+    Add chiptype information
+    
+    Change-Id: Ia3b74afdb59ab358c0449e0b7f4b390f69a6a66d
+
+[33mcommit b1da938722b8603be79a19c5b0f054032b9c256e[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Mon Jul 17 10:29:14 2017 +0800
+
+    code modify: I3 sync pinmux from kernel
+
+[33mcommit 70cc703d13ab07b9d9070c8b1e578e8e0b1cdb45[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Mon Jul 17 10:28:25 2017 +0800
+
+    code modify: I1 sync pinmux from kernel
+
+[33mcommit 6465d02758231516abe22549f00ccabe35ae3fb4[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Sat Jul 15 11:14:55 2017 +0800
+
+    code add: add auto upgrade by SD card
+
+[33mcommit 9f2c211d2cf9dc1ed2d54d8868ad0b4f49470c00[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Jun 20 22:51:27 2017 +0800
+
+    [EMAC]reset phy when tftp occur timeout
+
+[33mcommit 485ac0bc1adf8d27304a2d33c5fa0b22c9327075[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Tue Jun 20 17:28:59 2017 +0800
+
+    [eMMC] Add support env
+    
+    eMMC add support env
+    
+    [ticket] = mantis_123512
+    [red flag] = n
+    
+    Change-Id: I297272693cfc3238d957446342ef59b7fb150b81
+
+[33mcommit 985c182d7b984e223cb7119456683621a16dfa9e[m
+Author: alterman.lin <alterman.lin@mstarsemi.com>
+Date:   Tue Jun 20 16:28:28 2017 +0800
+
+    [iNFY3] add MX25L25645G norflash support
+    
+    1. add MX25L25645G norflash support
+    2. Program Extened Address Register to support MX 256Mb flash
+    
+    Change-Id: I2e8a0f6ce246d4fae044aeb0cf4b92f5ed355b3b
+
+[33mcommit a43d486ea6d5d99beeca0db043a14369680d8809[m
+Author: alterman.lin <alterman.lin@mstarsemi.com>
+Date:   Tue Jun 20 16:13:02 2017 +0800
+
+    add MX25L25645G norflash support
+    
+    1. add MX25L25645G norflash support
+    2. Program Extened Address Register to support MX 256Mb flash
+    
+    Change-Id: I0d1921c92a2cbea996d98f3d07323bc0729849ca
+
+[33mcommit 7d90d310906cd8fc44cc3526d58edab0e6070e9f[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Jun 19 21:06:47 2017 +0800
+
+    add none compressed image
+
+[33mcommit b3c0ece50df8d48a4a12359356c9e08fc0254794[m
+Merge: 8210a87 26f281e
+Author: Tse-Wei Wang <tse-wei.wang@mstarsemi.com>
+Date:   Fri Jun 16 16:06:20 2017 +0800
+
+    Merge "[iNFY3] Add eMMC driver"
+
+[33mcommit 26f281e810b0b4a1f865e5f24b079b8b26d23487[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Fri Jun 16 16:03:45 2017 +0800
+
+    [iNFY3] Add eMMC driver
+    
+    Add eMMC driver
+    
+    [ticket] = mantis_123512
+    [red flag] = n
+
+[33mcommit 8210a872117588fbb46823331d26e0a36717687e[m
+Author: mark <mark.tseng@mstarsemi.com>
+Date:   Thu Jun 8 15:05:59 2017 +0800
+
+    [M] add i2c padmux define in include/configs/infinity3.h
+
+[33mcommit 81f77eda2c13c53e3d576a0334768cd544f252b7[m
+Author: andy.hsieh <andy.hsieh@mstarsemi.com>
+Date:   Mon Jun 5 21:14:12 2017 +0800
+
+    [ISP] srcfg support pad config 6 for I3E
+    
+    Change-Id: I21525f8401f8bfd714ffacbbbee40d89c13138a5
+
+[33mcommit 820c43ae3b0346f0c98be0f2ec998781196d68ad[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Sat May 27 16:55:05 2017 +0800
+
+    sync gpio drv code from kernel,fix SPI0_CZ can't output 0 problem
+
+[33mcommit 07f6d8f9b79250b4baa6e48ee66136b80af63386[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Tue May 23 21:54:57 2017 +0800
+
+    Refined Spinand
+    
+    1. Add write by BDMA: Default enable
+    2. Fix printf
+    
+    Change-Id: I25e2f94551cc13ef866da550fb208c8335666d04
+
+[33mcommit 443ac68cbf78d3932734e8153a9a334428470137[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Mon May 22 18:25:03 2017 +0800
+
+    Add nand flow for I3e
+    
+    1. make infinity3_nandboot_config
+    
+    Change-Id: Id26491ee1ab3222beea3ae991f5aef5edf7eae42
+
+[33mcommit caf2c7cfdfb685a7e7fafc11e8043561f6d97c1c[m
+Author: mark <mark.tseng@mstarsemi.com>
+Date:   Mon May 15 14:38:34 2017 +0800
+
+    [A] 1. add I2C controller driver
+        2. add i2c command
+        3. add eeprom command
+
+[33mcommit a0b25370ca80594722242a8a2a4ca7bea6f21d18[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Wed May 10 20:48:31 2017 +0800
+
+    code add: gpio cmd add MDrv_GPIO_Pad_Set() set
+
+[33mcommit 8f50336b23d97b81090ddd1a682337caf8a6f568[m
+Merge: 6743f6c 1ce982d
+Author: andy.hsieh <andy.hsieh@mstarsemi.com>
+Date:   Wed May 10 17:09:47 2017 +0800
+
+    Merge 97c5d
+    
+    Change-Id: I2e0e28e794314f26305dde5929c267c6b8ecd0f0
+
+[33mcommit 6743f6ce910285ef735edb4a4b00c0b6f77c4561[m
+Author: andy.hsieh <andy.hsieh@mstarsemi.com>
+Date:   Wed May 10 16:39:40 2017 +0800
+
+    add srcfg command to enable sensor MCLK and power.
+    
+    Change-Id: I8fe556a987524157e1d26a8ea215508330b4cc01
+
+[33mcommit 1ce982dbd05c4d6b274ec18c1c6d392d0e3a6d44[m
+Author: mark <mark.tseng@mstarsemi.com>
+Date:   Tue May 9 20:36:03 2017 +0800
+
+    [M] move ms_i2c driver Makefile to drivers/mstar folder
+
+[33mcommit 97c5d36aa120aff69e7b10c46236cd7cac177f89[m
+Merge: ae47622 ad7c60d
+Author: Tseng Mark <mark.tseng@mstarsemi.com>
+Date:   Tue May 9 10:41:20 2017 +0800
+
+    Merge "[I2C] 1. add i2c controller driver       2. add i2c cmd       3. add eeprom cmd"
+
+[33mcommit ad7c60d03fc56919b0514a01556f4b550d13e10b[m
+Author: mark <mark.tseng@mstarsemi.com>
+Date:   Tue May 9 10:39:02 2017 +0800
+
+    [I2C] 1. add i2c controller driver
+          2. add i2c cmd
+          3. add eeprom cmd
+
+[33mcommit ae47622ecaaeadac15a253b3c35a4d50197db4d2[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Mon May 8 10:44:55 2017 +0800
+
+    code del: UBOT delete drivers/mstar/gpio/MsTypes.h
+
+[33mcommit 51acb644ca295afc70e1749bbc2410d960198656[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Mon May 8 10:37:58 2017 +0800
+
+    code add: UBOT add sw I2C interface
+
+[33mcommit ce7528bc0bb30991537531569d953753ee346191[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Sat May 6 15:19:14 2017 +0800
+
+    code update: UBoot add macaddr command
+
+[33mcommit f471b1fa40a7fcbba72144a9b10b25618deef132[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Fri Apr 21 10:38:54 2017 +0800
+
+    bug fix: fix riu cmd addr operation err
+
+[33mcommit af746bc952d8d22cd14d55dc35bfc7e4b3d318ea[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Wed Apr 19 21:43:18 2017 +0800
+
+    code add: netupgrade func add support script ctl
+
+[33mcommit 3ac0d42b851b8eccdc3ed189b1b51f328b933b18[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Wed Apr 19 21:06:56 2017 +0800
+
+    Spinand- Add read cis to dram.
+    
+    1. Read Block0~Block10 to dram.
+    2. Refined search pni table.
+    
+    Change-Id: I0769e4b3484f4533b4fb5f4d0f2a10aa49efa994
+
+[33mcommit af97a3449af34f2399fa18bea57d9e9151d77750[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Apr 12 11:17:31 2017 +0800
+
+    determind auto initailize emac by ENV
+
+[33mcommit 092f2212fc4796ad1a8ac0f7d08c7ba918b709ae[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Apr 12 09:46:29 2017 +0800
+
+    fixed warming
+
+[33mcommit fdba638a2bb895cccbadcfefe63c09e31c2d4b88[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Apr 11 15:33:23 2017 +0800
+
+    remove some message
+
+[33mcommit 49faf2c0ff094669ede1905c85d6e7f55dd08a34[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Mar 31 21:02:18 2017 +0800
+
+    fixed bi_arch_number
+
+[33mcommit b1c037e39b3c32b5019035876d702295c21f3ed7[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Mar 31 20:57:02 2017 +0800
+
+    1. fixed wrone progress rate of ERASE
+    2. fixed error handle in erase function
+
+[33mcommit 5a0123b125297b9bc0425e88afc06055c0261faf[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Thu Mar 30 14:33:48 2017 +0800
+
+    Merge Timer.c from I1 to avoid overflow
+    
+    Change-Id: I4d62131911230474c5c8cc33e881e3b51cfb3646
+
+[33mcommit 7e07802581710a225b951583637c17fff38fc589[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Thu Mar 23 13:00:43 2017 +0800
+
+    1. Refine inline function with extern to fix compile error when ussing  gcc 6
+
+[33mcommit edf3ffbc102430372324454552726084f89caa32[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Mar 17 11:17:19 2017 +0800
+
+    add EN25QH128A norflash support
+
+[33mcommit 49bcb9d30ea8d0cd927eb36e3ae54c050fb83177[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Mar 17 11:02:06 2017 +0800
+
+    convert unix format
+
+[33mcommit 4adb2f3b588ea50a467b3a7757e39869012674ec[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Mar 16 14:21:11 2017 +0800
+
+    1. refine hw stapping
+    2. remove nand info in source code
+    3. refine how to get context of driver
+
+[33mcommit 11e916c3856d3586fe8767ba2cae082d6d7d1414[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Tue Mar 14 10:35:53 2017 +0800
+
+    set default address of ENV to 0x4f0000
+    
+    Change-Id: I45f74642c6abe763abacf1faa22a2a74c1a67e61
+
+[33mcommit d342417e3ee99c2570642146f7d45ddb7516ca56[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Wed Feb 22 23:23:07 2017 +0800
+
+    Add nand checkback function.
+    
+    Change-Id: I5a6d3bebb02e3684d34dfbb69ca0bfcec29fe028
+
+[33mcommit c9b83f4c29104a05ac0aa2f118c69e59e1ce1ac5[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Feb 15 21:24:03 2017 +0800
+
+    auto initialize ethernet
+
+[33mcommit bc0577004a41ca161dd54e819a44f8bd65efd782[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Feb 15 17:17:00 2017 +0800
+
+    enable SD
+
+[33mcommit e8b005a4af6c29e7b27ba06bd3bda91108a3a990[m
+Author: jeremy.wang <jeremy.wang@mstarsemi.com>
+Date:   Tue Feb 14 21:50:00 2017 +0800
+
+    [iNF3] SD UBoot Driver Ver1.0
+    
+    Change-Id: I63d25d491a52a6341212a22c19d842777cca31b6
+
+[33mcommit 229b6ae8f12dbd9728d435f681b62542eb06a35c[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Feb 13 20:34:55 2017 +0800
+
+    reduce code size that smaller than 60Kbyte
+
+[33mcommit 3d39ed1efe49926189b38516c9034f1034bc8604[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Feb 8 20:26:42 2017 +0800
+
+    refine message
+
+[33mcommit 96989303b37ea51b30a7cd84c54695e12aa3cfd0[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Mon Feb 6 10:42:17 2017 +0800
+
+    Refined spinand driver and add spinand-defconfig
+    
+    Change-Id: Ie675dd906bac3a2c054921c64388c1686d808a2d
+
+[33mcommit 0d48c2d6d3b7cbd741dc34ecf0851fd0f2a6c5df[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Thu Jan 19 17:44:47 2017 +0800
+
+    Roll back default ATAGS (BOOT_PRARMS) back to RAM_START. This setting will cause XIP boot hang, need to check if XIP is needed
+
+[33mcommit 707c78f3412e4660851b737361762cedaacaa1c0[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Jan 12 17:04:03 2017 +0800
+
+    Show chip information in Version for I3
+
+[33mcommit e94c28e258c73d585ada9270192c7ba41789f770[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Jan 12 16:56:19 2017 +0800
+
+    Show chip information in Version
+
+[33mcommit 1600ba7e43bba8d91b9d0b2b1635fa86ffe0025d[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Thu Jan 12 12:15:09 2017 +0800
+
+    uboot shell add auto complete func
+
+[33mcommit d4097a0009a60382709e1ba6f76e2d5609352c48[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Wed Jan 11 20:06:19 2017 +0800
+
+    fix some warning
+
+[33mcommit 2a20a4aca422386b6a59da72f4751ac340b376fe[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Wed Jan 11 19:52:28 2017 +0800
+
+    add uploading sf image to server using TFTP protocol
+
+[33mcommit 9c272767945cb4f27c9f814a33af096be215be1b[m
+Author: ken.zhou <ken.zhou@mstarsemi.com>
+Date:   Wed Jan 4 17:36:28 2017 +0800
+
+    support flash IC25LP128
+
+[33mcommit 8091758e4a2dab5ab963e3d467ff9bb8a7ed9e7f[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Wed Dec 21 18:19:12 2016 +0800
+
+    Add Spinand Flow
+    
+    Change-Id: Iaeaa8e22596c9b4f2a2b930ff77444f1df530cd5
+
+[33mcommit ac83db2de8889036f49fa3b420c1939b5f5e18c8[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Fri Dec 16 18:24:50 2016 +0800
+
+    fix riu operation err
+
+[33mcommit 00ee8cee704df3f5c980e97b0d6ee058aa567690[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Fri Dec 16 10:39:10 2016 +0800
+
+    code optimize for gpio func
+
+[33mcommit eee9a83ee7d711613162b17f989e0dbd51cab6e7[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Thu Dec 15 21:58:55 2016 +0800
+
+    add gpio operation func
+
+[33mcommit 609abeda17178c0f9b71e3afe6bd821329830081[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Sat Nov 26 14:58:49 2016 +0800
+
+    use default flash type if  probe unknown norflash
+
+[33mcommit d570fb7ccf756415ea4eec09df5bc4bc94612296[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Nov 22 17:15:20 2016 +0800
+
+    emac:refine setting for new phy
+
+[33mcommit 8a5ce97831dc4e89a2660cb517b6c2504249094e[m
+Author: gavin.ran <gavin.ran@mstarsemi.com>
+Date:   Wed Nov 9 04:03:11 2016 +0800
+
+    code refine & netupgrade Automatic capture filesize
+
+[33mcommit 79c635fad4b75f5ef3fc86acbb71d8ed709d8477[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Oct 28 21:55:55 2016 +0800
+
+    Enable xz in I3E
+
+[33mcommit f9c3845738da9d63a9053556821c7e89a9e0726b[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Oct 28 21:18:20 2016 +0800
+
+    refine sf definition for MXP
+
+[33mcommit a0d654cf0d3de9bd59bbd97d433fbb9746e9dbe5[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Oct 28 21:07:34 2016 +0800
+
+    refine I3E code
+
+[33mcommit 06328670bbec940be57d0203034460411f3f37cc[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Wed Oct 19 07:40:06 2016 -0400
+
+    code refine & save tftpserver & ipaddr to env
+
+[33mcommit ad74078152c5a909788dac70fcbaa179e7416ac2[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Oct 7 18:02:30 2016 +0800
+
+    [nor flash] Porting to infinity3
+    
+    Change-Id: Ia45fe0d8e287fc1d6bcbbf7ba3b5e77f5cf66e3b
+
+[33mcommit fca9899eabdde935e3f2f1c2032c189eed983708[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Mon Oct 3 14:01:26 2016 +0800
+
+    [NAND]Add dump front 10 blocks command
+    
+    Add command for dump cis blocks data to dram
+    
+    [ticket] = na
+    [red flag] = n
+
+[33mcommit c38ed94609acb3b0eee948dea2b04c3969a20f70[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Tue Sep 13 21:47:17 2016 +0800
+
+    adjust the dhcp command execution order
+
+[33mcommit d217f43c439ed88e85dccf528adb9c30ec1e13b1[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Thu Sep 8 09:51:03 2016 +0800
+
+    add dhcp command get the ipaddr; use run_command() to send the tftp command
+
+[33mcommit c9dfaa0d45920ebb5f238c742d03290d7f5643c4[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Sep 6 14:20:35 2016 +0800
+
+    1. change atags to have a 0x100000 offset 2. add compress type XIP to mkimage and bootm
+
+[33mcommit e825a3feca9f0777e92ec9516d4394fdc76974c7[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Thu Aug 25 14:49:01 2016 +0800
+
+    add force upgrade control & code refine
+    
+    Change-Id: I1ea358cea659a19dd4c6bcbfc1f60efbc51168dc
+
+[33mcommit be145f639d7f04f6dca82d137d52347a01f9113d[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Wed Aug 24 19:12:34 2016 +0800
+
+    change udp data struct & code refine
+    
+    Change-Id: Ie2c15809fc97d82d0d6e5455845b6f83ef2be3ec
+
+[33mcommit 3b0460f746e064891894393ef7ce346e72ce09c2[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Tue Aug 23 22:00:30 2016 +0800
+
+    auto net upgrade function, change send tftp command squence
+    
+    Change-Id: Ifb4869774a3cd265f6391b9c997d05cfb3ea9b82
+
+[33mcommit 026471b33ae237810f9a5f1408e4ef51b0c5ced9[m
+Author: andely.zhou <andely.zhou@mstarsemi.com>
+Date:   Tue Aug 23 19:54:07 2016 +0800
+
+    add auto upgrade function in booting
+    
+    Change-Id: I442af85bd0749cc56b940fad7c408b65283bf6a7
+
+[33mcommit 2f1c1c7e33eb3eec2eadff02d1dbb2f818d05c75[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Fri Jul 15 16:13:48 2016 +0800
+
+    Refined spinand driver
+    
+    1. Add writecis command.
+    2. Search and write sni & pni in dram.
+    
+    Change-Id: I0d8943876af02c49930fc1edc3f87e0b881205c8
+
+[33mcommit b3e6ae163afc28ecb07bd725c63a7506d4b1bdf0[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Wed Jul 6 09:15:49 2016 +0800
+
+    1. Clear rd_start and rd_end if no KIMG header found
+    2. Change bootm memory address for reduce boot time
+
+[33mcommit 24a23b89e6d6dfe40d0708a775b754e6efa4c539[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Jun 29 18:14:45 2016 +0800
+
+    add defconfig for I3 ASIC
+
+[33mcommit e67d06394faaa836eecfc88f01a0dc5a604cfb5c[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Mon Jun 27 13:31:58 2016 +0800
+
+    Refined spinand driver
+    
+    1. Fix get status.
+    2. Add debug message.
+    
+    Change-Id: Ie554d007b87a3d4f5de3f8e56db1e3124d654a1b
+
+[33mcommit 5d70c0015550b2aee604de6c1dd972629ca317a3[m
+Author: edie.chen <edie.chen@mstarsemi.com>
+Date:   Thu Jun 23 19:38:46 2016 +0800
+
+    add spinand driver
+    
+    Change-Id: If8ef9cd5ea9248593e6c868a9bf2fd6e852f2934
+
+[33mcommit dd85450e2c4cdb14a642e926fdf2e3668d614f48[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Thu Jun 23 16:52:00 2016 +0800
+
+    Fix ubi err after do_cis
+    
+    Change-Id: Icedfe81f5990a82636eed15af4d48ebacd621a03
+
+[33mcommit 816e239da19970d9be2a4c06e5e2e8998a860202[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Jun 23 14:14:24 2016 +0800
+
+    Fix MXP table check bug
+
+[33mcommit b10b38e4293f4432a10f248b0072597f27c2e9b7[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Jun 21 19:17:09 2016 +0800
+
+    refine hardware stap reading
+
+[33mcommit 9c56ffac8b68399e19dbb0b2ae610a90f0c49b92[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Tue Jun 21 19:03:00 2016 +0800
+
+    Add MXP table check offset, default is 12K, 128K, 256K, 512K
+
+[33mcommit 97730a2d79108993cb6675daeafb0522030fd4d2[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Mon Jun 20 08:47:14 2016 +0800
+
+    1. refine timer setting
+
+[33mcommit ef1bfad1ababb41e58842ffb353f9274f9752b6b[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Jun 15 17:03:57 2016 +0800
+
+    add defconfig for nand
+
+[33mcommit d54c0cf0b0bdbe21d0c9feffd79eb05e4a597bf0[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Tue Jun 14 15:59:48 2016 +0800
+
+    [NAND] Remove log when initalization
+    
+    remove nand initial log.
+    
+    [ticket] = na
+    [red flag] = n
+
+[33mcommit 9b803e58e14ec9f73a31c36a89ca572e0b10fb1c[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Mon Jun 13 16:29:28 2016 +0800
+
+    [NAND] Refine ENV in NAND flow
+    
+    1. Refine ENV in NAND
+    2. Redefine partition NAND in pni.
+    
+    [ticket] = na
+    [red flag] = n
+
+[33mcommit 128a008ab8bb7612a3d5cc0de419216a7164fa6f[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Jun 8 23:05:27 2016 +0800
+
+    [emac] can't set interrupt enable
+
+[33mcommit 602cf1bd8b03a12de7e23ce766ba9d6700cebce3[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon May 16 21:03:25 2016 +0800
+
+    [flash_isp]
+    refine probe flow and remove redundant device list
+
+[33mcommit db806e22ba158e110bed5afc0cf83f4bac498074[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Apr 20 21:34:53 2016 +0800
+
+    [EMAC] it can modifiy MAC address
+
+[33mcommit 98cd70dd15a6aff224c494a68392a86e5ab6deb4[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Apr 20 18:50:27 2016 +0800
+
+    [FSP] fixed erase all chip error.
+
+[33mcommit 1f8a1d738111306cd7614069d709a384dc7814b7[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Apr 19 23:58:55 2016 +0800
+
+    [EMAC] add infinity3 driver for FPGA
+
+[33mcommit 83b3073ebe6075843ed6de70761305ec2a468ffa[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Apr 19 23:52:17 2016 +0800
+
+    [EMAC] flush dcache for DMA
+
+[33mcommit 4a2cc358c7728dc7689ff79336d9d43f386166f3[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Mar 31 11:57:09 2016 +0800
+
+    Add debug cmd to disable uart rx
+
+[33mcommit eb57145bc8fe7d4f6f8a4fa971abe903dca82b0d[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Wed Mar 30 18:37:04 2016 +0800
+
+    Add log of initrd address
+
+[33mcommit dbfa673aa5d7f2d7aabef92b0710d7003508267c[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Tue Mar 29 18:16:33 2016 +0800
+
+    set kernel boot entry into env
+
+[33mcommit 09027bacba16bcc20fcf4475ea2a41745b7c2a60[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Sat Mar 26 18:23:46 2016 +0800
+
+    Add XZ/MZ support for bootm
+
+[33mcommit 6c27bdde7b032a98045c095cfceac0bc5dbb5fa2[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Mar 14 11:45:28 2016 +0800
+
+    disable flash_isp on FPGA
+
+[33mcommit de841c849f6c983806f6c594f6eeb33f1671f45b[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Mar 3 14:46:54 2016 +0800
+
+    Refine status register base, now use PM_RTC REG_04
+
+[33mcommit d2e1a05af55bd8168a0c40e9e0a043f5e2c30d0b[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Feb 5 12:53:07 2016 +0800
+
+    add codes for Infinity3
+
+[33mcommit d35837846cc6c3a04d17be9676473cbe357d1165[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Jan 29 20:53:38 2016 +0800
+
+    add default flash data
+
+[33mcommit e77f1558833f2b990b3403ab920c2d5f2b188b4c[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Jan 27 15:38:18 2016 +0800
+
+    add N25Q128 support
+
+[33mcommit f6f9a19ef787b65856978a85eac99d7f423c6664[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Jan 4 18:26:27 2016 +0800
+
+    fixed warning message
+
+[33mcommit 66ec9a262964754e10f450328c76be8f9d9da8e1[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Jan 4 18:16:23 2016 +0800
+
+    save ENV with MXP table
+
+[33mcommit 9895c4f2439d5814a8e8cdab5eb8348d492bffca[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Dec 8 23:11:16 2015 +0800
+
+    1. modify uboot DRAM size to 64MB from 128MB
+    2. modify molloc pool size to 4MB from 8MB
+    3. refine the momory occupied by EMAC(to 225K from 2MB)
+    4. refine the message that Flash driver print
+
+[33mcommit e50a07c17b8d6a5f1753e49135cc0d52300ddb13[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Dec 3 10:39:42 2015 +0800
+
+    Add mxp function return value to terminate flow
+
+[33mcommit f384751daa6c3485892b24a414c10fd246909d07[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Thu Nov 26 14:51:22 2015 +0800
+
+    1. add XZ compressed image
+
+[33mcommit 1dc97868f8489bbec56abe3b1b3de8b3b3f6e964[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Nov 26 10:59:20 2015 +0800
+
+    enable TFTP support modifiable PORT
+
+[33mcommit 8f70cd6df62fc3685ea1d8ea967f2873ef3845ea[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Nov 19 16:06:32 2015 +0800
+
+    sync the patch for albany from Kernel driver
+
+[33mcommit aeee6540af7f0b5c53cb0c48008ffc676a971352[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Oct 22 10:17:57 2015 +0800
+
+    emac: remove some messages
+
+[33mcommit b6dd9605ce39c55983409c4d570f76588d7e55d6[m
+Author: jeremy.wang <jeremy.wang@mstarsemi.com>
+Date:   Fri Oct 16 20:13:55 2015 +0800
+
+    [iNfinity] SD UBoot Driver 1.2
+
+[33mcommit c96b96ada1ae5e2167f928d099a37c7a52b41183[m
+Author: jeremy.wang <jeremy.wang@mstarsemi.com>
+Date:   Fri Oct 16 17:01:42 2015 +0800
+
+    [iNfinity] SD UBoot Driver 1.1
+
+[33mcommit 5e408a182fe0fc13974e4a9cced1daa1bb7b3285[m
+Author: jeremy.wang <jeremy.wang@mstarsemi.com>
+Date:   Fri Oct 16 16:52:48 2015 +0800
+
+    [iNfinity] UBoot SD Driver 1.0
+
+[33mcommit 70c81ecae3fce011a6c6624fecde68e9921f6255[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Oct 16 15:07:41 2015 +0800
+
+    1. support FSP  2.speed up flash write
+
+[33mcommit 61a2e781c8aaeac4fb4f3bdf6835fe1898bbf72a[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Oct 15 18:39:01 2015 +0800
+
+    1. Implement auto secure writeback flow by checking register
+    2. Enable CONFIG_BOARD_LATE_INIT to run secure writeback command
+
+[33mcommit 4b3eddc456299aa84b2a60315dbb9e24f5c598e8[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Oct 15 17:03:06 2015 +0800
+
+    refine sector erase
+
+[33mcommit 43efb9f2b069ad65fa3834d498167cdacfddf588[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Oct 15 15:59:38 2015 +0800
+
+    Fix compile error
+
+[33mcommit ffccd7a474a909c751cd1e3c97d46e3b3a626d0a[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Oct 15 15:20:18 2015 +0800
+
+    Fix compile error
+
+[33mcommit ba0db43e66ec3ef0b619b8932efa230b567baf48[m
+Author: spade.lee <spade.lee@mstarsemi.com>
+Date:   Thu Oct 15 14:37:18 2015 +0800
+
+    1. Add aes command to secure write-back
+    2. Correct UBOOT_ENV offset
+    3. Update AESDMA driver
+
+[33mcommit 2ce42addc2a65281cb0059018d631762711a9bd1[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Oct 8 18:01:00 2015 +0800
+
+    correct env offset in SPI
+
+[33mcommit 215bd70fc1ae7297e541aee2a43cac803383cb9f[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Fri Oct 2 14:53:58 2015 +0800
+
+    1. correct MVXV format
+
+[33mcommit c16d87a75fd4b58221623628f772ad86ce8bc699[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Fri Oct 2 09:32:07 2015 +0800
+
+    1 update the ms_gen_mvxg_h.py
+
+[33mcommit ee52a957064c6b36f3a920f1b4fe5815ed4be71b[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Oct 1 14:51:42 2015 +0800
+
+    correct FSP bank address
+
+[33mcommit 8815f4eeb97985239a4c61d8d270cd3450e5c4c5[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Wed Sep 30 16:35:22 2015 +0800
+
+    [NAND] Add Cedric driver configure back
+
+[33mcommit fa380e6501a15f5b40baa0a552bea2d247cbde36[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Fri Sep 25 17:30:38 2015 +0800
+
+    1. fix the MXP behavior is not correct when FLASH is empty
+
+[33mcommit 9bd979a21b5c6e71e14ad763d1206e8ed57bb771[m
+Author: tse-wei.wang <tse-wei.wang@mstarsemi.com>
+Date:   Fri Sep 25 15:02:51 2015 +0800
+
+    Poring NAND driver and disable UBI temporary due to too large size of uboot image,
+    Disable CONFIG_CMD_BDI to avoid compile error when CONFIG_MS_NAND is selected.
+
+[33mcommit 38a4e55cbd92654b881948e86da8dd05eec924fb[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Fri Sep 25 12:02:43 2015 +0800
+
+    [EMAC] turn on LED
+
+[33mcommit 213f276fbb38514d5732f75541cbcc5900a92681[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 23 19:10:33 2015 +0800
+
+    display the progress of program flash
+
+[33mcommit 8decf994332f4f5da7bd15dbb82bf28fdad39c97[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Sep 22 09:52:21 2015 +0800
+
+    1. refine a MXP tag
+
+[33mcommit a0c2f5fef1227b796a9b8be398695858de4f9fda[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Sep 22 09:46:41 2015 +0800
+
+    1. test the autobuild
+
+[33mcommit ff148e9c0f3b72248adff70abf6feaaa498e14cf[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Sep 22 09:33:55 2015 +0800
+
+    1. refine MXP feature with auto size
+
+[33mcommit 2c0b26bbe3571b65daaec9fa4ed9c5fadee70147[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Thu Sep 17 19:34:10 2015 +0800
+
+    1. add the r.info mxp command
+
+[33mcommit a84ab7102cb30d4955f67e3ad46a68adc2052b71[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Sep 17 17:54:13 2015 +0800
+
+    add reset after disable isp
+
+[33mcommit c58102dd088cc6454df049613eb1872f29d9565b[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Sep 17 12:00:53 2015 +0800
+
+    automatically initialize emac
+
+[33mcommit 834aa5f20a7c3dea9af78d7ccb1cc72f83a21d56[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Thu Sep 17 10:54:35 2015 +0800
+
+    1. add the t.load mxp command
+
+[33mcommit b1f733fe2cd3ae08c1807439e90f554769e8dec4[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Sep 17 10:31:43 2015 +0800
+
+    move address of MXP table and UBOOT ENV
+
+[33mcommit 94646fafbab87c1a4b5e5a246f5e688399440ac1[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Thu Sep 17 09:34:14 2015 +0800
+
+    1. update mxp functions
+
+[33mcommit 45cd803086010c74fa4d33d1af31e25c0a0b8b6c[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Wed Sep 16 09:03:57 2015 +0800
+
+    1. refine the MXP system
+
+[33mcommit 056dbe79258f2d70bf317bf7397551185f6ff148[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 16 21:40:29 2015 +0800
+
+    fix error
+
+[33mcommit c7f85a7d665008a66216ad275b7e698ad8140568[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 16 20:53:56 2015 +0800
+
+    implement mxp flash function
+
+[33mcommit 7008a5f36ce51b155b6e9cbfdf2e14b556b9416e[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Wed Sep 16 03:55:37 2015 +0800
+
+    1. update mxp definition
+
+[33mcommit ea1ef0cb12a7b91947aa30d0d70001b243db7223[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Wed Sep 16 03:06:16 2015 +0800
+
+    1. add mxp command
+
+[33mcommit 00a7238d8629575ab858b3b47e909727b1992d54[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Wed Sep 16 01:48:33 2015 +0800
+
+    1. add the mxp implementation
+
+[33mcommit 6fc587030f4fe52e7b8007ae734ce85aec90b393[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 16 15:37:58 2015 +0800
+
+    rename u-boot.mz.img.bin
+
+[33mcommit 703de9db2e68b93a3d56ba32bde6609f7d188808[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 16 15:15:38 2015 +0800
+
+    add reset function
+
+[33mcommit d672200bbc1e093368d8d53a41c95fd87409b7d3[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Wed Sep 16 14:33:57 2015 +0800
+
+    1.speed up spi read function
+
+[33mcommit 4bd79b86fb291b47a19774985b7797ea197332fb[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Sep 15 23:19:22 2015 +0800
+
+    1. add the MVX version with GIT commit
+
+[33mcommit d7af38376852194ebb34844265d80927138b38a0[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Tue Sep 15 21:16:40 2015 +0800
+
+    1. test tftp OK
+    2. using PIU timer instead of  Arch_timer
+
+[33mcommit c6f220ab95ee94afd5be914441419c770422885b[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Sep 14 23:23:18 2015 +0800
+
+    don't initialize emac at first
+
+[33mcommit f6d7dc7a30f5ecca2322c59565b60661f4722b14[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Sep 14 21:39:59 2015 +0800
+
+    modified defconfig
+
+[33mcommit 0ff3a549412ce6d260ccf66fc399033353518f5f[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Sep 14 21:37:12 2015 +0800
+
+    bring up EMAC on ASIC
+    set 128MB of available memory in uboot
+
+[33mcommit ece2752df9ecea2f8f29caad703900f95c1f8d92[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Sep 14 17:53:50 2015 +0800
+
+    bring up infinity on ASIC
+
+[33mcommit 4fe708a8710e9211f4aa8ae7ed0fdbafdf4af05b[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Mon Jul 20 14:57:28 2015 +0800
+
+    1. remove the ms_version.h in SCM
+
+[33mcommit af9f0c331c416938c16dc5f7b6dee8f84ebef540[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Thu Jul 16 21:07:18 2015 +0800
+
+    	modified:   arch/arm/cpu/armv7/infinity/ms_serial.c
+    	modified:   drivers/mstar/emac/infinity/mhal_emac.c
+    	modified:   drivers/mstar/emac/infinity/mhal_emac.h
+    	modified:   drivers/mstar/emac/mdrv_emac.c
+    	modified:   drivers/mstar/flash_isp/Makefile
+    	new file:   drivers/mstar/flash_isp/infinity/halSERFLASH.c
+    	new file:   drivers/mstar/flash_isp/infinity/halSERFLASH.h
+    	new file:   drivers/mstar/flash_isp/infinity/regSERFLASH.h
+    	modified:   include/configs/infinity.h
+
+[33mcommit 4cc56825edcf41ab904b595eb72fc0dea6e46131[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Jun 29 21:29:44 2015 +0800
+
+    add emac driver
+    add the lose code for aesdec
+
+[33mcommit 4e53824fdde7238bb2f5522f5fd8c0e43c6c0be2[m
+Author: karl.xiao <karl.xiao@mstarsemi.com>
+Date:   Mon Jun 29 19:03:21 2015 +0800
+
+    sync to P4V CL1272532
+
+[33mcommit a2871dc4c06c63876876d6385866b68889295611[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Jun 9 08:07:31 2015 +0800
+
+    1. update the version tag
+
+[33mcommit b31b0e7b6a5c93d2ce06fba4343fefbdabaf5a1a[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Tue Jun 9 08:07:14 2015 +0800
+
+    1. update the version tag
+
+[33mcommit 4e71a66cb79aecf48cbcde594b6f73f7cb86abf0[m
+Author: ken.yang <ken.yang@mstarsemi.com>
+Date:   Mon Jun 8 18:23:59 2015 +0800
+
+    1. increase the CONFIG_SYS_BOOTM_LEN to support kernel image size > 8MB
+
+[33mcommit 0c4f9eec13cf89c3d3a21c211ab34f9789c34abb[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Wed Mar 25 16:41:53 2015 +0800
+
+    1. sync the uboot to P4 1163052
+
+[33mcommit d45f4ebed34c5b9d38f5b7105f9c432d26d4165f[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Sun Feb 15 20:22:54 2015 +0800
+
+    1. refine the NAND function
+
+[33mcommit 0949c5e01e2ade2153f477ccfeac1413d3d7b06f[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Thu Feb 12 09:41:58 2015 +0800
+
+    1. merge debug code
+
+[33mcommit 108b0f8fdf4770c965387800da5b00c8ae76e6c7[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Thu Feb 12 01:37:08 2015 +0800
+
+    1. change back to use CONFIG_ENV_OFFSET_OOB & remove some minor message
+
+[33mcommit a08a4283435c3506e075715666f051c906b502e6[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Thu Feb 12 00:46:55 2015 +0800
+
+    1. add the MS_NAND function. Compiled pass but boot failed
+
+[33mcommit e86c02cc3dd894b9e617cdab2d9f44238ff13fdc[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Wed Feb 11 17:13:34 2015 +0800
+
+    1. workable SDMMC / eMMC with dstar command
+
+[33mcommit c857b52eaf55d7b57251be38686256ccdcdb3851[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Wed Feb 11 11:24:39 2015 +0800
+
+    1. add eMMC & SDMMC, compile passed but not worked yet
+
+[33mcommit 6286f2afe2fefd473e760236b50fe1b083951c7b[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Tue Feb 10 15:03:47 2015 +0800
+
+    1. first compiled Cedric UBOOT with serial output
+
+[33mcommit 216fb261b7c4d1b556e58c891a983bff3265f6db[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Tue Feb 10 15:03:36 2015 +0800
+
+    1. first compiled Cedric UBOOT with serial output
+
+[33mcommit 8b4b04942f70fcf287fd65b45c2ea16fd4c392a8[m
+Author: Ken Yang <ken.yang@mstarsemi.com>
+Date:   Tue Feb 10 08:25:43 2015 +0800
+
+    initial commit

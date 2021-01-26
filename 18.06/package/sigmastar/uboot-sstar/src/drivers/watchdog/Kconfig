@@ -1,0 +1,2 @@
+config HW_WATCHDOG
+    bool "Enable watchdog"
