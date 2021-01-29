@@ -1,0 +1,30 @@
+#!/usr/bin/lua
+
+local cjson = require "cjson"
+local g_errcode = require "wt.errcode"
+local dbg = require "wt.debug"
+local dispatch = require "wt.dispatch"
+local util = require "wt.util"
+
+local function wapi_call(from, param)
+	local ret
+	local res = {}
+	local param_json = cjson.decode(param)
+
+	if not param_json then
+		res.errcode = g_errcode.WT_ERRCODE_PARAMS_INVALID
+		ret = cjson.encode(res)
+		print(ret)
+	else
+		res = dispatch.dispatch_request(from, param_json)
+		ret = cjson.encode(res)
+		print(ret)
+	end
+end
+
+local rc, msg = pcall(wapi_call, arg[1], arg[2])
+
+if not rc then
+	max_size = 640
+	dbg.syslog("info", msg:sub(1, max_size))
+end
