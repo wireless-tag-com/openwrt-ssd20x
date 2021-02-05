@@ -226,6 +226,10 @@ retry:
 int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		 int len)
 {
+#ifdef OPENWRT_UBI
+	printf("skip write\n");
+	return 0;
+#else
 	int err;
 	size_t written;
 	loff_t addr;
@@ -297,6 +301,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	}
 
 	return err;
+#endif
 }
 
 /**
@@ -322,6 +327,10 @@ static void erase_callback(struct erase_info *ei)
  */
 static int do_sync_erase(struct ubi_device *ubi, int pnum)
 {
+#ifdef OPENWRT_UBI
+	printf("skip erase\n");
+	return 0;
+#else
 	int err, retries = 0;
 	struct erase_info ei;
 	wait_queue_head_t wq;
@@ -385,6 +394,7 @@ retry:
 	}
 
 	return 0;
+#endif
 }
 
 /* Patterns to write to a physical eraseblock when torturing it */
@@ -487,6 +497,10 @@ out:
  */
 static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 {
+#ifdef OPENWRT_UBI
+	printf("skip nor_erase_prepare\n");
+	return 0;
+#else
 	int err;
 	size_t written;
 	loff_t addr;
@@ -537,6 +551,7 @@ error:
 	ubi_err("cannot invalidate PEB %d, write returned %d", pnum, err);
 	ubi_dump_flash(ubi, pnum, 0, ubi->peb_size);
 	return -EIO;
+#endif
 }
 
 /**
