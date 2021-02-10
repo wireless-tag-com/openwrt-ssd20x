@@ -35,15 +35,15 @@
                 <PAD_GPIO9          PINMUX_FOR_UART2_MODE_2        MDRV_PUSE_UART2_TX >,
                 //<PAD_GPIO8  >,
                 //<PAD_GPIO9  >,
-                //<PAD_GPIO10  >,
-                //<PAD_GPIO11         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2CSW_SCL>,
-                <PAD_GPIO12         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2C1_DEV_IRQ>,
-                //<PAD_GPIO13         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2CSW_SDA>,
-                //<PAD_GPIO14  >,
+                <PAD_GPIO10         PINMUX_FOR_GPIO_MODE            MDRV_PUSE_NA>,
+                //<PAD_GPIO11         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2CSW_SC L>,
+                <PAD_GPIO12         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_NA >,
+                <PAD_GPIO13         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2C1_DEV_IRQ >,
+                <PAD_GPIO14         PINMUX_FOR_GPIO_MODE       MDRV_PUSE_NA >,
                 <PAD_FUART_RX        PINMUX_FOR_FUART_MODE_2        MDRV_PUSE_FUART_RX>,
                 <PAD_FUART_TX        PINMUX_FOR_FUART_MODE_2        MDRV_PUSE_FUART_TX>,
-                <PAD_FUART_CTS       PINMUX_FOR_GPIO_MODE       MDRV_PUSE_CPUFREQ_VID0>,
-                <PAD_FUART_RTS       PINMUX_FOR_GPIO_MODE       MDRV_PUSE_CPUFREQ_VID1>,
+                <PAD_FUART_CTS       PINMUX_FOR_GPIO_MODE       MDRV_PUSE_NA>,
+                <PAD_FUART_RTS       PINMUX_FOR_GPIO_MODE       MDRV_PUSE_NA>,
                 <PAD_TTL0            PINMUX_FOR_TTL_MODE_1      MDRV_PUSE_TTL_DOUT00 >,
                 <PAD_TTL1            PINMUX_FOR_TTL_MODE_1      MDRV_PUSE_TTL_DOUT01 >,
                 <PAD_TTL2            PINMUX_FOR_TTL_MODE_1      MDRV_PUSE_TTL_DOUT02 >,
@@ -108,14 +108,12 @@
                 <PAD_DP_P1              PINMUX_FOR_USB_MODE     MDRV_PUSE_UTMI1_DP >,  // utmi: default not-GPIO
                 <PAD_DM_P2              PINMUX_FOR_USB_MODE     MDRV_PUSE_UTMI2_DM >,  // utmi: default not-GPIO
                 <PAD_DP_P2              PINMUX_FOR_USB_MODE     MDRV_PUSE_UTMI2_DP >,  // utmi: default not-GPIO
-                //<PAD_HSYNC_OUT  >,
-                //<PAD_VSYNC_OUT  >,
+                <PAD_HSYNC_OUT  PINMUX_FOR_GPIO_MODE MDRV_PUSE_NA>,  // 4G RST
+                <PAD_VSYNC_OUT  PINMUX_FOR_GPIO_MODE MDRV_PUSE_NA>,  // 4G ON/OFF
 				<PAD_HDMITX_SCL PINMUX_FOR_DMIC_MODE_2 MDRV_PUSE_DMIC_D1 >,
 				<PAD_HDMITX_SDA PINMUX_FOR_DMIC_MODE_2 MDRV_PUSE_DMIC_D0 >,
 				<PAD_HDMITX_HPD PINMUX_FOR_DMIC_MODE_2 MDRV_PUSE_DMIC_CLK >,
-                <PAD_HSYNC_OUT          PINMUX_FOR_IDAC_MODE        MDRV_PUSE_IDAC_HSYNC>,
-                <PAD_VSYNC_OUT          PINMUX_FOR_IDAC_MODE        MDRV_PUSE_IDAC_VSYNC>;
-                //<PAD_SATA_GPIO  >;
+                <PAD_SATA_GPIO  PINMUX_FOR_GPIO_MODE MDRV_PUSE_NA>; // 4G EN
             status = "ok"; // ok or disable
             //status = "disable";
         };

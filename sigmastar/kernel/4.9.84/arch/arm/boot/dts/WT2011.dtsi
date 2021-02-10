@@ -341,7 +341,7 @@
             clocks = <&CLK_utmi>;
             interrupts = <GIC_SPI INT_IRQ_UHC_P2 IRQ_TYPE_LEVEL_HIGH>;
             dpdm_swap=<0>;
-            power-enable-pad = <PAD_SATA_GPIO>;
+            power-enable-pad = <PAD_UART0_RX>;
             status = "ok";
         };
 
@@ -373,7 +373,7 @@
             micin-pregain-level=<0>;    //0~3
             micin-gain-level=<3>;    //0~7
             linein-gain-level=<2>;  //0~7
-            amp-gpio = <PAD_UART0_RX 1>;
+            //amp-gpio = <PAD_GPIO14 1>;
             clocks = <&CLK_upll_384m>;
            // playback-dma-buffer=<98304>; //512(ms)*48(kHz)*2(ch)*2(16bits)
            // capture-dma-buffer=<122880>; //640(ms)*48(kHz)*2(ch)*2(16bits)
@@ -407,7 +407,7 @@
             slot-intcdzs = <1>,<1>,<1>;
             slot-fakecdzs = <0>,<0>,<0>;
             slot-cdzs-gpios = <PAD_PM_SD_CDZ>,<0>,<0>;
-            slot-pwr-gpios = <PAD_GPIO13>,<PAD_GPIO13>,<PAD_GPIO13>; // ssc010a:PAD_TTL0 P2_ssc011a: PAD_GPIO0
+            slot-pwr-gpios = <PAD_GPIO0>,<PAD_GPIO0>,<PAD_GPIO0>; // ssc010a:PAD_TTL0 P2_ssc011a: PAD_GPIO0
             slot-pwr-off-delay = <30>,<30>,<30>;
             slot-sdio-use = <0>,<0>,<0>;
 
@@ -523,8 +523,7 @@
             status = "disabled";
         };
 
-	/*
-        ircut {
+        /*ircut {
             compatible = "sstar,infinity-ircut";
             ircut-gpio-num = <PAD_PM_IRIN>;///PM_GPIO_IRIN
             interrupt-parent = <&ms_pm_intc>;
@@ -537,7 +536,7 @@
             reg = <0x1F007A00 0x1000>;
             clocks = <&CLK_ir>;
             interrupts = <GIC_SPI INT_FIQ_IR  IRQ_TYPE_LEVEL_HIGH>;
-            status = "ok";
+            status = "dissbled";
         };*/
 
         pwm {

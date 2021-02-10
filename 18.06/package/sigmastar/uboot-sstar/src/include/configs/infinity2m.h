@@ -234,9 +234,7 @@
 #endif /*CONFIG_CMD_NAND*/
 
 /* SPI NAND bootcmd */
-#if defined(WT2011)
-#define CONFIG_BOOTCOMMAND "setenv bootargs ${mtdparts}; gpio out 4 1; gpio out 48 1; bootlogo 0 0 0 0 0; mw 1f001cc0 1; gpio out 71 0; ubi part ubi; ubi read 0x22000000 kernel; gpio out 71 1; bootm 0x22000000; ubi part ubi2; ubi read 0x22000000 kernel; setenv bootargs ${mtdparts2}; bootm 0x22000000"
-#elif defined(WT2022)
+#if defined(WT2022) || defined(WT2011)
 #define CONFIG_BOOTCOMMAND "setenv bootargs ${mtdparts}; gpio out 4 1; gpio out 18 1; bootlogo 0 0 0 0 0; mw 1f001cc0 1; gpio out 71 0; ubi part ubi; ubi read 0x22000000 kernel; gpio out 71 1; bootm 0x22000000; ubi part ubi2; ubi read 0x22000000 kernel; setenv bootargs ${mtdparts2}; bootm 0x22000000"
 #else
 #if defined(WT_UBOOT)
