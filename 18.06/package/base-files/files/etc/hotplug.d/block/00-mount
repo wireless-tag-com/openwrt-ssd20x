@@ -1,0 +1,71 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+blkdev=`dirname $DEVPATH`
+device=`basename $DEVPATH`
+
+STORAGE_PATH_PREFIX="/tmp/storage"
+
+case "$device" in
+"sd"* | "mmcblk"*)
+	mount_point="$STORAGE_PATH_PREFIX/$device"
+	case "$ACTION" in
+	add)
+		ID_FS_TYPE=""
+		ID_FS_UUID=""
+		dev_path="/dev/$device"
+
+		logger -t "storage" "start with $dev_path"
+		eval `blkid -o udev $dev_path`
+
+		# no filesystem type
+		[ -z $ID_FS_TYPE ] && {
+			logger -t "storage" "$dev_path no filesystem"
+
+			return 0
+		}
+
+		mkdir -p $mount_point
+
+		if [ "$ID_FS_TYPE" == "msdos" -o "$ID_FS_TYPE" == "vfat" ] ; then
+			mount -t vfat -o noatime,fmask=0000,dmask=0000,iocharset=utf8 $dev_path $mount_point
+		elif [ "$ID_FS_TYPE" == "ntfs" ] ; then
+			ntfs-3g -o big_writes,noatime,nls=utf8 $dev_path $mount_point
+		elif [ "$ID_FS_TYPE" == "exfat" ] ; then
+			mount -t exfat -o noatime,fmask=0,dmask=0,iocharset=utf8 $dev_path $mount_point
+		elif [ "$ID_FS_TYPE" == "ext4" -o "$ID_FS_TYPE" == "ext3" -o "$ID_FS_TYPE" == "ext2" ] ; then
+			mount -o noatime $dev_path $mount_point
+		elif [ "$ID_FS_TYPE" == "f2fs" ] ; then
+			mount -t f2fs -o noatime $dev_path $mount_point
+		fi
+
+		if [ $? -eq "0" ]; then
+			case "$device" in
+			"mmcblk"*)
+				start_istorage $mount_point
+				;;
+			esac
+		else
+			logger -t "storage" "$dev_path mount failed($ID_FS_TYPE)"
+		fi
+		;;
+	remove)
+		mount | grep -qs "$mount_point"
+		if [ $? -eq 0 ]; then
+			case "$device" in
+			"mmcblk"*)
+				stop_istorage
+				;;
+			esac
+
+			logger -t "storage" "umount $dev_path $mount_point"
+
+			#fuser -m -k $mount_point
+			umount -l $dev_path $mount_point
+		fi
+		;;
+	esac
+	;;
+esac
+
