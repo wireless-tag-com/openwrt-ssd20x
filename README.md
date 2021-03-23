@@ -107,8 +107,29 @@ reset
 ## SPI NAND
 升级
 
+### 网络
+
 ```
 tftp 0x21000000 WT2022-root-ubi.img
+nand erase.part ubi
+nand write.e 0x21000000 ubi ${filesize}
+```
+
+### U盘（FAT32文件系统）
+将WT2022-root-ubi.img放入U盘根目录下
+
+```
+fatload usb 0 WT2022-root-ubi.img
+nand erase.part ubi
+nand write.e 0x21000000 ubi ${filesize}
+```
+
+### TF/SD卡（FAT32文件系统）
+将WT2022-root-ubi.img放入TF卡/SD卡根目录下
+
+```
+mmc rescan 0
+fatload mmc 0 0x21000000 WT2022-root-ubi.img
 nand erase.part ubi
 nand write.e 0x21000000 ubi ${filesize}
 ```
@@ -126,6 +147,8 @@ reset
 ```
 
 ### U盘（FAT32文件系统）
+将SSD202_openwrt.bin放入U盘根目录下
+
 ```
 usb start 1
 fatload usb 0 0x21000000 SSD202_openwrt.bin
@@ -135,10 +158,11 @@ reset
 ```
 
 ### TF/SD卡（FAT32文件系统）
+将SSD202_openwrt.bin放入TF卡/SD卡根目录下
 
 ```
-mmc start 1
-fatload usb 0 0x21000000 SSD202_openwrt.bin
+mmc rescan 0
+fatload mmc 0 0x21000000 SSD202_openwrt.bin
 nand erase.chip
 nand write.e 0x21000000 0x00 ${filesize}
 reset
