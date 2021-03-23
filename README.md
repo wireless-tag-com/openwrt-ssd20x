@@ -116,8 +116,29 @@ nand write.e 0x21000000 ubi ${filesize}
 ## 刷系统
 如果第一次系统不是openwrt系统，请再uboot下先使用以下命令刷机成openwrt系统,，然后使用上面步骤进行升级
 
+### 网络
+
 ```
 tftp 0x21000000 SSD202_openwrt.bin
+nand erase.chip
+nand write.e 0x21000000 0x00 ${filesize}
+reset
+```
+
+### U盘（FAT32文件系统）
+```
+usb start 1
+fatload usb 0 0x21000000 SSD202_openwrt.bin
+nand erase.chip
+nand write.e 0x21000000 0x00 ${filesize}
+reset
+```
+
+### TF/SD卡（FAT32文件系统）
+
+```
+mmc start 1
+fatload usb 0 0x21000000 SSD202_openwrt.bin
 nand erase.chip
 nand write.e 0x21000000 0x00 ${filesize}
 reset
