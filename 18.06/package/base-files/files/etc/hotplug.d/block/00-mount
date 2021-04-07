@@ -7,6 +7,23 @@ device=`basename $DEVPATH`
 
 STORAGE_PATH_PREFIX="/tmp/storage"
 
+nand_find_ubi() {
+	local ubidevdir ubidev mtdnum
+	mtdnum="$( find_mtd_index $1 )"
+	[ ! "$mtdnum" ] && return 1
+	for ubidevdir in /sys/devices/virtual/ubi/ubi*; do
+		[ ! -d "$ubidevdir" ] && continue
+		cmtdnum="$( cat $ubidevdir/mtd_num )"
+		[ ! "$mtdnum" ] && continue
+		if [ "$mtdnum" = "$cmtdnum" ]; then
+			ubidev=$( basename $ubidevdir )
+			ubi_mknod "$ubidevdir"
+			echo $ubidev
+			return 0
+		fi
+	done
+}
+
 case "$device" in
 "sd"* | "mmcblk"*)
 	mount_point="$STORAGE_PATH_PREFIX/$device"
@@ -67,5 +84,49 @@ case "$device" in
 		;;
 	esac
 	;;
+"mtdblock"*)
+	case "$ACTION" in
+	add)
+		optindex=$(find_mtd_index "opt")
+		if [ -z "$optindex" ]; then
+			exit 0
+		fi
+
+		if [ "$device" != "mtdblock$optindex" ]; then
+			exit 0
+		fi
+
+		ubidetach -m $optindex
+
+		ubiattach /dev/ubi_ctrl -m $optindex
+
+		if [ "$?" -eq 0 ]; then
+			ubidev=$(nand_find_ubi "opt")
+			mkdir -p /opt
+			mount -t ubifs $ubidev:opt /opt
+			if [ "$?" -ne 0 ]; then
+				logger -t storage "mount $device(/dev/mtd$optindex) failed, remake ubifs($ubidev)"
+				ubidetach -m $optindex
+				flash_erase /dev/mtd$optindex 0 0
+				ubiattach /dev/ubi_ctrl -m $optindex
+				ubimkvol /dev/$ubidev -N opt -m
+				mount -t ubifs $ubidev:opt /opt
+			fi
+		else
+			logger -t storage "attach $device failed"
+			flash_erase /dev/mtd$optindex 0 0
+			ubiattach /dev/ubi_ctrl -m $optindex
+			ubidev=$(nand_find_ubi "opt")
+			mkdir -p /opt
+			ubimkvol /dev/$ubidev -N opt -m
+			mount -t ubifs $ubidev:opt /opt
+		fi
+		;;
+	remove)
+		sync
+		umount /opt
+		ubidetach -m $optindex
+		;;
+	esac
 esac
 
