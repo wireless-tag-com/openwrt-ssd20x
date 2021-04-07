@@ -16,7 +16,7 @@ define Package/$(PKG_NAME)
   SECTION:=SigmStar
   CATEGORY:=SigmStar
   SUBMENU:=utils
-  DEPENDS:=@TARGET_sstar +sstar-mpp-lib +libpthread +libopenssl +zlib
+  DEPENDS:=@TARGET_sstar +sstar-mpp-lib +libpthread +libopenssl +zlib +libbz2
   TITLE:=SSD201/SD202 ffmpeg
 endef
 
