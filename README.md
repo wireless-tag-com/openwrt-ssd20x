@@ -60,8 +60,9 @@ make WT2022_wt
 
 | 机型名 | 说明            |
 | ------ | --------------- |
-| WT2022 | SSD202+SPI NAND|
-| WT2011 | SSD201+SPI NAND|
+| WT2022 | SSD202+SPI NAND+1024*600 LCD|
+| WT2011 | SSD201+SPI NAND+1024*600 LCD|
+| WT2020 | SSD202+SPI NAND+720*720 LCD|
 
 2. 编译
 

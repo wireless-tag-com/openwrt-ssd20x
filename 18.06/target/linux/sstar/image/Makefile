@@ -79,6 +79,10 @@ define Image/Build/Profile/WT2022
 	$(call Image/Build/WTNAND,WT2022)
 endef
 
+define Image/Build/Profile/WT2020
+	$(call Image/Build/WTNAND,WT2020)
+endef
+
 define Image/Build/Profile
 	$(call Image/Build/Profile/$(1))
 endef

@@ -7,6 +7,9 @@ choice
 	config SSTAR_LCD_CC0702I50R
 		bool "LCD CC0702I50R(1024*600)"
 
+	config SSTAR_LCD_FRD720X720BK
+		bool "LCD FRD720X720BK(720*720, MIPI)"
+
 endchoice
 
 endif

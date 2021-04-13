@@ -17,3 +17,13 @@ define Profile/WT2022/Description
 endef
 
 $(eval $(call Profile,WT2022))
+
+define Profile/WT2020
+	NAME:=Wireless-Tag WT2020 board Profile
+endef
+
+define Profile/WT2020/Description
+	Wireless-Tag WT2020 board.
+endef
+
+$(eval $(call Profile,WT2020))

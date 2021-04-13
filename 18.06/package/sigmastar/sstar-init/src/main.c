@@ -15,6 +15,10 @@
 #include "CC0702I50R_1024x600.h"
 #endif
 
+#ifdef LCD_FRD720X720BK
+#include "FRD720x720BK_MIPI.h"
+#endif
+
 #define MAKE_YUYV_VALUE(y,u,v)  ((y) << 24) | ((u) << 16) | ((y) << 8) | (v)
 #define YUYV_BLACK              MAKE_YUYV_VALUE(0,128,128)
 

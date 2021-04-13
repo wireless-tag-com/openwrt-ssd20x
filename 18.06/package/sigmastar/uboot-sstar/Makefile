@@ -86,3 +86,4 @@ endef
 
 $(eval $(call Package/uboot-nand-sstar,WT2011))
 $(eval $(call Package/uboot-nand-sstar,WT2022))
+$(eval $(call Package/uboot-nand-sstar,WT2020))
