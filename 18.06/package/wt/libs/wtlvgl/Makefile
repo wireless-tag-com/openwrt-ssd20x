@@ -1,6 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=liblvgl
+PKG_VERSION=v7.10.1
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -9,7 +10,7 @@ define Package/$(PKG_NAME)
   SECTION:=WT
   CATEGORY:=WT
   SUBMENU:=libs
-  DEPENDS:=+libopenssl +libubox +libubus +libblobmsg-json +libcjson +libwtinfo
+  DEPENDS:=+libopenssl +libubox +libubus +libblobmsg-json +libcjson +libwtinfo +libfreetype
   TITLE:=WT liblvgl lib
 endef
 
