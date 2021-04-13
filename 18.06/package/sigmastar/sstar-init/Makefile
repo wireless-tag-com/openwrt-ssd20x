@@ -17,7 +17,7 @@ define Package/$(PKG_NAME)
   SECTION:=SigmStar
   CATEGORY:=SigmStar
   SUBMENU:=utils
-  DEPENDS:=@TARGET_sstar + sstar-mpp-lib
+  DEPENDS:=@TARGET_sstar +sstar-mpp-lib
   TITLE:=SSD201/SD202 mpp init
 endef
 
