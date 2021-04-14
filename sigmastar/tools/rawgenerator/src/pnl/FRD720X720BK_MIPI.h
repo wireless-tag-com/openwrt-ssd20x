@@ -57,8 +57,8 @@ MhalPnlParamConfig_t stPanel_FRD720X720BK =
     // panel timing spec.
     ///////////////////////////////////////////////
     // sync related
-    10,  //MS_U8 m_ucPanelHSyncWidth;               ///<  VOP_01[7:0], PANEL_HSYNC_WIDTH
-    10,  //MS_U8 m_ucPanelHSyncBackPorch;           ///<  PANEL_HSYNC_BACK_PORCH, no register setting, provide value for query only
+    20,  //MS_U8 m_ucPanelHSyncWidth;               ///<  VOP_01[7:0], PANEL_HSYNC_WIDTH
+    20,  //MS_U8 m_ucPanelHSyncBackPorch;           ///<  PANEL_HSYNC_BACK_PORCH, no register setting, provide value for query only
 
                                              ///<  not support Manuel VSync Start/End now
                                              ///<  VOP_02[10:0] VSync start = Vtt - VBackPorch - VSyncWidth
@@ -67,7 +67,7 @@ MhalPnlParamConfig_t stPanel_FRD720X720BK =
     10,  //MS_U8 m_ucPanelVBackPorch;               ///<  define PANEL_VSYNC_BACK_PORCH
 
     // DE related
-    20,  //MS_U16 m_wPanelHStart;                   ///<  VOP_04[11:0], PANEL_HSTART, DE H Start (PANEL_HSYNC_WIDTH + PANEL_HSYNC_BACK_PORCH)
+    40,  //MS_U16 m_wPanelHStart;                   ///<  VOP_04[11:0], PANEL_HSTART, DE H Start (PANEL_HSYNC_WIDTH + PANEL_HSYNC_BACK_PORCH)
     20,  //MS_U16 m_wPanelVStart;                   ///<  VOP_06[11:0], PANEL_VSTART, DE V Start
     720,  //MS_U16 m_wPanelWidth;                    ///< PANEL_WIDTH, DE width (VOP_05[11:0] = HEnd = HStart + Width - 1)
     720,  //MS_U16 m_wPanelHeight;                   ///< PANEL_HEIGHT, DE height (VOP_07[11:0], = Vend = VStart + Height - 1)
@@ -78,11 +78,11 @@ MhalPnlParamConfig_t stPanel_FRD720X720BK =
     0,  //MS_U16 m_wPanelMinHTotal;                ///<  PANEL_MIN_HTOTAL. Reserved for future using.
 
     0,  //MS_U16 m_wPanelMaxVTotal;                ///<  PANEL_MAX_VTOTAL. Reserved for future using.
-    760,  //MS_U16 m_wPanelVTotal;                   ///<  VOP_0D[11:0], PANEL_VTOTAL
+    755,  //MS_U16 m_wPanelVTotal;                   ///<  VOP_0D[11:0], PANEL_VTOTAL
     0,  //MS_U16 m_wPanelMinVTotal;                ///<  PANEL_MIN_VTOTAL. Reserved for future using.
 
     0,  //MS_U8 m_dwPanelMaxDCLK;                  ///<  PANEL_MAX_DCLK. Reserved for future using.
-    35,  //MS_U8 m_dwPanelDCLK;                     ///<  LPLL_0F[23:0], PANEL_DCLK          ,{0x3100_10[7:0], 0x3100_0F[15:0]}
+    33,  //MS_U8 m_dwPanelDCLK;                     ///<  LPLL_0F[23:0], PANEL_DCLK          ,{0x3100_10[7:0], 0x3100_0F[15:0]}
     0,  //MS_U8 m_dwPanelMinDCLK;                  ///<  PANEL_MIN_DCLK. Reserved for future using.
                                              ///<  spread spectrum
     0,  //MS_U16 m_wSpreadSpectrumStep;            ///<  move to board define, no use now.
@@ -130,7 +130,6 @@ MhalPnlParamConfig_t stPanel_FRD720X720BK =
 
 u8 ST720BK_INIT_CMD[] =
 {
-    0x40,1,0x07,
     0xB9,3,0xFF,
     0x83,0x94,
     0xBA,15,
@@ -153,7 +152,7 @@ u8 ST720BK_INIT_CMD[] =
     0xB8,0xC5,0xC6,0xC1,0xCC,0xD8,0x6C,0x72,0x75,0x78,0x7B,0x7D,0x7E,0x7F,
     0xCC,1,0x0B,
     0xC0,2,0x1F,0x73,
-    0xC7,4,0xFF,0xFF,0xFF,0xFF,
+    0xC7,4,0x00,0x00,0x00,0x00,
     0xD4,1,0x02,
     0xB6,2,0x64,0x64,
     0x11,0,0,
