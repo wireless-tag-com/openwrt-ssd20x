@@ -939,3 +939,18 @@ define KernelPackage/bnx2/description
 endef
 
 $(eval $(call KernelPackage,bnx2))
+
+define KernelPackage/icplus
+  SUBMENU:=$(NETWORK_DEVICES_MENU)
+  TITLE:=icplus phy driver
+  DEPENDS:=+kmod-libphy
+  FILES:=$(LINUX_DIR)/drivers/net/phy/icplus.ko
+  KCONFIG:=CONFIG_ICPLUS_PHY
+  AUTOLOAD:=$(call AutoProbe,icplus)
+endef
+
+define KernelPackage/icplus/description
+  Kernel module for the icplus phy
+endef
+
+$(eval $(call KernelPackage,icplus))

@@ -1,0 +1,28 @@
+CONFIG_MODULES=y
+CONFIG_HAVE_DOT_CONFIG=y
+CONFIG_TARGET_sstar=y
+
+CONFIG_TARGET_sstar_ssd20x=y
+
+CONFIG_TARGET_sstar_ssd20x_WT2015=y
+
+# CONFIG_TARGET_ROOTFS_JFFS2 is not set
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
+CONFIG_TARGET_ROOTFS_UBIFS=y
+# CONFIG_TARGET_UBIFS_COMPRESSION_NONE is not set
+# CONFIG_TARGET_UBIFS_COMPRESSION_LZO is not set
+CONFIG_TARGET_UBIFS_COMPRESSION_ZLIB=y
+CONFIG_TARGET_UBIFS_FREE_SPACE_FIXUP=y
+CONFIG_SSTAR_MEM_64MB=y
+
+wtinclude wt_sstar_kernel
+wtinclude wt_sstar_toolchain
+wtinclude wt_base
+wtinclude wt_sstar_emac
+wtinclude wt_sstar_mpp
+wtinclude wt_liblvgl
+wtinclude wt_icplus_phy
+
+CONFIG_PACKAGE_uboot-nand-sstar-WT2015=y
+

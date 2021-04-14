@@ -240,7 +240,7 @@
 #define CONFIG_BOOTCOMMAND "setenv dispout FRD720X720BK; setenv bootargs ${mtdparts}; gpio out 4 1; gpio out 18 1; bootlogo 0 0 0 0 0; mw 1f001cc0 1; gpio out 71 0; ubi part ubi; ubi read 0x22000000 kernel; gpio out 71 1; bootm 0x22000000; ubi part ubi2; ubi read 0x22000000 kernel; setenv bootargs ${mtdparts2}; bootm 0x22000000"
 #else
 #if defined(WT_UBOOT)
-#define CONFIG_BOOTCOMMAND "setenv bootargs ${mtdparts}; bootlogo 0 0 0 0 0; mw 1f001cc0 1; ubi part ubi; ubi read 0x22000000 kernel; bootm 0x22000000; ubi part ubi2; ubi read 0x22000000 kernel; setenv bootargs ${mtdparts2}; bootm 0x22000000"
+#define CONFIG_BOOTCOMMAND "setenv bootargs ${mtdparts}; mw 1f001cc0 1; ubi part ubi; ubi read 0x22000000 kernel; bootm 0x22000000; ubi part ubi2; ubi read 0x22000000 kernel; setenv bootargs ${mtdparts2}; bootm 0x22000000"
 #else
 #define CONFIG_BOOTCOMMAND "bootlogo 0 0 0 0 0; mw 1f001cc0 1; gpio out 71 0; nand read.e 0x22000000 KERNEL 0x200000; gpio out 71 1; bootm 0x22000000; nand read.e 0x22000000 RECOVERY 0x500000; bootm 0x22000000; nand read.e 0x22000000 RECOVERY 0x500000; bootm 0x22000000"
 #endif
