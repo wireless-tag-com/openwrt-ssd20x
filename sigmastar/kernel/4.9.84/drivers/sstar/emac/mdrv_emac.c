@@ -3105,6 +3105,8 @@ static void MDev_EMAC_netpoll(struct net_device *dev)
 }
 #endif
 
+extern void phy_hotplug_event(const char *ifname, const u32 status);
+
 #if KERNEL_PHY
 static void emac_phy_link_adjust(struct net_device *dev)
 {
@@ -3157,6 +3159,8 @@ static void emac_phy_link_adjust(struct net_device *dev)
         // spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
     }
     spin_unlock_irqrestore(&hemac->mutexNetIf, flag1);
+
+    phy_hotplug_event(dev->name, dev->phydev->link);
 
 #if 0
     printk("[%s][%d] adjust phy (link, speed, duplex) = (%d, %d, %d, %d)\n", __FUNCTION__, __LINE__,

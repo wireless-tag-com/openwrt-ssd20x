@@ -1,6 +1,6 @@
 # Makefile for Linux PHY drivers and MDIO bus drivers
 
-libphy-y			:= phy.o phy_device.o mdio_bus.o mdio_device.o
+libphy-y			:= phy.o phy_device.o mdio_bus.o mdio_device.o phy_hotplug.o
 libphy-$(CONFIG_SWPHY)		+= swphy.o
 
 obj-$(CONFIG_PHYLIB)		+= libphy.o

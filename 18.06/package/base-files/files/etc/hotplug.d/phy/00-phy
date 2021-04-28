@@ -1,0 +1,3 @@
+#!/bin/sh
+
+logger -t phy "$ACTION $IFNAME"
