@@ -26,6 +26,7 @@ wtinclude wt_sstar_wifi
 wtinclude wt_sstar_mpp
 wtinclude wt_liblvgl
 wtinclude wt_fs_fat
+wtinclude wt_4g
 
 CONFIG_PACKAGE_sstar-init=y
 CONFIG_SSTAR_LCD_CC0702I50R=y

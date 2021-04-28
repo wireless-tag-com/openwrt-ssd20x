@@ -1,0 +1,12 @@
+ABORT "NO CARRIER"
+ABORT "NO DIALTONE"
+ABORT "NO ANSWER"
+ABORT "BUSY"
+ABORT "Username/Password Incorrect"
+""      AT
+OK-+++-OK ATH0
+OK      AT+CREG?
+OK      AT+CPIN?
+OK      AT+CESQ
+OK      ATD*99#
+CONNECT ""

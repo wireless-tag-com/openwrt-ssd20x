@@ -341,7 +341,7 @@
             clocks = <&CLK_utmi>;
             interrupts = <GIC_SPI INT_IRQ_UHC_P2 IRQ_TYPE_LEVEL_HIGH>;
             dpdm_swap=<0>;
-            power-enable-pad = <PAD_UART0_RX>;
+            //power-enable-pad = <PAD_UART0_RX>;
             status = "ok";
         };
 

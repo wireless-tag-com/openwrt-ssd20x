@@ -1,0 +1,25 @@
+#!/bin/sh
+
+. /lib/functions/uci-defaults.sh
+
+ucidef_set_interface_lte() {
+	local ifname=$1
+	local proto=$2
+	local device=$3
+	local auto=$4
+	local gpio_enable=$5
+
+	uci -q get network.lte && return 0
+
+	uci batch <<EOF
+set network.lte='interface'
+set network.lte.ifname='$ifname'
+set network.lte.proto='$proto'
+set network.lte.device='$device'
+set network.lte.auto='$auto'
+set network.lte.usbmode='lte'
+EOF
+
+}
+
+ucidef_set_interface_lte "4g-lte" "4g" "/dev/ttyUSB1" "0" "lte"
