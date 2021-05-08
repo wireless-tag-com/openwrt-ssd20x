@@ -40,7 +40,7 @@
              *         3 -> PAD_TTL14, PAD_TTL15
              *         4 -> PAD_GPIO6, PAD_GPIO7
             */
-            i2c-padmux = <0>;
+            i2c-padmux = <4>;
            /*
               *  speed: 0 -> HWI2C_HIGH(high speed: 400 KHz)
               *         1 -> HWI2C_NORMAL(normal speed: 300 KHz)
@@ -51,7 +51,7 @@
               */
             i2c-speed = <3>;
             i2c-en-dma = <0>;  // 0: disable; 1: enable;
-            status = "disabled";
+            status = "ok";
         };
 
         i2c1@1{
@@ -67,7 +67,7 @@
              *         4 -> PAD_TTL22, PAD_TTL23
              *         5 -> PAD_SD_CLK, PAD_SD_CMD
             */
-            i2c-padmux = <0>;
+            i2c-padmux = <1>;
             /*
               *  speed: 0 -> HWI2C_HIGH(high speed: 400 KHz)
               *         1 -> HWI2C_NORMAL(normal speed: 300 KHz)
@@ -78,13 +78,13 @@
               */
             i2c-speed = <3>;
             i2c-en-dma = <0>;  // 0: disable; 1: enable;
-            status = "disabled";
+            status = "ok";
             goodix_gt911@5D{ //EVB i2c-padmux=2 SSD201_SZ_DEMO_BOARD i2c-padmux=1
                 compatible = "goodix,gt911";
                 reg = <0x5D>;
-                //goodix_rst = <PAD_GPIO1>; //SSD201_SZ_DEMO_BOARD PAD_GPIO1  EVB PAD_GPIO0
-                //goodix_int = <PAD_GPIO13>; //SSD201_SZ_DEMO_BOARD PAD_GPIO13  EVB PAD_GPIO1
-                //interrupts-extended = <&ms_gpi_intc INT_GPI_FIQ_GPIO13>;
+                goodix_rst = <PAD_GPIO1>; //SSD201_SZ_DEMO_BOARD PAD_GPIO1  EVB PAD_GPIO0
+                goodix_int = <PAD_GPIO13>; //SSD201_SZ_DEMO_BOARD PAD_GPIO13  EVB PAD_GPIO1
+                interrupts-extended = <&ms_gpi_intc INT_GPI_FIQ_GPIO13>;
                 interrupt-names = "goodix_int";
             };
         };
@@ -94,6 +94,15 @@
             scl-gpio = <PAD_GPIO11>;
             sda-gpio = <PAD_GPIO12>;
             status = "disabled";
+        };
+
+        pwm {
+              compatible = "sstar,infinity-pwm";
+              reg = <0x1F003400 0x600>;
+              clocks = <&CLK_xtali_12m>;
+              npwm = <2>;
+              pad-ctrl = <PAD_GPIO4 PAD_GPIO5>;
+              status = "ok";  // no available pads
         };
 
         disp: disp {

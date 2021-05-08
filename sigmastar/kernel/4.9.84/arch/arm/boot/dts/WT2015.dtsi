@@ -240,7 +240,7 @@
             interrupts = <GIC_SPI INT_IRQ_FUART IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI INT_IRQ_URDMA IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&CLK_fuart>;
             dma = <0>;
-            sctp_enable = <0>;//rts cts enable is 1
+            sctp_enable = <1>;//rts cts enable is 1
             status = "ok";
         };
         uart2: uart2@1F221400 {
@@ -316,7 +316,7 @@
              * mode=6: PAD_GPIO0,PAD_GPIO1,PAD_GPIO2,PAD_GPIO3
              */
             dma = <1>;
-            spi0_mode = <3>;
+            spi0_mode = <5>;
             status = "ok";
         };
 
