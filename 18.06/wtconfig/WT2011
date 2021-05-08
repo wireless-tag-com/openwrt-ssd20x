@@ -19,9 +19,8 @@ wtinclude wt_sstar_kernel
 wtinclude wt_sstar_toolchain
 wtinclude wt_base
 wtinclude wt_sstar_emac
-wtinclude wt_sstar_usb
 wtinclude wt_sstar_mmc
-wtinclude wt_sstar_usb_storage
+wtinclude wt_usb_storage
 wtinclude wt_sstar_wifi
 wtinclude wt_sstar_mpp
 wtinclude wt_liblvgl

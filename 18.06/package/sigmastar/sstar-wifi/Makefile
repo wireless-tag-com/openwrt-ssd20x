@@ -18,7 +18,7 @@ define Package/$(PKG_NAME)
   SECTION:=SigmStar
   CATEGORY:=SigmStar
   SUBMENU:=modules
-  DEPENDS:=@TARGET_sstar +kmod-cfg80211-linux +kmod-usb-sstar
+  DEPENDS:=@TARGET_sstar +kmod-cfg80211-linux
   TITLE:=SSD20X wifi
 endef
 
