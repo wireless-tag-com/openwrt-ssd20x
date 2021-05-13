@@ -55,11 +55,7 @@ start() {
 		let minor++
 	fi
 
-	insmod mi_ipu.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_ipu c $major $minor
-		let minor++
-	fi
+	echo 1 > /sys/class/mstar/mdisp/bootlogo
 
 	insmod mi_ai.ko
 	if [ $? -eq 0 ]; then
@@ -96,7 +92,7 @@ start() {
 	/usr/sbin/demo &
 
 	if [ "$blacklight" == "pwm0" ]; then
-		# to enable backlight , 4.3 and 86box both need it#
+		# to enable backlight
 		echo 0 > /sys/class/pwm/pwmchip0/export
 		# 10kHz
 		echo 10000 >/sys/class/pwm/pwmchip0/pwm0/period
@@ -104,11 +100,36 @@ start() {
 		echo 100 >/sys/class/pwm/pwmchip0/pwm0/duty_cycle
 		echo 1 >/sys/class/pwm/pwmchip0/pwm0/enable
 	fi
+
+	if [ "$blacklight" == "pwm1" ]; then
+		# to enable backlight
+		echo 0 > /sys/class/pwm/pwmchip0/export
+		# 10kHz
+		echo 10000 >/sys/class/pwm/pwmchip0/pwm1/period
+		# %100 brightness
+		echo 100 >/sys/class/pwm/pwmchip0/pwm1/duty_cycle
+		echo 1 >/sys/class/pwm/pwmchip0/pwm1/enable
+	fi
 }
 
 stop() {
 	killall demo
 	killall sstar-init
+
+	sleep 2
+
+	rmmod fbdev
+	rmmod mi_panel
+	rmmod mi_venc
+	rmmod mi_ai
+	rmmod mi_disp
+	rmmod mi_ao
+	rmmod mi_vdec
+	rmmod mi_divp
+	rmmod mi_gfx
+	rmmod mi_sys
+	rmmod mi_common
+	rmmod mhal
 }
 
 $1

@@ -227,7 +227,6 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		 int len)
 {
 #ifdef OPENWRT_UBI
-	printf("skip write\n");
 	return 0;
 #else
 	int err;
@@ -328,7 +327,6 @@ static void erase_callback(struct erase_info *ei)
 static int do_sync_erase(struct ubi_device *ubi, int pnum)
 {
 #ifdef OPENWRT_UBI
-	printf("skip erase\n");
 	return 0;
 #else
 	int err, retries = 0;
@@ -498,7 +496,6 @@ out:
 static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 {
 #ifdef OPENWRT_UBI
-	printf("skip nor_erase_prepare\n");
 	return 0;
 #else
 	int err;

@@ -500,9 +500,6 @@ struct ehci_iso_stream {
 
 	u8			bEndpointAddress;
 	u8			highspeed;
-#if (MP_USB_MSTAR==1)
-	u32			last_iso_frame;     /* previous frame index */
-#endif
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
 

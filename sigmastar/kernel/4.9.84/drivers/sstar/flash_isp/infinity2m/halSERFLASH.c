@@ -1240,7 +1240,7 @@ MS_BOOL HAL_SERFLASH_DetectType(void)
 
         if(_hal_SERFLASH.u32FlashSize >= 0x2000000)
         {
-            if((_hal_SERFLASH.u8MID == MID_MXIC)||(_hal_SERFLASH.u8MID == MID_GD))
+            if((_hal_SERFLASH.u8MID == MID_MXIC)||(_hal_SERFLASH.u8MID == MID_GD)||(_hal_SERFLASH.u8MID == MID_WB))
             {
                 _bHasEAR = TRUE; // support EAR mode
             }

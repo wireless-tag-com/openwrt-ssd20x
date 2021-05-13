@@ -1636,11 +1636,8 @@ iso_stream_schedule(
 	 * Use ehci->last_iso_frame as the base.  There can't be any
 	 * TDs scheduled for earlier than that.
 	 */
-#if (MP_USB_MSTAR==1)
-	base = stream->last_iso_frame << 3;
-#else
 	base = ehci->last_iso_frame << 3;
-#endif
+
 	next = (next - base) & (mod - 1);
 	start = (stream->next_uframe - base) & (mod - 1);
 
@@ -1726,9 +1723,6 @@ iso_stream_schedule(
 	start += base;
 	stream->next_uframe = (start + skip) & (mod - 1);
 
-#if (MP_USB_MSTAR==1)
-	stream->last_iso_frame = now >> 3;
-#endif
 	/* report high speed start in uframes; full speed, in frames */
 	urb->start_frame = start & (mod - 1);
 	if (!stream->highspeed)
@@ -1736,9 +1730,6 @@ iso_stream_schedule(
 	return status;
 
  fail:
-#if (MP_USB_MSTAR==1)
-	stream->last_iso_frame = (ehci_read_frame_index(ehci) & (mod - 1)) >> 3;
-#endif
 	iso_sched_free(stream, sched);
 	urb->hcpriv = NULL;
 	return status;
@@ -2115,6 +2106,11 @@ sitd_sched_init(
 	unsigned	i;
 	dma_addr_t	dma = urb->transfer_dma;
 
+#if (MP_USB_MSTAR==1)
+	if (!stream->highspeed)
+		iso_sched->span = urb->number_of_packets * stream->ps.period;
+	else
+#endif
 	/* how many frames are needed for these transfers */
 	iso_sched->span = urb->number_of_packets * stream->ps.period;
 

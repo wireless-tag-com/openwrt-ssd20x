@@ -60,6 +60,11 @@ wt_nand_upgrade() {
 
 		tar xzf $tar_file ${board_dir}/root -C /tmp
 
+		rm -rf $tar_file
+		sync
+
+		echo 3 >/proc/sys/vm/drop_caches
+
 		if [ $? -eq 0 ]; then
 			UPGRADE_UBI_STATUS=1
 			wt_nand_upgrade_ubi "ubi2" /tmp/${board_dir}/root
@@ -81,6 +86,11 @@ wt_nor_upgrade()
 		dd if="$1" bs=2048k count=1 conv=sync 2>/dev/null | mtd write - KERNEL
 		dd if="$1" bs=2048k skip=1 conv=sync 2>/dev/null | mtd write - rootfs
 	fi
+}
+
+platform_pre_upgrade() {
+	/etc/init.d/sstar-wifi stop
+	/usr/sbin/sstar-mpp stop
 }
 
 platform_do_upgrade() {
