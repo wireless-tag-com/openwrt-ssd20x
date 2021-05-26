@@ -23,7 +23,7 @@ wtinclude wt_sstar_emac
 wtinclude wt_sstar_mpp
 wtinclude wt_liblvgl
 wtinclude wt_icplus_phy
-wtinclude wt_router
+wtinclude wt_esp8089
 
 CONFIG_PACKAGE_uboot-nand-sstar-WT2015=y
 

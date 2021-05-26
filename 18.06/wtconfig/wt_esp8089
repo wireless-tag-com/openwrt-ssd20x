@@ -1,0 +1,26 @@
+CONFIG_PACKAGE_kmod-esp8089=y
+CONFIG_PACKAGE_kmod-mmc-sstar=y
+CONFIG_PACKAGE_iwinfo=y
+CONFIG_PACKAGE_wireless-tools=y
+CONFIG_PACKAGE_hostapd=y
+CONFIG_PACKAGE_hostapd-common=y
+# CONFIG_PACKAGE_hostapd-mini is not set
+CONFIG_PACKAGE_hostapd-openssl=y
+CONFIG_PACKAGE_hostapd-utils=y
+CONFIG_PACKAGE_wpa-cli=y
+# CONFIG_PACKAGE_wpa-supplican is not set
+# CONFIG_WPA_SUPPLICANT_NO_TIMESTAMP_CHECK is not set
+# CONFIG_WPA_RFKILL_SUPPORT is not set
+CONFIG_WPA_MSG_MIN_PRIORITY=3
+# CONFIG_WPA_WOLFSSL is not set
+# CONFIG_DRIVER_WEXT_SUPPORT is not set
+# CONFIG_DRIVER_11N_SUPPORT is not set
+# CONFIG_DRIVER_11AC_SUPPORT is not set
+# CONFIG_DRIVER_11W_SUPPORT is not set
+# CONFIG_PACKAGE_wpa-supplicant-mesh-openssl is not set
+# CONFIG_PACKAGE_wpa-supplicant-mesh-wolfssl is not set
+# CONFIG_PACKAGE_wpa-supplicant-mini is not set
+CONFIG_PACKAGE_wpa-supplicant-openssl=m
+CONFIG_PACKAGE_wpa-supplicant-p2p=y
+
+
