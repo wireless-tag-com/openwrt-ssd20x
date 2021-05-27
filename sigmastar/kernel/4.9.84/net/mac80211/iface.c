@@ -1936,6 +1936,177 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	return 0;
 }
 
+int ieee80211_hw_if_add(struct ieee80211_hw *hw, const char *name,
+		     unsigned char name_assign_type,
+		     struct wireless_dev **new_wdev, enum nl80211_iftype type,
+		     struct vif_params *params)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct net_device *ndev = NULL;
+	struct ieee80211_sub_if_data *sdata = NULL;
+	struct txq_info *txqi;
+	void (*if_setup)(struct net_device *dev);
+	int ret, i;
+	int txqs = 1;
+
+	ASSERT_RTNL();
+
+	if (type == NL80211_IFTYPE_P2P_DEVICE || type == NL80211_IFTYPE_NAN) {
+		struct wireless_dev *wdev;
+
+		sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size,
+				GFP_KERNEL);
+		if (!sdata)
+			return -ENOMEM;
+		wdev = &sdata->wdev;
+
+		sdata->dev = NULL;
+		strlcpy(sdata->name, name, IFNAMSIZ);
+		ieee80211_assign_perm_addr(local, wdev->address, type);
+		memcpy(sdata->vif.addr, wdev->address, ETH_ALEN);
+	} else {
+		int size = ALIGN(sizeof(*sdata) + local->hw.vif_data_size,
+				 sizeof(void *));
+		int txq_size = 0;
+
+		if (local->ops->wake_tx_queue)
+			txq_size += sizeof(struct txq_info) +
+				    local->hw.txq_data_size;
+
+		if (local->ops->wake_tx_queue)
+			if_setup = ieee80211_if_setup_no_queue;
+		else
+			if_setup = ieee80211_if_setup;
+
+		if (local->hw.queues >= IEEE80211_NUM_ACS)
+			txqs = IEEE80211_NUM_ACS;
+
+		ndev = alloc_netdev_mqs(size + txq_size,
+					name, name_assign_type,
+					if_setup, txqs, 1);
+		if (!ndev)
+			return -ENOMEM;
+		dev_net_set(ndev, wiphy_net(local->hw.wiphy));
+
+		ndev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+		if (!ndev->tstats) {
+			free_netdev(ndev);
+			return -ENOMEM;
+		}
+
+		ndev->needed_headroom = local->tx_headroom +
+					4*6 /* four MAC addresses */
+					+ 2 + 2 + 2 + 2 /* ctl, dur, seq, qos */
+					+ 6 /* mesh */
+					+ 8 /* rfc1042/bridge tunnel */
+					- ETH_HLEN /* ethernet hard_header_len */
+					+ IEEE80211_ENCRYPT_HEADROOM;
+		ndev->needed_tailroom = IEEE80211_ENCRYPT_TAILROOM;
+
+		ret = dev_alloc_name(ndev, ndev->name);
+		if (ret < 0) {
+			ieee80211_if_free(ndev);
+			return ret;
+		}
+
+		ieee80211_assign_perm_addr(local, ndev->perm_addr, type);
+		if (params && is_valid_ether_addr(params->macaddr))
+			memcpy(ndev->dev_addr, params->macaddr, ETH_ALEN);
+		else
+			memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);
+		SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
+
+		/* don't use IEEE80211_DEV_TO_SUB_IF -- it checks too much */
+		sdata = netdev_priv(ndev);
+		ndev->ieee80211_ptr = &sdata->wdev;
+		memcpy(sdata->vif.addr, ndev->dev_addr, ETH_ALEN);
+		memcpy(sdata->name, ndev->name, IFNAMSIZ);
+
+		if (txq_size) {
+			txqi = netdev_priv(ndev) + size;
+			ieee80211_txq_init(sdata, NULL, txqi, 0);
+		}
+
+		sdata->dev = ndev;
+	}
+
+	/* initialise type-independent data */
+	sdata->wdev.wiphy = local->hw.wiphy;
+	sdata->local = local;
+
+	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
+		skb_queue_head_init(&sdata->fragments[i].skb_list);
+
+	INIT_LIST_HEAD(&sdata->key_list);
+
+	INIT_DELAYED_WORK(&sdata->dfs_cac_timer_work,
+			  ieee80211_dfs_cac_timer_work);
+	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
+			  ieee80211_delayed_tailroom_dec);
+
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+		struct ieee80211_supported_band *sband;
+		sband = local->hw.wiphy->bands[i];
+		sdata->rc_rateidx_mask[i] =
+			sband ? (1 << sband->n_bitrates) - 1 : 0;
+		if (sband) {
+			__le16 cap;
+			u16 *vht_rate_mask;
+
+			memcpy(sdata->rc_rateidx_mcs_mask[i],
+			       sband->ht_cap.mcs.rx_mask,
+			       sizeof(sdata->rc_rateidx_mcs_mask[i]));
+
+			cap = sband->vht_cap.vht_mcs.rx_mcs_map;
+			vht_rate_mask = sdata->rc_rateidx_vht_mcs_mask[i];
+			ieee80211_get_vht_mask_from_cap(cap, vht_rate_mask);
+		} else {
+			memset(sdata->rc_rateidx_mcs_mask[i], 0,
+			       sizeof(sdata->rc_rateidx_mcs_mask[i]));
+			memset(sdata->rc_rateidx_vht_mcs_mask[i], 0,
+			       sizeof(sdata->rc_rateidx_vht_mcs_mask[i]));
+		}
+	}
+
+	ieee80211_set_default_queues(sdata);
+
+	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
+	sdata->user_power_level = local->user_power_level;
+
+	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
+
+	/* setup type-dependent data */
+	ieee80211_setup_sdata(sdata, type);
+
+	if (ndev) {
+		if (params) {
+			ndev->ieee80211_ptr->use_4addr = params->use_4addr;
+			if (type == NL80211_IFTYPE_STATION)
+				sdata->u.mgd.use_4addr = params->use_4addr;
+		}
+
+		ndev->features |= local->hw.netdev_features;
+
+		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
+
+		ret = register_netdevice(ndev);
+		if (ret) {
+			ieee80211_if_free(ndev);
+			return ret;
+		}
+	}
+
+	mutex_lock(&local->iflist_mtx);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
+
+	if (new_wdev)
+		*new_wdev = &sdata->wdev;
+
+	return 0;
+}
+EXPORT_SYMBOL(ieee80211_hw_if_add);
+
 void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 {
 	ASSERT_RTNL();

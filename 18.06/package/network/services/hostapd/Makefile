@@ -23,7 +23,6 @@ PKG_BUILD_PARALLEL:=1
 
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_WPA_SUPPLICANT_NO_TIMESTAMP_CHECK \
-	CONFIG_PACKAGE_kmod-cfg80211-linux \
 	CONFIG_PACKAGE_hostapd \
 	CONFIG_PACKAGE_hostapd-mini \
 	CONFIG_WPA_RFKILL_SUPPORT \
@@ -81,11 +80,11 @@ ifneq ($(CONFIG_DRIVER_11AC_SUPPORT),)
 endif
 
 DRIVER_MAKEOPTS= \
-	CONFIG_ACS=$(CONFIG_PACKAGE_kmod-cfg80211-linux) \
-	CONFIG_DRIVER_NL80211=$(CONFIG_PACKAGE_kmod-cfg80211-linux) \
+	CONFIG_ACS=y \
+	CONFIG_DRIVER_NL80211=y \
 	CONFIG_IEEE80211N=$(HOSTAPD_IEEE80211N) \
 	CONFIG_IEEE80211AC=$(HOSTAPD_IEEE80211AC) \
-	CONFIG_DRIVER_WEXT=$(CONFIG_DRIVER_WEXT_SUPPORT) \
+	CONFIG_DRIVER_WEXT=y \
 
 ifeq ($(LOCAL_VARIANT),full)
   DRIVER_MAKEOPTS += CONFIG_IEEE80211W=$(CONFIG_DRIVER_11W_SUPPORT)
@@ -129,7 +128,7 @@ ifdef CONFIG_USE_GLIBC
   TARGET_LDFLAGS_C += -lrt
 endif
 
-DRV_DEPENDS:=+PACKAGE_kmod-cfg80211-linux:libnl-tiny
+DRV_DEPENDS:=libnl-tiny
 
 
 define Package/hostapd/Default
@@ -237,7 +236,7 @@ endef
 define Package/wpad-mesh
 $(call Package/wpad/Default,$(1))
   TITLE+= (with 802.11s mesh and SAE support)
-  DEPENDS+=@PACKAGE_kmod-cfg80211-linux @(!TARGET_uml||BROKEN)
+  DEPENDS+=@(!TARGET_uml||BROKEN)
   PROVIDES+=wpa-supplicant-mesh wpad-mesh
 endef
 
@@ -297,14 +296,13 @@ endef
 define Package/wpa-supplicant-p2p
 $(call Package/wpa-supplicant/Default,$(1))
   TITLE+= (with Wi-Fi P2P support)
-  DEPENDS+=@PACKAGE_kmod-cfg80211-linux
   VARIANT:=supplicant-p2p-internal
 endef
 
 define Package/wpa-supplicant-mesh/Default
 $(call Package/wpa-supplicant/Default,$(1))
   TITLE+= (with 802.11s and SAE)
-  DEPENDS+=@PACKAGE_kmod-cfg80211-linux @(!TARGET_uml||BROKEN)
+  DEPENDS+=@(!TARGET_uml||BROKEN)
   PROVIDES+=wpa-supplicant-mesh
 endef
 
@@ -414,9 +412,7 @@ ifeq ($(findstring supplicant,$(BUILD_VARIANT)),)
   TARGET_LDFLAGS += -lubox -lubus
 endif
 
-ifdef CONFIG_PACKAGE_kmod-cfg80211-linux
-  TARGET_LDFLAGS += -lm -lnl-tiny
-endif
+TARGET_LDFLAGS += -lm -lnl-tiny
 
 define Build/RunMake
 	CFLAGS="$(TARGET_CPPFLAGS) $(TARGET_CFLAGS)" \
