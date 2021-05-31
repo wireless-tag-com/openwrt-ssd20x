@@ -1,0 +1,13 @@
+config ESP8089
+	tristate "Espressif ESP8089 SDIO WiFi"
+	depends on MAC80211
+	---help---
+	  ESP8089 is a low-budget 2.4GHz WiFi chip by Espressif, used in many
+	  cheap tablets with Allwinner or Rockchip SoC
+
+config ESP8089_DEBUG_FS
+	bool "Enable DebugFS support for ESP8089"
+	depends on ESP8089
+	default y
+	---help---
+	  DebugFS support for ESP8089

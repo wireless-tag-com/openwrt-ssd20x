@@ -1,0 +1,11 @@
+#!/bin/sh
+
+[ "${ACTION}" = "add" -a "${INTERFACE}" == "wlan0" ] && {
+	/sbin/wifi
+
+	network=$(uci -q get.wireless.wlan0.network)
+
+	if [ "$network" == "lan" ]; then
+		brctl addif br-lan wlan0
+	fi
+}
