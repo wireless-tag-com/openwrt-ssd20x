@@ -1812,8 +1812,11 @@ int mmc_select_drive_strength(struct mmc_card *card, unsigned int max_dtr,
  */
 void mmc_power_up(struct mmc_host *host, u32 ocr)
 {
-	if (host->ios.power_mode == MMC_POWER_ON)
+	if (host->ios.power_mode == MMC_POWER_ON) {
+		if (host->ios.clock == 0)
+			goto set_clock;
 		return;
+	}
 
 	mmc_pwrseq_pre_power_on(host);
 
@@ -1842,9 +1845,11 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 
 	mmc_pwrseq_post_power_on(host);
 
+set_clock:
 	host->ios.clock = host->f_init;
 
 	host->ios.power_mode = MMC_POWER_ON;
+
 	mmc_set_ios(host);
 
 	/*
@@ -1862,6 +1867,11 @@ void mmc_power_off(struct mmc_host *host)
 {
 	if (host->ios.power_mode == MMC_POWER_OFF)
 		return;
+
+	if (host->rescan_keep_power) {
+		mmc_set_clock(host, 0);
+		return;
+	}
 
 	mmc_pwrseq_power_off(host);
 
@@ -2010,6 +2020,27 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	_mmc_detect_change(host, delay, true);
 }
 EXPORT_SYMBOL(mmc_detect_change);
+
+/**
+ *	mmc_force_detect_change - force rescanning of a MMC socket even if
+ *				  it is non-removable
+ *	@host: host to rescan
+ *	@delay: optional delay to wait before detection (jiffies)
+ *	@keep_power: if set do not turn of vdd / call pwrseq_off during rescan
+ *
+ *	MMC drivers which need non-removable sdio devices to be rescanned
+ *	(e.g. because the device reboots its fw after a firmware upload),
+ *	can call this to force scanning the MMC socket for changes, even
+ *	if it is non-removable.
+ */
+void mmc_force_detect_change(struct mmc_host *host, unsigned long delay,
+			     bool keep_power)
+{
+	host->rescan_force = 1;
+	host->rescan_keep_power = keep_power;
+	_mmc_detect_change(host, delay, false);
+}
+EXPORT_SYMBOL(mmc_force_detect_change);
 
 void mmc_init_erase(struct mmc_card *card)
 {
@@ -2765,7 +2796,8 @@ void mmc_rescan(struct work_struct *work)
 		return;
 
 	/* If there is a non-removable card registered, only scan once */
-	if (!mmc_card_is_removable(host) && host->rescan_entered)
+	if (!mmc_card_is_removable(host) && host->rescan_entered &&
+	    !host->rescan_force)
 		return;
 	host->rescan_entered = 1;
 
@@ -2782,7 +2814,8 @@ void mmc_rescan(struct work_struct *work)
 	 * if there is a _removable_ card registered, check whether it is
 	 * still present
 	 */
-	if (host->bus_ops && !host->bus_dead && mmc_card_is_removable(host))
+	if (host->bus_ops && !host->bus_dead &&
+	    (mmc_card_is_removable(host) || host->rescan_force))
 		host->bus_ops->detect(host);
 
 	host->detect_change = 0;
@@ -2815,15 +2848,20 @@ void mmc_rescan(struct work_struct *work)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
-		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min)))
+		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min))) {
+			if (host->rescan_force) {
+				host->rescan_force = 0;
+				host->rescan_keep_power = 0;
+			}
 			break;
+		}
 		if (freqs[i] <= host->f_min)
 			break;
 	}
 	mmc_release_host(host);
 
  out:
-	if (host->caps & MMC_CAP_NEEDS_POLL)
+	if ((host->caps & MMC_CAP_NEEDS_POLL) || host->rescan_force)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
 

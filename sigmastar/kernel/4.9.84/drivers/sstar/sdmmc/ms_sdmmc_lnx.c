@@ -2126,7 +2126,18 @@ static void ms_sdmmc_exit(void)
     platform_driver_unregister(&ms_sdmmc_pltdrv);
 }
 
+void ms_sdmmc_rescan(unsigned int insert)
+{
+    struct ms_sdmmc_slot    *p_sdmmc_slot;
 
+    p_sdmmc_slot = gst_IntSourceSlot[0].p_data;
+    if (p_sdmmc_slot->mmc->card) {
+        return;
+    }
+
+    mmc_force_detect_change(p_sdmmc_slot->mmc, 0, true);
+}
+EXPORT_SYMBOL(ms_sdmmc_rescan);
 
 module_init(ms_sdmmc_init);
 module_exit(ms_sdmmc_exit);
