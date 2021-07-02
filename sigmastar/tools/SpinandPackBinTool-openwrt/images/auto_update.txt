@@ -1,0 +1,13 @@
+# <- this is for comment / total file size must be less than 4KB
+estar scripts/[[cis.es
+estar scripts/[[ipl.es
+ estar scripts/[[ipl_cust.es
+ estar scripts/[[uboot.es
+ estar scripts/[[logo.es
+ estar scripts/[[rootfs.es
+
+estar scripts/set_config
+#saveenv
+#printenv
+reset
+% <- this is end of file symbol

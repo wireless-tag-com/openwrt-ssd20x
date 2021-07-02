@@ -1,0 +1,4 @@
+tftp 0x21000000 nand.bin
+nand erase.chip
+nand write.e 0x21000000 0x00 ${filesize}
+

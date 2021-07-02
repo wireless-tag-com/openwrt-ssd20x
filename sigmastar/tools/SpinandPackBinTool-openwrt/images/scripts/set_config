@@ -1,0 +1,5 @@
+# <- this is for comment / total file size must be less than 4KB
+setenv ethinitauto 0
+saveenv
+reset
+% <- this is end of file symbol

@@ -1,0 +1,2 @@
+dynpart nand0:384k@1280k(IPL0),384k(IPL1),384k(IPL_CUST0),384k(IPL_CUST1),768k(UBOOT0),768k(UBOOT1),384k(ENV0),0x20000(KEY_CUST),0x60000(LOGO),0x60000(wtinfo),0x3000000(ubi),0x3000000(ubi2),-(opt)
+estar images/auto_update.txt
