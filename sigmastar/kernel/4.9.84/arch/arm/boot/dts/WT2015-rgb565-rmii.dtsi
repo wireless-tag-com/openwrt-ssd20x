@@ -82,7 +82,7 @@
             goodix_gt911@5D{ //EVB i2c-padmux=2 SSD201_SZ_DEMO_BOARD i2c-padmux=1
                 compatible = "goodix,gt911";
                 reg = <0x5D>;
-                goodix_rst = <PAD_GPIO1>; //SSD201_SZ_DEMO_BOARD PAD_GPIO1  EVB PAD_GPIO0
+                //goodix_rst = <PAD_GPIO1>; //SSD201_SZ_DEMO_BOARD PAD_GPIO1  EVB PAD_GPIO0
                 goodix_int = <PAD_GPIO13>; //SSD201_SZ_DEMO_BOARD PAD_GPIO13  EVB PAD_GPIO1
                 interrupts-extended = <&ms_gpi_intc INT_GPI_FIQ_GPIO13>;
                 interrupt-names = "goodix_int";
