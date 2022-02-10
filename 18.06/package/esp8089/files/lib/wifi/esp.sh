@@ -270,6 +270,15 @@ detect_esp() {
 			set wireless.wlan0.encryption=none
 			set wireless.wlan0.disabled=0
 
+			set wireless.wisp0=wifi-iface
+			set wireless.wisp0.device=radio${devidx}
+			set wireless.wisp0.ifname=wlan1
+			set wireless.wisp0.network=wisp0
+			set wireless.wisp0.mode=sta
+			set wireless.wisp0.ssid=WT8089-sta-${mac_suffix}
+			set wireless.wisp0.encryption=none
+			set wireless.wisp0.disabled=1
+
 	EOF
 		uci -q commit wireless
 

@@ -1364,6 +1364,20 @@ static void esp_tx_work(struct work_struct *work)
 	mutex_unlock(&epub->tx_mtx);
 }
 
+
+int esp_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct esp_pub *epub = (struct esp_pub *) hw->priv;
+	struct sip_cmd_setvif svif;
+
+	memset(&svif, 0, sizeof(struct sip_cmd_setvif));
+	svif.set = 3;
+	sip_cmd(epub, SIP_CMD_SETVIF, (u8 *) & svif,
+		sizeof(struct sip_cmd_setvif));
+
+    return 0;
+}
+
 static const struct ieee80211_ops esp_mac80211_ops = {
 	.tx = esp_op_tx,
 	.start = esp_op_start,
@@ -1405,6 +1419,7 @@ static const struct ieee80211_ops esp_mac80211_ops = {
 #endif
 	.set_bitrate_mask = esp_op_set_bitrate_mask,
 	.flush = esp_op_flush,
+    .start_ap = esp_start_ap,
 };
 
 struct esp_pub *esp_pub_alloc_mac80211(struct device *dev)
@@ -1610,6 +1625,7 @@ static void esp_pub_init_mac80211(struct esp_pub *epub)
 	    BIT(NL80211_IFTYPE_P2P_CLIENT) |
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP);
 
+	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_AP);
 	hw->wiphy->max_scan_ssids = 2;
 	//hw->wiphy->max_sched_scan_ssids = 16;
 	//hw->wiphy->max_match_sets = 16;
@@ -1695,18 +1711,12 @@ int esp_register_mac80211(struct esp_pub *epub)
 				  ret);
 		return ret;
 	} else {
-#ifdef MAC80211_HW_IF_CHANGE
+#if 0
 		rtnl_lock();
-		if (epub->hw->wiphy->interface_modes &
-		    (BIT(NL80211_IFTYPE_P2P_GO) |
-		     BIT(NL80211_IFTYPE_P2P_CLIENT))) {
-			ret =
-			    ieee80211_hw_if_add(epub->hw,
-					     "p2p%d", NULL, NET_NAME_ENUM,
-					     NL80211_IFTYPE_STATION, NULL);
+		if (epub->hw->wiphy->interface_modes & (BIT(NL80211_IFTYPE_AP))) {
+			ret = ieee80211_hw_if_add(epub->hw, "wlan%d", NULL, NET_NAME_ENUM, NL80211_IFTYPE_STATION, NULL);
 			if (ret)
-				wiphy_warn(epub->hw->wiphy,
-					   "Failed to add default virtual iface\n");
+				wiphy_warn(epub->hw->wiphy, "Failed to add default virtual iface\n");
 		}
 
 		rtnl_unlock();

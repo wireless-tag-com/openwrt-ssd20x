@@ -1097,7 +1097,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)
 			wiphy_warn(local->hw.wiphy,
-				   "Failed to add default virtual iface\n");
+				   "Failed to add default virtual iface for sta\n");
+
+		if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
+			result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
+						  NL80211_IFTYPE_STATION, NULL);
+
+			if (result)
+				wiphy_warn(local->hw.wiphy,
+					   "Failed to add default virtual iface for ap\n");
+		}
 	}
 
 	rtnl_unlock();
