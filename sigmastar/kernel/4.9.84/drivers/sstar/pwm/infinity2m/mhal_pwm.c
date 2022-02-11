@@ -95,6 +95,12 @@ static pwmPadTbl_t* padTbl[] =
 
 static U8 _pwmEnSatus[PWM_NUM] = { 0 };
 static U32 _pwmPeriod[PWM_NUM] = { 0 };
+#ifdef CONFIG_PWM_NEW
+static U32 _pwmDiv[PWM_NUM] = { 0 };
+static U32 _pwmPeriod_ns[PWM_NUM] = { 0 };
+static U32 _pwmDuty_ns[PWM_NUM] = { 0 };
+static U16 clk_pwm_div[7] = {1, 2, 4, 8, 32, 64, 128};
+#endif
 
 //------------------------------------------------------------------------------
 //  Local Functions
@@ -107,6 +113,15 @@ static U32 _pwmPeriod[PWM_NUM] = { 0 };
 //------------------------------------------------------------------------------
 //  Global Functions
 //------------------------------------------------------------------------------
+static void  DrvPWMGetGrpAddr(struct mstar_pwm_chip* ms_chip,U32 *u32addr,U32 *u32PwmOffs,U8 u8Id)
+{
+    if( u8Id < PWM_NUM)
+    {
+        *u32addr = (U32 )ms_chip->base;
+        *u32PwmOffs = (u8Id < 4) ? (u8Id * 0x80) : ((4 * 0x80) + ((u8Id - 4) * 0x40));
+    }
+
+}
 //+++[Only4I6e]
 void MDEV_PWM_AllGrpEnable(struct mstar_pwm_chip *ms_chip)
 {
@@ -116,13 +131,21 @@ void MDEV_PWM_AllGrpEnable(struct mstar_pwm_chip *ms_chip)
 
 void DrvPWMInit(struct mstar_pwm_chip *ms_chip, U8 u8Id)
 {
-    U32 reset, u32Period;
+    U32 reset, u32Period=0, U32PwmAddr=0,u32PwmOffs=0;
 
     if (PWM_NUM <= u8Id)
         return;
 
-    reset = INREG16(ms_chip->base + u16REG_SW_RESET) & (BIT0<<u8Id);
+    DrvPWMGetGrpAddr(ms_chip,&U32PwmAddr,&u32PwmOffs,u8Id);
+    reset = INREG16( U32PwmAddr + u16REG_SW_RESET) & (BIT0<<((u8Id==10)?0:u8Id));
+
+#ifdef CONFIG_PWM_NEW
+    DrvPWMGetConfig(ms_chip, u8Id, NULL ,&u32Period);
+    DrvPWMDutyQE0(ms_chip, 0, 0);
+#else
     DrvPWMGetPeriod(ms_chip, u8Id, &u32Period);
+#endif
+
     if ((0 == reset) && (u32Period))
     {
         _pwmEnSatus[u8Id] = 1;
@@ -147,6 +170,170 @@ void DrvPWMInit(struct mstar_pwm_chip *ms_chip, U8 u8Id)
 //  Return Value
 //      None
 //
+#ifdef CONFIG_PWM_NEW
+void DrvPWMSetConfig(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32 duty,U32 period)
+{
+    U8 i;
+    U16 u16Div = 0;
+    U32 common = 0;
+    U32 pwmclk = 0;
+    U32 periodmax = 0;
+    U32 u32Period = 0x00000000;
+    U32 u32Duty = 0x00000000;
+    U32 U32PwmAddr = 0;
+    U32 u32PwmOffs = 0;
+
+    if(u8Id >= PWM_NUM)
+        return;
+
+    DrvPWMGetGrpAddr(ms_chip,&U32PwmAddr,&u32PwmOffs,u8Id);
+
+    pwmclk = (U32)(clk_get_rate(ms_chip->clk));
+
+    switch(pwmclk)
+    {
+        case 12000000:
+            pwmclk = 3;
+            common = 250;
+            break;
+        default:
+            pwmclk = 3;
+            common = 250;
+    }
+
+    /*      select   div       */
+    for(i = 0;i<(sizeof(clk_pwm_div)/sizeof(U16));i++){
+        periodmax = (clk_pwm_div[i] * 262144 / pwmclk) * common;
+        if(period < periodmax)
+        {
+            u16Div = clk_pwm_div[i];
+            _pwmDiv[u8Id] = clk_pwm_div[i];
+            break;
+        }
+    }
+
+    /*      select   period       */
+    if(period < (0xFFFFFFFF / pwmclk))
+    {
+        u32Period= (pwmclk * period) / (u16Div * common);
+        if(((pwmclk * period) % (u16Div * common)) > (u16Div * common / 2))
+        {
+            u32Period++;
+        }
+        _pwmPeriod_ns[u8Id] = (u32Period * u16Div * common) / pwmclk;
+    }
+    else
+    {
+        u32Period= (period / u16Div) * pwmclk / common;
+        u32Period++;
+        _pwmPeriod_ns[u8Id] = (u32Period * common / pwmclk) * u16Div;
+    }
+
+    /*      select   duty       */
+    if(duty == 0)
+    {
+        if(_pwmEnSatus[u8Id])
+        {
+            SETREG16(U32PwmAddr + u16REG_SW_RESET,BIT0<<((u8Id==10)?0:u8Id));
+        }
+    }
+    else
+    {
+        if(_pwmEnSatus[u8Id])
+        {
+            CLRREG16(U32PwmAddr + u16REG_SW_RESET, BIT0<<((u8Id==10)?0:u8Id));
+        }
+    }
+
+    if(duty < (0xFFFFFFFF / pwmclk))
+    {
+        u32Duty= (pwmclk * duty) / (u16Div * common);
+        if((((pwmclk * duty) % (u16Div * common)) > (u16Div * common / 2)) || (u32Duty == 0))
+        {
+            u32Duty++;
+        }
+        _pwmDuty_ns[u8Id] = (u32Duty * u16Div * common) / pwmclk;
+    }
+    else
+    {
+        u32Duty= (duty / u16Div) * pwmclk / common;
+        u32Duty++;
+        _pwmPeriod_ns[u8Id] = (u32Duty * common / pwmclk) * u16Div;
+    }
+
+    /*      set  div period duty       */
+    u16Div--;
+    u32Period--;
+    u32Duty--;
+    pr_err("clk=%d, u16Div=%d u32Duty=0x%x u32Period=0x%x\n", (U32)(clk_get_rate(ms_chip->clk)), u16Div, u32Duty, u32Period);
+    OUTREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DIV, (u16Div & 0xFFFF));
+    OUTREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_PERIOD_L, (u32Period&0xFFFF));
+    OUTREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_PERIOD_H, ((u32Period>>16)&0x3));
+    OUTREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DUTY_L, (u32Duty&0xFFFF));
+    OUTREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DUTY_H, ((u32Duty>>16)&0x3));
+}
+
+void DrvPWMGetConfig(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32* Duty,U32* Period)
+{
+    U16 u16Div = 0;
+    U32 u32Duty = 0;
+    U32 u32Period = 0;
+    U32 U32PwmAddr= 0;
+    U32 pwmclk = 0;
+    U32 common = 0;
+    U32 u32PwmOffs = 0;
+    DrvPWMGetGrpAddr(ms_chip,&U32PwmAddr,&u32PwmOffs,u8Id);
+
+    if(u8Id >= PWM_NUM)
+        return;
+
+    pwmclk = (U32)(clk_get_rate(ms_chip->clk));
+
+    switch(pwmclk)
+    {
+        case 12000000:
+            pwmclk = 3;
+            common = 250;
+            break;
+        default:
+            pwmclk = 3;
+            common = 250;
+    }
+
+    u16Div = INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DIV);
+    u16Div++;
+
+    if(Period != NULL)
+    {
+        if(_pwmPeriod_ns[u8Id] == 0)
+        {
+            u32Period = INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_PERIOD_L) | ((INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_PERIOD_H) & 0x3) << 16);
+            if(u32Period)
+            {
+                u32Period++;
+            }
+            _pwmPeriod_ns[u8Id] = (u32Period * u16Div * common) / pwmclk;
+        }
+        *Period = _pwmPeriod_ns[u8Id];
+    }
+
+    if(Duty != NULL)
+    {
+        if(_pwmDuty_ns[u8Id] == 0)
+        {
+            u32Duty = INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DUTY_L) | ((INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DUTY_H) & 0x3) << 16);
+            if(u32Duty)
+            {
+                u32Duty++;
+            }
+            _pwmDuty_ns[u8Id] = (u32Duty * u16Div * common) / pwmclk;
+        }
+        *Duty = _pwmDuty_ns[u8Id];
+    }
+
+}
+
+#else
 void DrvPWMSetDuty(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32 u32Val)
 {
     U32 u32Period;
@@ -246,7 +433,7 @@ void DrvPWMGetPeriod(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32* pu32Val)
         *pu32Val = (U32)(clk_get_rate(ms_chip->clk))/(u32Period+1);
     }
 }
-
+#endif
 //------------------------------------------------------------------------------
 //
 //  Function:   DrvPWMSetPolarity
@@ -321,26 +508,33 @@ void DrvPWMSetDben(struct mstar_pwm_chip *ms_chip, U8 u8Id, U8 u8Val)
 
 void DrvPWMEnable(struct mstar_pwm_chip *ms_chip, U8 u8Id, U8 u8Val)
 {
+    U32 U32PwmAddr=0, u32PwmOffs, u32DutyL, u32DutyH;
     if (PWM_NUM <= u8Id)
         return;
     DrvPWMSetDben(ms_chip, u8Id, 1);
 
+    DrvPWMGetGrpAddr(ms_chip,&U32PwmAddr,&u32PwmOffs,u8Id);
+    u32DutyL = INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DUTY_L);
+    u32DutyH = INREG16(U32PwmAddr + (u32PwmOffs) + u16REG_PWM_DUTY_H);
+
     if(u8Val)
     {
-        U32 u32DutyL = INREG16(ms_chip->base + (u8Id*0x80) + u16REG_PWM_DUTY_L);
-        U32 u32DutyH = INREG16(ms_chip->base + (u8Id*0x80) + u16REG_PWM_DUTY_H);
+#ifdef CONFIG_PWM_NEW
+        CLRREG16(U32PwmAddr + u16REG_SW_RESET, BIT0<<((u8Id==10)?0:u8Id));
+#else
         if (u32DutyL || u32DutyH)
         {
-            CLRREG16(ms_chip->base + u16REG_SW_RESET, 1<<u8Id);
+            CLRREG16(U32PwmAddr + u16REG_SW_RESET, BIT0<<((u8Id==10)?0:u8Id));
         }
         else
         {
-            SETREG16(ms_chip->base + u16REG_SW_RESET, 1<<u8Id);
+            SETREG16(U32PwmAddr + u16REG_SW_RESET, BIT0<<((u8Id==10)?0:u8Id));
         }
+#endif
     }
     else
     {
-        SETREG16(ms_chip->base + u16REG_SW_RESET, 1<<u8Id);
+        SETREG16(U32PwmAddr + u16REG_SW_RESET,BIT0<<((u8Id==10)?0:u8Id));
     }
     _pwmEnSatus[u8Id] = u8Val;
 }

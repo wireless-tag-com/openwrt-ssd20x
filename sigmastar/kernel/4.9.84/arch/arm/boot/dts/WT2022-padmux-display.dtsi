@@ -36,7 +36,7 @@
                 //<PAD_GPIO8  >,
                 //<PAD_GPIO9  >,
                 <PAD_GPIO10         PINMUX_FOR_GPIO_MODE            MDRV_PUSE_NA>,
-                //<PAD_GPIO11         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2CSW_SC L>,
+                //<PAD_GPIO11         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2CSW_SCL>,
                 <PAD_GPIO12         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_NA >,
                 <PAD_GPIO13         PINMUX_FOR_GPIO_MODE        MDRV_PUSE_I2C1_DEV_IRQ >,
                 <PAD_GPIO14         PINMUX_FOR_GPIO_MODE       MDRV_PUSE_NA >,
@@ -87,7 +87,7 @@
                 <PAD_SD_D2              PINMUX_FOR_SDIO_MODE_1      MDRV_PUSE_SDIO0_D2>,
                 //<PAD_SD_D3              PINMUX_FOR_I2S_MODE_3       MDRV_PUSE_I2S_SDO >,
                 <PAD_SD_D3            PINMUX_FOR_SDIO_MODE_1      MDRV_PUSE_SDIO0_D3>,
-                <PAD_PM_SD_CDZ          PINMUX_FOR_GPIO_MODE      MDRV_PUSE_SDIO0_CDZ>,
+                <PAD_PM_SD_CDZ          PINMUX_FOR_PM_SD_CDZ_MODE      MDRV_PUSE_SDIO0_CDZ>,
                 <PAD_PM_IRIN            PINMUX_FOR_PM_IRIN_MODE     MDRV_PUSE_IR>,  // IR: default non-GPIO
                 //<PAD_PM_SPI_CZ  >,                // default not-GPIO
                 //<PAD_PM_SPI_CK  >,                // default not-GPIO

@@ -55,7 +55,7 @@ struct ms_wdt {
 	struct device		*dev;
 	struct watchdog_device	wdt_device;
     void __iomem *reg_base;
-	spinlock_t		lock;	
+	spinlock_t		lock;
 };
 static int infinity_wdt_start(struct watchdog_device *wdd);
 static int infinity_wdt_stop(struct watchdog_device *wdd);
@@ -159,7 +159,7 @@ static void __infinity_wdt_start(U32 u32LaunchTim)
     wdtDbg("__infinity_wdt_start \n");
     OUTREG16(BASE_REG_WDT_PA + WDT_WDT_CLR, CLEAR_WDT);
     OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_H, (((g_u32Clock*u32LaunchTim)>>16) & 0xFFFF));
-    OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_L, ((g_u32Clock*u32LaunchTim) & 0xFFFF));	
+    OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_L, ((g_u32Clock*u32LaunchTim) & 0xFFFF));
 }
 /*
 static void infinity_wdt_timer(unsigned long data)
@@ -178,19 +178,19 @@ static void infinity_wdt_timer(unsigned long data)
 static int infinity_wdt_start(struct watchdog_device *wdd)
 {
     unsigned long j;
-	
+
     wdtDbg("[WatchDog]infinity_wdt_start \n");
 	spin_lock(&wdt_lock);
-	
+
 	__infinity_wdt_stop();
-	
+
     __infinity_wdt_start(tmr_margin);
-	
+
     init_timer(&wdt_timer);
-    
+
     //wdt_timer.data = (unsigned long)tmr_margin;
     //wdt_timer.function = infinity_wdt_timer;
-	
+
     j = jiffies;
     wdt_timer.expires = j + REPEAT_DELAY*tmr_margin;
 	next_heartbeat = wdt_timer.expires;
@@ -209,14 +209,14 @@ static int infinity_wdt_set_timeout(struct watchdog_device *wdd, unsigned int ti
 		//return -EINVAL;
     j = jiffies;
     next_heartbeat = j + REPEAT_DELAY*timeout;
-		
+
 	 spin_lock(&wdt_lock);
 	wdd->timeout = timeout;
 	tmr_margin=timeout;
 	wdt_timer.data = (unsigned long)tmr_margin;
     OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_H, (((g_u32Clock*tmr_margin)>>16) & 0xFFFF));
     OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_L, ((g_u32Clock*tmr_margin) & 0xFFFF));
-	
+
 	spin_unlock(&wdt_lock);
     wdtDbg("[WatchDog]infinity_wdt_set_timeout data=%lx \r\n",wdt_timer.data);
     return 0;
@@ -228,14 +228,14 @@ static int infinity_wdt_ping(struct watchdog_device *wdd)
 	 * we agree to ping the WDT
 	 */
     unsigned long j;
-	 
+
 	if (time_before(jiffies, next_heartbeat))
 	{
        // wdtDbg("[WatchDog] infinity_wdt_ping tmr_margin=%lx \r\n",(jiffies-next_heartbeat));
-		
+
 		/* Ping the WDT */
 		spin_lock(&wdt_lock);
-		
+
         //OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_H, (((g_u32Clock*tmr_margin)>>16) & 0xFFFF));
         //OUTREG16(BASE_REG_WDT_PA + WDT_MAX_PRD_L, ((g_u32Clock*tmr_margin) & 0xFFFF));
         OUTREG16(BASE_REG_WDT_PA + WDT_WDT_CLR, CLEAR_WDT);
@@ -251,7 +251,7 @@ static int infinity_wdt_ping(struct watchdog_device *wdd)
 	} else
 		pr_warn("Heartbeat lost! Will not ping the watchdog\n");
 	return 0;
-	
+
 }
 
 static int infinity_wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeout)
@@ -262,11 +262,11 @@ static int infinity_wdt_set_heartbeat(struct watchdog_device *wdd, unsigned time
     //if(timeout>40)///for test
 	//	return -EINVAL;
 	wdtDbg("[WatchDog]infinity_wdt_set_heartbeat \n");
-	
+
     OUTREG16(BASE_REG_WDT_PA + WDT_WDT_CLR, CLEAR_WDT);
 
 	wdd->timeout = timeout;
-    
+
 	return 0;
 }
 
@@ -274,18 +274,18 @@ static int infinity_wdt_probe(struct platform_device *pdev)
 {
     int ret = 0;
     struct device *dev;
-    struct ms_wdt *wdt;	
+    struct ms_wdt *wdt;
     int started = 0;
     struct resource *res;
-	
+
     wdtDbg("[WatchDog]infinity_wdt_probe \n");
 	dev = &pdev->dev;
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
-	
+
 	wdt->dev = &pdev->dev;
-	   
+
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
     {
@@ -318,9 +318,9 @@ static int infinity_wdt_probe(struct platform_device *pdev)
 		dev_err(dev, "cannot register watchdog (%d)\n", ret);
 		goto err;
 	}
-  
+
     //init_timer(&wdt_timer);
-    
+
     //wdt_timer.data = (unsigned long)tmr_margin;
     //wdt_timer.function = infinity_wdt_timer;
     //infinity_wdt_start(&infinity_wdd);
@@ -356,6 +356,7 @@ static int infinity_wdt_suspend(struct platform_device *dev, pm_message_t state)
     wdtDbg("[WatchDog]infinity_wdt_suspend \n");
     if(watchdog_open_flag==1) {
         infinity_wdt_stop(&infinity_wdd);
+        watchdog_open_flag = 1;
     }
 	return 0;
 }
@@ -388,10 +389,10 @@ static struct platform_driver infinity_wdt_driver = {
 	.probe		= infinity_wdt_probe,
 	.remove		= infinity_wdt_remove,
 	.shutdown	= infinity_wdt_shutdown,
-#ifdef CONFIG_PM	
+#ifdef CONFIG_PM
 	.suspend	= infinity_wdt_suspend,
 	.resume		= infinity_wdt_resume,
-#endif	
+#endif
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "infinity-wdt",

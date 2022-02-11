@@ -47,6 +47,8 @@ MI_S32 MI_CIPHER_RsaPrivateEncrypt(MI_CIPHER_RSA_PRI_ENC_t *pstRsa, MI_U8 *pu8In
 MI_S32 MI_CIPHER_RsaPublicDecrypt(MI_CIPHER_RSA_PUB_ENC_t *pstRsa, MI_U8 *pu8Input, MI_U32 u32InLen, MI_U8 *pu8Output, MI_U32 *pu32OutLen);
 MI_S32 MI_CIPHER_RsaSign(MI_CIPHER_RSA_SIGN_t *pstRsaSign, MI_U8 *pu8InHashData, MI_U32 u32HashDataLen, MI_U8 *pu8OutSign, MI_U32 *pu32OutSignLen);
 MI_S32 MI_CIPHER_RsaVerify(MI_CIPHER_RSA_VERIFY_t *pstRsaVerify, MI_U8 *pu8InHashData, MI_U32 u32HashDataLen, MI_U8 *pu8InSign, MI_U32 u32InSignLen);
+MI_S32 MI_CIPHER_InitDev(MI_CIPHER_InitParam_t *pstInitParam);
+MI_S32 MI_CIPHER_DeInitDev(void);
 
 #ifdef __cplusplus
 }

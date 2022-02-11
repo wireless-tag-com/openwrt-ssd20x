@@ -42,6 +42,7 @@
 
 //#define OPEN_SAR_DEBUG
 static U32 _gMIO_MapBase = 0;
+static U32 sstar_sar_init = 0;
 
 #ifdef OPEN_SAR_DEBUG //switch printk
 #define sarDbg  printk
@@ -167,6 +168,7 @@ void ms_sar_hw_init(void)
     HAL_SAR_Write2Byte(REG_SAR_CTRL0,0x0a20);
     //HAL_SAR_Write2Byte(REG_SAR_CKSAMP_PRD,0x0005);
     //HAL_SAR_Write2ByteMask(REG_SAR_CTRL0,0x4000,0x4000);
+    sstar_sar_init = 1;
 }
 EXPORT_SYMBOL(ms_sar_hw_init);
 
@@ -290,6 +292,11 @@ static int infinity_sar_suspend(struct platform_device *dev, pm_message_t state)
 static int infinity_sar_resume(struct platform_device *dev)
 {
     sarDbg("[SAR]infinity_sar_resume \n");
+
+    if(sstar_sar_init == 1)
+    {
+        ms_sar_hw_init();
+    }
     return 0;
 }
 

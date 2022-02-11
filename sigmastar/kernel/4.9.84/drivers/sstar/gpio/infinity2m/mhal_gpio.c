@@ -16,6 +16,7 @@
 */
 #include <linux/kernel.h>
 #include <linux/irqdomain.h>
+#include <linux/of_irq.h>
 
 #include "mhal_gpio.h"
 #include "ms_platform.h"
@@ -305,6 +306,16 @@ int MHal_GPIO_To_Irq(U8 u8IndexGPIO)
         fwspec.param[0] = hwirq;
         fwspec.fwnode = of_node_to_fwnode(intr_node);
         virq = irq_create_fwspec_mapping(&fwspec);
+    }
+
+    if (u8IndexGPIO >= PAD_SAR_GPIO0 && u8IndexGPIO <= PAD_SAR_GPIO3)
+    {
+        struct device_node* np;
+        np = of_find_compatible_node(NULL, NULL, "sstar,sar-gpio");
+        if (!np) {
+            return -1;
+        }
+        virq = irq_of_parse_and_map(np, u8IndexGPIO - PAD_SAR_GPIO0);
     }
 
     return virq;

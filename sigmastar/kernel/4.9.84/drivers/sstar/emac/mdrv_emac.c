@@ -132,8 +132,8 @@ extern void MDrv_GPIO_Pad_Set(U8 u8IndexGPIO);
 #define CLR_BITS(a, bits)       ((a) & (~(bits)))
 #define SET_BITS(a, bits)       ((a) | (bits))
 
-#define PA2BUS(a)               CLR_BITS(a, MIU0_BUS_BASE)
-#define BUS2PA(a)               SET_BITS(a, MIU0_BUS_BASE)
+#define PA2BUS(a)               ((a) - (MIU0_BUS_BASE))
+#define BUS2PA(a)               ((a) + (MIU0_BUS_BASE))
 
 #define BUS2VIRT(a)             phys_to_virt(BUS2PA((a)))
 #define VIRT2BUS(a)             PA2BUS(virt_to_phys((a)))
@@ -385,6 +385,9 @@ static unsigned int tx_bytes_per_timer=0;
 
 
 int rx_packet_cnt = 0;
+#if MSTAR_EMAC_NAPI
+int napi_enable_flag = 0;
+#endif
 
 static struct timespec rx_time_last = { 0 };
 static int rx_duration_max = 0;
@@ -529,6 +532,22 @@ static ssize_t rx_dump_show(struct device *dev, struct device_attribute *attr, c
 DEVICE_ATTR(rx_dump, 0644, rx_dump_show, rx_dump_store);
 #endif
 
+#if INT_PHY_MDIX_PATCH
+static void mdix_work_handle(struct work_struct *work)
+{
+    static int mdix_status;
+    struct emac_handle *hemac = container_of(work, struct emac_handle, mdix_work.work);
+
+    if(hemac->netdev->phydev->link == 0)
+    {
+        MHal_EMAC_Phy_MDI_MDIX(hemac->hal, mdix_status);
+        mdix_status = !mdix_status;
+    }
+
+    schedule_delayed_work(&hemac->mdix_work, msecs_to_jiffies(INT_PHY_MDIX_TIMER_MS));
+}
+#endif
+
 static unsigned long getCurMs(void)
 {
     struct timeval tv;
@@ -571,8 +590,37 @@ static int skb_queue_create(skb_queue* skb_q, int size, int size1)
     return 1;
 }
 
+static int skb_queue_reset(skb_queue* skb_q)
+{
+    int i;
+    struct emac_handle *hemac = container_of(skb_q, struct emac_handle, skb_queue_tx);
+
+    if (NULL == skb_q->skb_info_arr)
+        return 0;
+
+    for (i = 0; i < skb_q->size[1]; i++)
+    {
+        if (!skb_q->skb_info_arr[i].skb)
+        {
+            continue;
+        }
+        if (0xFFFFFFFF == (int)skb_q->skb_info_arr[i].skb)
+        {
+            void* p = BUS2VIRT(skb_q->skb_info_arr[i].skb_phys);
+            kfree(p);
+            continue;
+        }
+        dev_kfree_skb_any(skb_q->skb_info_arr[i].skb);
+        hemac->skb_tx_free++;
+    }
+    memset(skb_q->skb_info_arr, 0, skb_q->size[1]*sizeof(skb_info));
+    skb_q->read = skb_q->write = skb_q->rw = 0;
+    return 1;
+}
+
 static int skb_queue_destroy(skb_queue* skb_q)
 {
+#if 0
     int i;
     struct emac_handle *hemac = container_of(skb_q, struct emac_handle, skb_queue_tx);
 
@@ -589,26 +637,12 @@ static int skb_queue_destroy(skb_queue* skb_q)
     kfree(skb_q->skb_info_arr);
     skb_q->skb_info_arr = NULL;
     skb_q->size[0] = skb_q->size[1] = skb_q->read = skb_q->write = skb_q->rw = 0;
-    return 1;
-}
-
-static int skb_queue_reset(skb_queue* skb_q)
-{
-    int i;
-    struct emac_handle *hemac = container_of(skb_q, struct emac_handle, skb_queue_tx);
-
-    if (NULL == skb_q->skb_info_arr)
-        return 0;
-    for (i = 0; i < skb_q->size[1]; i++)
-    {
-        if (skb_q->skb_info_arr[i].skb)
-        {
-            dev_kfree_skb_any(skb_q->skb_info_arr[i].skb);
-            hemac->skb_tx_free++;
-        }
-    }
-    memset(skb_q->skb_info_arr, 0, skb_q->size[1]*sizeof(skb_info));
-    skb_q->read = skb_q->write = skb_q->rw = 0;
+#else
+    skb_queue_reset(skb_q);
+    kfree(skb_q->skb_info_arr);
+    skb_q->skb_info_arr = NULL;
+    skb_q->size[0] = skb_q->size[1] = 0;
+#endif
     return 1;
 }
 
@@ -1455,6 +1489,20 @@ static void MDev_EMAC_start (struct net_device *dev)
 }
 
 //-------------------------------------------------------------------------------------------------
+//Stop the Receiver and Transmit subsystems
+//-------------------------------------------------------------------------------------------------
+static void MDev_EMAC_stop (struct net_device *dev)
+{
+    struct emac_handle *hemac = (struct emac_handle*) netdev_priv(dev);
+    u32 uRegVal;
+
+    // Disable Receive and Transmit //
+    uRegVal = MHal_EMAC_Read_CTL(hemac->hal);
+    uRegVal &= ~(EMAC_TE | EMAC_RE);
+    MHal_EMAC_Write_CTL(hemac->hal, uRegVal);
+}
+
+//-------------------------------------------------------------------------------------------------
 // Open the ethernet interface
 //-------------------------------------------------------------------------------------------------
 static int MDev_EMAC_open (struct net_device *dev)
@@ -1464,7 +1512,9 @@ static int MDev_EMAC_open (struct net_device *dev)
     // unsigned long flags;
 
 #if MSTAR_EMAC_NAPI
-    napi_enable(&hemac->napi);
+    if(napi_enable_flag == 0)
+        napi_enable(&hemac->napi);
+    napi_enable_flag = 1;
 #endif
 
     spin_lock(&hemac->mutexPhy);
@@ -1498,7 +1548,7 @@ static int MDev_EMAC_open (struct net_device *dev)
 
     MDev_EMAC_start(dev);
     phy_start(dev->phydev);
-    netif_start_queue (dev);
+    netif_start_queue(dev);
 
     // init_timer( &hemac->timer_link );
 
@@ -1535,19 +1585,19 @@ static int MDev_EMAC_open (struct net_device *dev)
 //-------------------------------------------------------------------------------------------------
 static int MDev_EMAC_close (struct net_device *dev)
 {
-    u32 uRegVal;
     struct emac_handle *hemac = (struct emac_handle*) netdev_priv(dev);
     unsigned long flags;
 
 #if MSTAR_EMAC_NAPI
-    napi_disable(&hemac->napi);
+    if(napi_enable_flag == 1)
+        napi_disable(&hemac->napi);
+    napi_enable_flag = 0;
 #endif
 
     spin_lock(&hemac->mutexPhy);
     //Disable Receiver and Transmitter //
-    uRegVal = MHal_EMAC_Read_CTL(hemac->hal);
-    uRegVal &= ~(EMAC_TE | EMAC_RE);
-    MHal_EMAC_Write_CTL(hemac->hal, uRegVal);
+    MDev_EMAC_stop(dev);
+
     // Disable PHY interrupt //
     MHal_EMAC_disable_phyirq(hemac->hal);
     spin_unlock(&hemac->mutexPhy);
@@ -1557,7 +1607,7 @@ static int MDev_EMAC_close (struct net_device *dev)
     netif_carrier_off(dev);
     phy_stop(dev->phydev);
     // del_timer(&hemac->timer_link);
-    //MHal_EMAC_Power_Off_Clk(dev->dev);
+    // MHal_EMAC_Power_Off_Clk(dev->dev);
     // hemac->ThisBCE.connected = 0;
     hemac->ep_flag &= (~EP_FLAG_OPEND);
     spin_lock_irqsave(&hemac->mutexTXQ, flags);
@@ -1920,7 +1970,7 @@ static int MDev_EMAC_tx(struct sk_buff *skb, struct net_device *dev)
         // dma_unmap_single(NULL, VIRT2PA(start), EMAC_MTU, DMA_TO_DEVICE);
         if (nr_frags)
         {
-            char* start = kmalloc(EMAC_MTU, GFP_ATOMIC);
+            char* start = kmalloc(ALIGN(EMAC_MTU,256), GFP_ATOMIC);
             char* p = start;
 
             if (!start)
@@ -1962,6 +2012,25 @@ static int MDev_EMAC_tx(struct sk_buff *skb, struct net_device *dev)
             skb_queue_insert(&(hemac->skb_queue_tx), (struct sk_buff*)0xFFFFFFFF, (dma_addr_t)skb_addr, skb->len, 1);
             spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
             // Chip_Flush_Cache_Range((size_t)start, skb->len);
+            dev_kfree_skb_any(skb);
+        }
+        else if ((TXQ_NF_PKT_ALIGN > 0) && ((int)(skb->data) & (TXQ_NF_PKT_ALIGN - 1)))
+        {
+            char* start = kmalloc(ALIGN(EMAC_MTU,256), GFP_ATOMIC);
+            char* p = start;
+
+            if (!start)
+            {
+                ret = NETDEV_TX_BUSY;
+                goto out_unlock;
+            }
+            memcpy(p, skb->data, skb->len);
+            if (EMAC_SG_BUF_CACHE)
+                Chip_Flush_Cache_Range((size_t)start, skb->len);
+            skb_addr = VIRT2BUS(start);
+            spin_lock_irqsave(&hemac->mutexTXQ, flags);
+            skb_queue_insert(&(hemac->skb_queue_tx), (struct sk_buff*)0xFFFFFFFF, (dma_addr_t)skb_addr, skb->len, 1);
+            spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
             dev_kfree_skb_any(skb);
         }
         else
@@ -2753,6 +2822,7 @@ irqreturn_t MDev_EMAC_interrupt_cable_unplug(int irq,void *dev_instance)
 {
     struct net_device* dev = (struct net_device*)dev_instance;
     struct emac_handle *hemac = (struct emac_handle*) netdev_priv(dev);
+    unsigned long flags;
 
     if (netif_carrier_ok(dev))
         netif_carrier_off(dev);
@@ -2763,7 +2833,9 @@ irqreturn_t MDev_EMAC_interrupt_cable_unplug(int irq,void *dev_instance)
     #ifdef TX_SW_QUEUE
     _MDev_EMAC_tx_reset_TX_SW_QUEUE(dev);
     #endif
+    spin_lock_irqsave(&hemac->mutexTXQ, flags);
     skb_queue_reset(&(hemac->skb_queue_tx));
+    spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
 
     if(hemac->led_orange!=-1 && hemac->led_green!=-1)
     {
@@ -2913,6 +2985,15 @@ static void MDev_EMAC_RX_Desc_Free(struct emac_handle *hemac)
     rxinfo->idx = 0;
     rxinfo->num_desc = 0;
     rxinfo->size_desc_queue = 0;
+}
+
+static void MDev_EMAC_RX_Desc_Reset(struct emac_handle *hemac)
+{
+    rx_desc_queue_t* rxinfo = &(hemac->rx_desc_queue);
+
+    rxinfo->idx = 0;
+    memset(rxinfo->desc, 0x00, rxinfo->size_desc_queue);
+    Chip_Flush_MIU_Pipe();
 }
 
 static void MDev_EMAC_MemFree(struct emac_handle *hemac)
@@ -3125,7 +3206,7 @@ static void emac_phy_link_adjust(struct net_device *dev)
     int cam = 0; // 0:No CAM, 1:Yes
     int rcv_bcast = 1; // 0:No, 1:Yes
     int rlf = 0;
-    u32 word_ETH_CFG = 0x00000800UL;
+    u32 word_ETH_CFG = 0x00000C00UL;
     struct emac_handle* hemac =(struct emac_handle*) netdev_priv(dev);
     unsigned long flag1;
 
@@ -3136,7 +3217,7 @@ static void emac_phy_link_adjust(struct net_device *dev)
         // (20070808) IMPORTANT: REG_ETH_CFG:bit1(FD), 1:TX will halt running RX frame, 0:TX will not halt running RX frame.
         // If always set FD=0, no CRC error will occur. But throughput maybe need re-evaluate.
         // IMPORTANT: (20070809) NO_MANUAL_SET_DUPLEX : The real duplex is returned by "negotiation"
-        word_ETH_CFG = 0x00000800UL;        // Init: CLK = 0x2
+        word_ETH_CFG = 0x00000C00UL;        // Init: CLK = 0x3
         if (SPEED_100 == dev->phydev->speed)
             word_ETH_CFG |= 0x00000001UL;
         if (DUPLEX_FULL == dev->phydev->duplex)
@@ -3157,6 +3238,7 @@ static void emac_phy_link_adjust(struct net_device *dev)
         MHal_EMAC_update_speed_duplex(hemac->hal, dev->phydev->speed, dev->phydev->duplex);
         netif_carrier_on(dev);
         netif_start_queue(dev);
+        printk("[%s] EMAC Link Up \n", __FUNCTION__);
     }
     else
     {
@@ -3169,6 +3251,7 @@ static void emac_phy_link_adjust(struct net_device *dev)
         // spin_lock_irqsave(&hemac->mutexTXQ, flags);
         // skb_queue_reset(&(hemac->skb_queue_tx));
         // spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
+        printk("[%s] EMAC Link Down \n", __FUNCTION__);
     }
     spin_unlock_irqrestore(&hemac->mutexNetIf, flag1);
 
@@ -3952,7 +4035,6 @@ static int MDev_EMAC_setup (struct net_device *dev)
         EMAC_ERR("Var init fail!!\n");
         return FALSE;
     }
-    skb_queue_create(&(hemac->skb_queue_tx), MHal_EMAC_TXQ_Size(hemac->hal), MHal_EMAC_TXQ_Size(hemac->hal)+ hemac->txq_num_sw);
 
     // dev->base_addr = (long) (EMAC_RIU_REG_BASE+REG_BANK_EMAC0*0x200); // seems useless
 
@@ -3966,6 +4048,9 @@ static int MDev_EMAC_setup (struct net_device *dev)
 #if (0 == MSTAR_EMAC_NAPI)
     spin_lock_init(&hemac->mutexRXInt);
 #endif
+    //spin_lock_irqsave(&hemac->mutexTXQ, flags);
+    skb_queue_create(&(hemac->skb_queue_tx), MHal_EMAC_TXQ_Size(hemac->hal), MHal_EMAC_TXQ_Size(hemac->hal)+ hemac->txq_num_sw);
+    //spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
 
 #if EMAC_FLOW_CONTROL_TX
     spin_lock_init(&hemac->mutexFlowTX);
@@ -4120,7 +4205,9 @@ static int MDev_EMAC_SwReset(struct net_device *dev)
     oldCFG = MHal_EMAC_Read_CFG(hemac->hal);
     oldCTL = MHal_EMAC_Read_CTL(hemac->hal) & ~(EMAC_TE | EMAC_RE);
 
+    spin_lock_irqsave(&hemac->mutexTXQ, flags);
     skb_queue_reset(&(hemac->skb_queue_tx));
+    spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
     free_rx_skb(hemac); // @FIXME : how about RX descriptor
     netif_stop_queue (dev);
 
@@ -4558,6 +4645,7 @@ static int MDev_EMAC_init(struct platform_device *pdev)
     struct emac_handle *hemac;
     int ret;
     struct net_device* emac_dev = NULL;
+    unsigned long flags;
 
     emac_dev = alloc_etherdev(sizeof(*hemac));
     hemac = netdev_priv(emac_dev);
@@ -4705,7 +4793,9 @@ static int MDev_EMAC_init(struct platform_device *pdev)
     return 0;
 
 end:
+    spin_lock_irqsave(&hemac->mutexTXQ, flags);
     skb_queue_destroy(&(hemac->skb_queue_tx));
+    spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
     free_netdev(emac_dev);
     emac_dev = NULL;
     hemac->initstate = ETHERNET_TEST_INIT_FAIL;
@@ -4767,6 +4857,7 @@ static void MDev_EMAC_dts(struct net_device* netdev)
         // printk(KERN_ERR "[EMAC]Set emac_led_green=%d\n",led_data);
     }
 
+    // bank of emac & phy
     if (!of_address_to_resource(netdev->dev.of_node, 0, &res))
     {
         hemac->emacRIU = IO_ADDRESS(res.start);
@@ -4991,6 +5082,7 @@ static void MDev_EMAC_exit(struct platform_device *pdev)
     if (emac_dev)
     {
         struct emac_handle *hemac = (struct emac_handle *) netdev_priv(emac_dev);
+        unsigned long flags;
 
 #if EMAC_FLOW_CONTROL_TX
         // hemac->isPauseTX = 0;
@@ -5005,7 +5097,9 @@ static void MDev_EMAC_exit(struct platform_device *pdev)
         MDev_EMAC_mii_uninit(emac_dev);
 #endif
 
+        spin_lock_irqsave(&hemac->mutexTXQ, flags);
         skb_queue_destroy(&(hemac->skb_queue_tx));
+        spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
 
 	// printk("[%s][%d] free RX memory\n", __FUNCTION__, __LINE__);
         // mem_info.length = RBQP_SIZE;
@@ -5034,7 +5128,7 @@ static int mstar_emac_drv_suspend(struct platform_device *dev, pm_message_t stat
     // struct net_device *netdev=(struct net_device*)dev->dev.platform_data;
     struct net_device *netdev=(struct net_device*) platform_get_drvdata(dev);
     struct emac_handle *hemac;
-    u32 uRegVal;
+    unsigned long flags;
 
     // printk(KERN_INFO "mstar_emac_drv_suspend\n");
     if(!netdev)
@@ -5044,43 +5138,52 @@ static int mstar_emac_drv_suspend(struct platform_device *dev, pm_message_t stat
 
     hemac = (struct emac_handle*) netdev_priv(netdev);
     hemac->ep_flag |= EP_FLAG_SUSPENDING;
-    //netif_stop_queue (netdev);
-
+    netif_stop_queue (netdev);
 
     disable_irq(netdev->irq);
-    // del_timer(&hemac->timer_link);
-
-    //MHal_EMAC_Power_On_Clk(dev->dev);
-
+    //del_timer(&hemac->timer_link);
+/*
     //corresponds with resume call MDev_EMAC_open
 #if MSTAR_EMAC_NAPI
-    napi_disable(&hemac->napi);
+    if(napi_enable_flag == 1)
+        napi_disable(&hemac->napi);
+    napi_enable_flag = 0;
 #endif
-
+*/
     //Disable Receiver and Transmitter //
-    uRegVal = MHal_EMAC_Read_CTL(hemac->hal);
-    uRegVal &= ~(EMAC_TE | EMAC_RE);
-    MHal_EMAC_Write_CTL(hemac->hal, uRegVal);
+    MDev_EMAC_stop(netdev);
 
 #ifdef TX_SW_QUEUE
     //make sure that TX HW FIFO is empty
     while(TX_FIFO_SIZE!= MHal_EMAC_TXQ_Free(hemac->hal));
 #endif
+    while (!MHal_EMAC_TXQ_Empty(hemac->hal))
+    {
+        msleep(1);
+    }
 
     // Disable PHY interrupt //
     MHal_EMAC_disable_phyirq(hemac->hal);
 
-    // MHal_EMAC_Write_IDR(0xFFFFFFFF);
     MHal_EMAC_IntEnable(hemac->hal, 0xFFFFFFFF, 0);
 
-    MDev_EMAC_SwReset(netdev);
+    //MDev_EMAC_SwReset(netdev);
     MHal_EMAC_Power_Off_Clk(hemac->hal, &dev->dev);
 #ifdef TX_SW_QUEUE
     _MDev_EMAC_tx_reset_TX_SW_QUEUE(netdev);
 #endif
+    spin_lock_irqsave(&hemac->mutexTXQ, flags);
     skb_queue_reset(&(hemac->skb_queue_tx));
+    spin_unlock_irqrestore(&hemac->mutexTXQ, flags);
 
-    disable_irq(netdev->irq);
+    free_rx_skb(hemac);
+
+    phy_stop(netdev->phydev);
+
+    MDev_EMAC_RX_Desc_Reset(hemac);
+
+    //phy_link_adjust
+    hemac->bEthCfg = 0;
 
     return 0;
 }
@@ -5126,9 +5229,11 @@ static int mstar_emac_drv_resume(struct platform_device *dev)
     {
         if(0>MDev_EMAC_open(netdev))
         {
-            // printk(KERN_WARNING "Driver Emac: open failed after resume\n");
+            printk(KERN_WARNING "Driver Emac: open failed after resume\n");
         }
     }
+
+    MDev_EMAC_set_rx_mode(netdev);
 
     return 0;
 }
@@ -5163,6 +5268,15 @@ static int mstar_emac_drv_probe(struct platform_device *pdev)
          printk(KERN_ERR "[EMAC]Set emac_led_green=%d\n",led_data);
     }
 */
+
+#if INT_PHY_MDIX_PATCH
+    if(!strncmp(netdev->name, "eth0",strlen("eth0")))
+    {
+        INIT_DELAYED_WORK(&hemac->mdix_work, mdix_work_handle);
+        schedule_delayed_work(&hemac->mdix_work, msecs_to_jiffies(INT_PHY_MDIX_TIMER_MS));
+    }
+#endif
+
     if(hemac->led_orange!=-1)
     {
         MDrv_GPIO_Pad_Set(hemac->led_orange);

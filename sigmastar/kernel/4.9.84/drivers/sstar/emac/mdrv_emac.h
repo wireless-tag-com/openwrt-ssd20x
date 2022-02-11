@@ -44,6 +44,9 @@
 
 #define EXT_PHY_PATCH                1
 
+#define INT_PHY_MDIX_PATCH           0
+#define INT_PHY_MDIX_TIMER_MS        3000
+
 /////////////////////////////////
 // to be refined
 /////////////////////////////////
@@ -76,6 +79,11 @@
 //  Define Enable or Compiler Switches
 //-------------------------------------------------------------------------------------------------
 #define EMAC_MTU                            (1524)
+
+//Align Non-Fragment packets into the setting bytes. It should be power of 2. (1,2,4,8,...64)
+//Set 0 to disable this and use skb_clone() instead
+//Recommanded 64 bytes is for both EMAC 16 bytes and Cache line.
+#define TXQ_NF_PKT_ALIGN (64)
 
 //--------------------------------------------------------------------------------------------------
 //  Constant definition
@@ -223,7 +231,7 @@ struct _UtilityVarsEMAC
 typedef struct _UtilityVarsEMAC UtilityVarsEMAC;
 #endif
 
-struct emac_handle 
+struct emac_handle
 {
     struct net_device_stats stats;
 
@@ -231,7 +239,7 @@ struct emac_handle
     // unsigned long phy_type;             /* type of PHY (PHY_ID) */
 
     spinlock_t mutexNetIf;
-    spinlock_t mutexTXQ;  // spin_lock_bh¡]¡^ÉOspin_unlock_bh¡]¡^
+    spinlock_t mutexTXQ;  // spin_lock_bhÂ¡]Â¡^Ã‰Ospin_unlock_bhÂ¡]Â¡^
     spinlock_t mutexPhy;
 
     /* Transmit */
@@ -262,6 +270,9 @@ struct emac_handle
 
     u32 txd_num;
     u32 txq_num_sw;
+
+    // mdix workqueue
+    struct delayed_work mdix_work;
 
     // led gpio
     int led_orange;

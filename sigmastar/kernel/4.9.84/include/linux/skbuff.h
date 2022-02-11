@@ -222,7 +222,8 @@
 /* Maximum value in skb->csum_level */
 #define SKB_MAX_CSUM_LEVEL	3
 
-#define SKB_DATA_ALIGN(X)	ALIGN(X, SMP_CACHE_BYTES)
+//#define SKB_DATA_ALIGN(X)	ALIGN(X, SMP_CACHE_BYTES)
+#define SKB_DATA_ALIGN(X)	ALIGN(X, 256)
 #define SKB_WITH_OVERHEAD(X)	\
 	((X) - SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define SKB_MAX_ORDER(X, ORDER) \

@@ -896,4 +896,9 @@ typedef struct MI_VENC_SmartDetInfo_s
     MI_U8                  u8ProtectFrmNum;
 } MI_VENC_SmartDetInfo_t;
 
+typedef struct MI_VENC_InitParam_s
+{
+    MI_U32 u32MaxWidth;
+    MI_U32 u32MaxHeight;
+}MI_VENC_InitParam_t;
 #endif /* End of #ifndef __MI_VENC_DATATYPE_ */

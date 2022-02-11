@@ -60,8 +60,22 @@ static struct timer_list monitor_timer;
 #endif
 static int bMiuProtect_is_initialized = 0;
 
+#ifdef CONFIG_MP_CMA_PATCH_DEBUG_STATIC_MIU_PROTECT
+static int MiuSelId[MIU_MAX_DEVICE] = {0};
+#endif
+
 static DEFINE_SPINLOCK(miu_lock);
 MS_U8 u8_MiuWhiteListNum = 0;
+
+
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_MP_CMA_PATCH_DEBUG_STATIC_MIU_PROTECT
+static unsigned int miu_irq = 0;
+#endif
+#ifdef CONFIG_MMU_INTERRUPT_ENABLE
+static unsigned int mmu_irq = 0;
+#endif
+#endif
 
 //-------------------------------------------------------------------------------------------------
 //  Local functions
@@ -202,6 +216,7 @@ MS_BOOL MDrv_MIU_Protect(   MS_U8   u8Blockx,
 #ifdef CONFIG_MP_CMA_PATCH_DEBUG_STATIC_MIU_PROTECT
         struct device_node  *dev_node = NULL;
         int rc = 0;
+        MS_U8 u8MiuSel = 0;
         int iIrqNum = 0;
         dev_node = of_find_compatible_node(NULL, NULL, "sstar,miu");
         if (!dev_node)
@@ -213,12 +228,19 @@ MS_BOOL MDrv_MIU_Protect(   MS_U8   u8Blockx,
 
         iIrqNum = irq_of_parse_and_map(dev_node, 0);
 
-        if(0 != (rc = request_irq(iIrqNum, MDrv_MIU_Protect_interrupt, IRQF_TRIGGER_HIGH, "MIU_Protect", NULL)))
+        MiuSelId[u8MiuSel] = u8MiuSel;
+
+        if(0 != (rc = request_irq(iIrqNum, MDrv_MIU_Protect_interrupt, IRQF_TRIGGER_HIGH, "MIU_Protect", (void *)&MiuSelId[u8MiuSel])))
         {
             printk("[MIU Protecrt] request_irq [%d] Fail, Err:%d\r\n", iIrqNum, rc);
             Result = FALSE;
             goto MDrv_MIU_Protect_Exit;
         }
+
+#ifdef CONFIG_PM_SLEEP
+        miu_irq = iIrqNum;
+#endif
+
 #else
         init_timer(&monitor_timer);
         monitor_timer.function = MDev_timer_callback;
@@ -475,6 +497,11 @@ int MDrv_MMU_Enable(unsigned char u8Enable)
         {
             printk("[MMU] request_irq [%d] Fail, Err:%d\r\n", iIrqNum, rc);
         }
+#ifdef CONFIG_PM_SLEEP
+        else {
+            mmu_irq = iIrqNum;
+        }
+#endif
         mmu_isr_init = 1;
     }
 #endif
@@ -536,8 +563,38 @@ static int mstar_miu_drv_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int mstar_miu_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
+
+    if (bMiuProtect_is_initialized)
+    {
+#ifdef CONFIG_MP_CMA_PATCH_DEBUG_STATIC_MIU_PROTECT
+        if (miu_irq)
+        {
+            disable_irq(miu_irq);
+            free_irq(miu_irq, (void *)&MiuSelId[0]);
+            miu_irq = 0;
+        }
+#else
+        del_timer(&monitor_timer);
+#endif
+        bMiuProtect_is_initialized = 0;
+    }
+
+#ifdef CONFIG_MMU_INTERRUPT_ENABLE
+    if (mmu_isr_init)
+    {
+        if (mmu_irq)
+        {
+            disable_irq(mmu_irq);
+            free_irq(mmu_irq, NULL);
+            mmu_irq = 0;
+        }
+        mmu_isr_init = 0;
+    }
+#endif
+
     return 0;
 }
 
@@ -545,25 +602,24 @@ static int mstar_miu_drv_resume(struct platform_device *dev)
 {
     return 0;
 }
+#endif
 
-#if defined (CONFIG_ARM64)
 static struct of_device_id mstarmiu_of_device_ids[] = {
-     {.compatible = "sstar-miu"},
+     {.compatible = "sstar,miu"},
      {},
 };
-#endif
 
 static struct platform_driver Sstar_miu_driver = {
     .probe      = mstar_miu_drv_probe,
     .remove     = mstar_miu_drv_remove,
+#ifdef CONFIG_PM_SLEEP
     .suspend    = mstar_miu_drv_suspend,
     .resume     = mstar_miu_drv_resume,
-    .driver = {
-    .name   = "Sstar-miu",
-#if defined(CONFIG_ARM64)
-    .of_match_table = mstarmiu_of_device_ids,
 #endif
-    .owner  = THIS_MODULE,
+    .driver = {
+        .name   = "sstar-miu",
+        .of_match_table = mstarmiu_of_device_ids,
+        .owner  = THIS_MODULE,
     }
 };
 

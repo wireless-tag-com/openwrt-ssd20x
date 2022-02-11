@@ -500,6 +500,7 @@ struct ehci_iso_stream {
 
 	u8			bEndpointAddress;
 	u8			highspeed;
+
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
 

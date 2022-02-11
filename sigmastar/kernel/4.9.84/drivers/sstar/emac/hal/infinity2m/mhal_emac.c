@@ -187,6 +187,7 @@ static int _MHal_EMAC_ext_write(void* hal, u8 phy_addr, u32 addr, u32 val);
 static int _MHal_EMAC_ext_read(void* hal, u8 phy_addr, u32 addr, u32* val);
 static void _MHal_EMAC_ext_clk_on(void* hal);
 static void _MHal_EMAC_ext_clk_off(void* hal);
+static int _MHal_EMAC_DPHY_REINIT(void* hal);
 
 //-------------------------------------------------------------------------------------------------
 //  Local variables
@@ -1217,12 +1218,114 @@ void MHal_EMAC_TX_10MB_lookUp_table( void )
 #endif
 */
 
+//----------------------------------------------------------------
+// Reset digital phy when status is not good.
+// uRegVal_7E & uRegVal_A5 : check phy reset completed or not.
+// uRegVal_8x : digital phy status value.
+// uRegVal_9x : analog phy status value.
+//----------------------------------------------------------------
+static int _MHal_EMAC_DPHY_REINIT(void* hal)
+{
+    mhal_emac_t* pHal = (mhal_emac_t*) hal;
+
+    int i = 0;
+    u8 uRegVal_7E;
+    u8 uRegVal_A5;
+    u8 uRegVal_8C, uRegVal_8D;
+    s16 uRegVal_8x;
+    u8 uRegVal_94, uRegVal_95;
+    u16 uRegVal_9x;
+    u8 uRegVal_04;
+    u8 cntGood = 0, cntBad = 0;
+    u8 reset_cnt = 0;
+
+    for(i=0; i<100; i++)
+    {
+        mdelay(1);
+        uRegVal_7E = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x7E); //1515 3f
+        uRegVal_7E = uRegVal_7E & 0x0F;
+        uRegVal_A5 = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0xA5); //1515 52
+        uRegVal_A5 = uRegVal_A5 & 0x07;
+
+        // check phy reset completed or not
+        if(uRegVal_7E == 0x08 && uRegVal_A5 == 0x07)
+        {
+            MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x88, 0x00); //1515 44
+            MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x89, 0x60);
+
+            uRegVal_8C = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x8C); //1515 46
+            uRegVal_8D = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x8D); //1515 46
+
+            MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x88, 0x00); //1515 44
+            MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x89, 0x50);
+
+            uRegVal_8x = uRegVal_8D << 8 | uRegVal_8C;
+            if((uRegVal_8x & 0x0400) != 0)
+                uRegVal_8x = uRegVal_8x | 0xF800;
+
+            uRegVal_94 = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x94); //1515 4A
+            uRegVal_95 = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x95); //1515 4A
+
+            uRegVal_9x = uRegVal_95 << 8 | uRegVal_94;
+
+            printk("[EMAC] uRegVal_8x: %d, uRegVal_9x: %d \n", uRegVal_8x, uRegVal_9x);
+
+            if((uRegVal_8x > -128 && uRegVal_8x < 128) && (uRegVal_9x > 0 && uRegVal_9x < 150))
+            {
+                cntGood++;
+                cntBad = 0;
+                if(cntGood > 5)
+                {
+                    cntBad = 0;
+                    cntGood = 0;
+                    break;
+                }
+                mdelay(1);
+            }
+            else
+            {
+                //printk("[EMAC] uRegVal_8x: %d, uRegVal_9x: %d \n", uRegVal_8x, uRegVal_9x);
+
+                // Reduce noise power threshold & tune setting of lpf_k1/ffe_error_scale
+                MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x90, 0x00); //1515_48: 0x0000
+                MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x91, 0x00);
+                MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x76, 0x00); //1515_3b: 0x0800
+                MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x77, 0x08);
+                MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x10, 0x53); //1515_08: 0x0053
+                MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x11, 0x00);
+
+                // if cntBad++ continuously, then dphy reset.
+                cntBad++;
+                cntGood = 0;
+                if(cntBad > 3)
+                {
+                    cntBad = 0;
+                    cntGood = 0;
+                    uRegVal_04 = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x04);
+                    uRegVal_04 = uRegVal_04 | 0x08;
+                    MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x04, uRegVal_04); //1515 02
+                    mdelay(1);
+                    uRegVal_04 = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x04);
+                    uRegVal_04 = uRegVal_04 & ~0x08;
+                    MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY1, 0x04, uRegVal_04); //1515 02
+                    mdelay(100);
+                    reset_cnt++;
+                }
+                mdelay(1);
+            }
+        }
+    }
+
+    return reset_cnt;
+}
+
 //-------------------------------------------------------------------------------------------------
 // Update MAC speed and H/F duplex
 //-------------------------------------------------------------------------------------------------
 void MHal_EMAC_update_speed_duplex(void* hal, int speed, int duplex )
 {
     u32 xval;
+    mhal_emac_t* pHal = (mhal_emac_t*) hal;
 
     xval = MHal_EMAC_ReadReg32(hal, REG_ETH_CFG ) & ~( EMAC_SPD | EMAC_FD );
 
@@ -1252,6 +1355,14 @@ void MHal_EMAC_update_speed_duplex(void* hal, int speed, int duplex )
         // PATCH for rx receive 256 byte packet only SPEED_10
         MHal_EMAC_Set_Pipe_Line_Delay(hal, 0);
     }
+
+    if(pHal->phy_mode!=PHY_INTERFACE_MODE_RMII)
+    {
+        int reinit_cnt;
+        reinit_cnt = _MHal_EMAC_DPHY_REINIT(hal);
+        //printk("[EMAC] DPHY retrain %d times \n", reinit_cnt);
+    }
+
     MHal_EMAC_WritReg32(hal, REG_ETH_CFG, xval );
 }
 
@@ -2636,4 +2747,29 @@ void MHal_EMAC_Phy_Restart_An(void* hal)
     MHal_EMAC_WritReg16(pHal->phyRIU, REG_BANK_ALBANY0, 0x00, 0x0000);
     udelay( 1 );
     MHal_EMAC_WritReg16(pHal->phyRIU, REG_BANK_ALBANY0, 0x00, 0x1000);
+}
+
+//-------------------------------------------------------------------------------------------------
+//  MDI/MDIX Manual Switch
+//-------------------------------------------------------------------------------------------------
+u32 MHal_EMAC_Phy_MDI_MDIX(void* hal, int bSwitch)
+{
+    u8 uRegVal = 0;
+    mhal_emac_t* pHal = (mhal_emac_t*) hal;
+
+    if(bSwitch)
+    {
+        uRegVal = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY0, 0x87);
+        uRegVal |= BIT3 | BIT4;
+        MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY0, 0x87, uRegVal);
+    }
+    else
+    {
+        uRegVal = MHal_EMAC_ReadReg8(pHal->phyRIU, REG_BANK_ALBANY0, 0x87);
+        uRegVal |= BIT4;
+        uRegVal &= ~BIT3;
+        MHal_EMAC_WritReg8(pHal->phyRIU, REG_BANK_ALBANY0, 0x87, uRegVal);
+    }
+
+    return 0;
 }

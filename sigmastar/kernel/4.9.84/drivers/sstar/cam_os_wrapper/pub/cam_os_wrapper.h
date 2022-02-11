@@ -55,6 +55,7 @@ typedef signed   long long  s64;
 #include "cam_os_util_bitmap.h"
 #include "cam_os_util_ioctl.h"
 #include "cam_os_util_string.h"
+#include "cam_os_struct.h"
 
 #define CAM_OS_MAX_TIMEOUT ((u32)(~0U))
 #define CAM_OS_MAX_INT     ((s32)(~0U>>1))
@@ -96,27 +97,27 @@ typedef enum
 
 typedef struct
 {
-    u32 nPriv[11];
+    u32 nPriv[CAM_OS_MUTEX_SIZE];
 } CamOsMutex_t;
 
 typedef struct
 {
-    u32 nPriv[16];
+    u32 nPriv[CAM_OS_TSEM_SIZE];
 } CamOsTsem_t;
 
 typedef struct
 {
-    u32 nPriv[20];
+    u32 nPriv[CAM_OS_RWTSEM_SIZE];
 } CamOsRwsem_t;
 
 typedef struct
 {
-    u32 nPriv[20];
+    u32 nPriv[CAM_OS_TCOND_SIZE];
 } CamOsTcond_t;
 
 typedef struct
 {
-    u32 nPriv[6];
+    u32 nPriv[CAM_OS_SPINLOCK_SIZE];
 }CamOsSpinlock_t;
 
 typedef struct
@@ -134,12 +135,12 @@ typedef struct
 
 typedef struct
 {
-    u32 nPriv[8];
+    u32 nPriv[CAM_OS_TIMER_SIZE];
 } CamOsTimer_t;
 
 typedef struct
 {
-    u32 nPriv[2];
+    u32 nPriv[CAM_OS_MEMCACHE_SIZE];
 } CamOsMemCache_t;
 
 typedef struct
@@ -149,7 +150,7 @@ typedef struct
 
 typedef struct
 {
-    u32 nPriv[20];
+    u32 nPriv[CAM_OS_IDR_SIZE];
 } CamOsIdr_t;
 
 typedef void * CamOsThread;
@@ -835,6 +836,18 @@ void* CamOsMemAlloc(u32 nSize);
 
 //=============================================================================
 // Description:
+//      Allocates a block of nSize bytes of memory without sleep, returning a
+//      pointer to the beginning of the block.
+// Parameters:
+//      [in]  nSize: Size of the memory block, in bytes.
+// Return:
+//      On success, a pointer to the memory block allocated by the function. If
+//      failed to allocate, a null pointer is returned.
+//=============================================================================
+void* CamOsMemAllocAtomic(u32 nSize);
+
+//=============================================================================
+// Description:
 //      Allocates a block of memory for an array of nNum elements, each of them
 //      nSize bytes long, and initializes all its bits to zero.
 // Parameters:
@@ -845,6 +858,19 @@ void* CamOsMemAlloc(u32 nSize);
 //      failed to allocate, a null pointer is returned.
 //=============================================================================
 void* CamOsMemCalloc(u32 nNum, u32 nSize);
+
+//=============================================================================
+// Description:
+//      Allocates a block of memory for an array of nNum elements without sleep,
+//      each of them nSize bytes long, and initializes all its bits to zero.
+// Parameters:
+//      [in]  nNum: Number of elements to allocate.
+//      [in]  nSize: Size of each element.
+// Return:
+//      On success, a pointer to the memory block allocated by the function. If
+//      failed to allocate, a null pointer is returned.
+//=============================================================================
+void* CamOsMemCallocAtomic(u32 nNum, u32 nSize);
 
 //=============================================================================
 // Description:
@@ -860,6 +886,21 @@ void* CamOsMemCalloc(u32 nNum, u32 nSize);
 //      as pPtr or a new location.
 //=============================================================================
 void* CamOsMemRealloc(void* pPtr, u32 nSize);
+
+//=============================================================================
+// Description:
+//      Changes the size of the memory block pointed to by pPtr without sleep.
+//      The function may move the memory block to a new location (whose address
+//      is returned by the function).
+// Parameters:
+//      [in]  pPtr: Pointer to a memory block previously allocated with
+//                  CamOsMemAlloc, CamOsMemCalloc or CamOsMemRealloc.
+//      [in]  nSize: New size for the memory block, in bytes.
+// Return:
+//      A pointer to the reallocated memory block, which may be either the same
+//      as pPtr or a new location.
+//=============================================================================
+void* CamOsMemReallocAtomic(void* pPtr, u32 nSize);
 
 //=============================================================================
 // Description:
@@ -1051,6 +1092,17 @@ void CamOsMemCacheDestroy(CamOsMemCache_t *ptMemCache);
 //      failed to allocate, a null pointer is returned.
 //=============================================================================
 void *CamOsMemCacheAlloc(CamOsMemCache_t *ptMemCache);
+
+//=============================================================================
+// Description:
+//      Allocate a memory block(object) from this memory cache without sleep.
+// Parameters:
+//      [in]  ptMemCache: The cache to be allocated.
+// Return:
+//      On success, a pointer to the memory block allocated by the function. If
+//      failed to allocate, a null pointer is returned.
+//=============================================================================
+void *CamOsMemCacheAllocAtomic(CamOsMemCache_t *ptMemCache);
 
 //=============================================================================
 // Description:

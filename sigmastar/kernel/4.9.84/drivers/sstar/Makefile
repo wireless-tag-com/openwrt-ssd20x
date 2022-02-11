@@ -49,3 +49,4 @@ obj-$(CONFIG_VCORE_DVFS) += vcore_dvfs/
 obj-$(CONFIG_MS_IOPOWER) += iopower/
 obj-y += cpu/
 obj-$(CONFIG_USB_GADGET_SSTAR_DEVICE) += usb/gadget/udc/usb20/
+obj-y += wakeup_source/

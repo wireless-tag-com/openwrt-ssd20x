@@ -35,7 +35,8 @@ LIB_HEADERS := \
     ./pub/cam_os_util_bitmap.h \
     ./pub/cam_os_util_bug.h \
     ./pub/cam_os_util_ioctl.h \
-    ./pub/cam_os_util_string.h
+    ./pub/cam_os_util_string.h \
+    ./pub/cam_os_struct.h
 
 CORE_LIB_C_OBJS := $(patsubst %.c, %.c.o,  $(CORE_LIB_C_SRCS))
 

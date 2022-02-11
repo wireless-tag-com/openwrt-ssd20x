@@ -34,6 +34,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/memory.h>
+#ifdef CONFIG_PM_SLEEP
+#include <linux/memblock.h>
+#endif
 #include <asm/io.h>
 #include <asm/mach/map.h>
 #include "gpio.h"
@@ -42,7 +45,7 @@
 #include "ms_platform.h"
 #include "ms_types.h"
 #include "_ms_private.h"
-
+#include "ms_msys.h"
 /* IO tables */
 static struct map_desc mstar_io_desc[] __initdata =
 {
@@ -911,6 +914,11 @@ static inline void __init mstar_init_late(void)
 static void global_reset(enum reboot_mode mode, const char * cmd)
 {
     U16 i=0;
+
+#ifdef CONFIG_REBOOT_DDR_SELFREFRESH
+    pm_suspend(PM_SUSPEND_MEM);
+#endif
+
 #if 0
     //fsp
     //Check flash status
@@ -943,6 +951,8 @@ static void global_reset(enum reboot_mode mode, const char * cmd)
     }while((INREG16(0x1f001014) & 0x1) != 0x0);//check WIP=0
 #endif
 
+    msys_set_rebootType(MSYS_REBOOT_BY_SW_RST);
+
     while(1)
     {
         OUTREG8(0x1f221000, 0x30+i);
@@ -950,6 +960,14 @@ static void global_reset(enum reboot_mode mode, const char * cmd)
         OUTREG8(0x1f001cb8, 0x79);
     }
 }
+
+#ifdef CONFIG_PM_SLEEP
+static void __init mstar_pm_reserve(void)
+{
+    // reserve one page in the beginning of dram
+    memblock_reserve(MIU0_BASE, PAGE_SIZE);
+}
+#endif
 
 #ifdef CONFIG_SMP
 extern struct smp_operations infinity2m_smp_ops;
@@ -964,6 +982,9 @@ DT_MACHINE_START(MS_DT, "SStar Soc (Flattened Device Tree)")
 //    .init_irq = mstar_init_irqchip,
     .init_late = mstar_init_late,
     .restart = global_reset,
+#ifdef CONFIG_PM_SLEEP
+    .reserve = mstar_pm_reserve,
+#endif
 #ifdef CONFIG_SMP
     .smp        = smp_ops(infinity2m_smp_ops),
 #endif

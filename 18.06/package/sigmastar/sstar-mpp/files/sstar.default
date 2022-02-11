@@ -40,7 +40,7 @@ sstar_name=$(sstar_board_name)
 
 case "$sstar_name" in
 "WT2022" | "WT2011" | "WT2020")
-	ucidef_set_sstar_audio 1 14
+	ucidef_set_sstar_audio 0 14
 	ucidef_set_sstar_video pwm0 0 0
 	;;
 *)

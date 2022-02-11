@@ -88,4 +88,11 @@ typedef struct MI_SHADOW_RegisterDevParams_s
     void *pUsrData;
     MI_U8 *pDumpBuf;
 } MI_SHADOW_RegisterDevParams_t;
+
+typedef struct MI_SHADOW_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_SHADOW_InitParam_t;
+
 #endif ///_MI_SHADOW_DATATYPE_H_

@@ -43,6 +43,13 @@ typedef struct MI_LDC_OutputPortAttr_s
     MI_SYS_PixelFormat_e  ePixelFmt;
 } MI_LDC_OutputPortAttr_t;
 
+typedef struct MI_LDC_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_LDC_InitParam_t;
+
+
 #define MI_LDC_OK                      MI_DEF_ERR(E_MI_MODULE_ID_LDC, E_MI_ERR_LEVEL_INFO, MI_SUCCESS)
 #define MI_ERR_LDC_ILLEGAL_PARAM       MI_DEF_ERR(E_MI_MODULE_ID_LDC, E_MI_ERR_LEVEL_ERROR, E_MI_ERR_ILLEGAL_PARAM)
 #define MI_ERR_LDC_NULL_PTR            MI_DEF_ERR(E_MI_MODULE_ID_LDC, E_MI_ERR_LEVEL_ERROR, E_MI_ERR_NULL_PTR)

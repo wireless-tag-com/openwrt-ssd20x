@@ -108,6 +108,8 @@ MI_S32 MI_VENC_ReleaseHistoStaticInfo(MI_VENC_CHN VeChn);
 MI_S32 MI_VENC_SetAdvCustRcAttr(MI_VENC_CHN VeChn, MI_VENC_AdvCustRcAttr_t *pstAdvCustRcAttr);
 MI_S32 MI_VENC_SetSmartDetInfo(MI_VENC_CHN VeChn, MI_VENC_SmartDetInfo_t *pstSmartDetInfo);
 
+MI_S32 MI_VENC_InitDev(MI_VENC_InitParam_t *pstInitParam);
+MI_S32 MI_VENC_DeInitDev(void);
 #ifdef __cplusplus
 }
 #endif

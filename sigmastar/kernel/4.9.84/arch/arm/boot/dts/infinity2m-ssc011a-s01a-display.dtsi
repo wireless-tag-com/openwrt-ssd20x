@@ -114,7 +114,7 @@
             micin-pregain-level=<0>;    //0~3
             micin-gain-level=<3>;    //0~7
             linein-gain-level=<2>;  //0~7
-            amp-gpio = <PAD_FUART_RX 1>;
+            amp-gpio = <PAD_GPIO12 1 PAD_UNKNOWN 1>;
             clocks = <&CLK_upll_384m>;
            // playback-dma-buffer=<98304>; //512(ms)*48(kHz)*2(ch)*2(16bits)
            // capture-dma-buffer=<122880>; //640(ms)*48(kHz)*2(ch)*2(16bits)

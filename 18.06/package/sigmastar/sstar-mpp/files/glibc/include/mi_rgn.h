@@ -44,6 +44,8 @@ MI_S32 MI_RGN_GetDisplayAttr(MI_RGN_HANDLE hHandle, MI_RGN_ChnPort_t *pstChnPort
 MI_S32 MI_RGN_GetCanvasInfo(MI_RGN_HANDLE hHandle, MI_RGN_CanvasInfo_t* pstCanvasInfo);
 MI_S32 MI_RGN_UpdateCanvas(MI_RGN_HANDLE hHandle);
 MI_S32 MI_RGN_ScaleRect(MI_RGN_ChnPort_t *pstChnPort, MI_RGN_Size_t *pstCanvasSize, MI_RGN_Size_t *pstScreenSize);
+MI_S32 MI_RGN_InitDev(MI_RGN_InitParam_t *pstInitParam);
+MI_S32 MI_RGN_DeInitDev(void);
 
 
 #ifdef __cplusplus

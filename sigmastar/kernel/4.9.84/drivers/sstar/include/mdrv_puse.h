@@ -191,6 +191,7 @@
 
 // Audio
 #define MDRV_PUSE_AIO_AMP_PWR                   0x000F0000
-#define MDRV_PUSE_AIO_MCK                       0x000F0001
+#define MDRV_PUSE_AIO_AMP_PWL                   0x000F0001
+#define MDRV_PUSE_AIO_MCK                       0x000F0002
 
 #endif // #define __MDRV_PUSE_H__

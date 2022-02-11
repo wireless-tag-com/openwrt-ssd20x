@@ -46,10 +46,17 @@
 extern int infinity2m_platform_cpu_kill(unsigned int cpu);
 extern void infinity2m_platform_cpu_die(unsigned int cpu);
 extern int infinity2m_platform_cpu_disable(unsigned int cpu);
-
+extern void infinity2m_secondary_startup(void);
+void infinity2m_smp_init_cpus(void);
+void infinity2m_smp_prepare_cpus(unsigned int max_cpus);
 //extern volatile int __cpuinitdata pen_release;
 extern volatile int pen_release;
 extern void Chip_Flush_CacheAll(void);
+
+#ifdef CONFIG_PM_SLEEP
+extern int suspend_status;
+#endif
+
 
 //#define SCU_PHYS 0x16000000 /*Cedric*/
 #define SCU_PHYS 0x16000000 /*MACAN*/ // SCU PA = 0x16004000
@@ -114,7 +121,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 		/*
 		 * here's the WFI
 		 */
-		asm(".word	0xe320f003\n"
+		asm("wfi\n"
 		    :
 		    :
 		    : "memory", "cc");
@@ -270,6 +277,14 @@ int infinity2m_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	do{
 		OUTREG16(SECOND_MAGIC_NUMBER_ADDR, 0xBABE);
 	}while(INREG16(SECOND_MAGIC_NUMBER_ADDR)!=0xBABE);
+
+#ifdef CONFIG_PM_SLEEP
+         if (suspend_status) {
+                 infinity2m_smp_init_cpus();
+                 infinity2m_smp_prepare_cpus(2);
+         }
+#endif
+
 	/*
 	 * Send the secondary CPU a soft interrupt, thereby causing
 	 * the boot monitor to read the system wide flags register,
@@ -291,7 +306,11 @@ int infinity2m_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);
-
+#ifdef CONFIG_PM_SLEEP
+         if (suspend_status) {
+                 suspend_status = 0;
+         }
+#endif
 	return pen_release != -1 ? -ENOSYS : 0;
 }
 

@@ -20,8 +20,10 @@ bool irq_pm_check_wakeup(struct irq_desc *desc)
 		irqd_clear(&desc->irq_data, IRQD_WAKEUP_ARMED);
 		desc->istate |= IRQS_SUSPENDED | IRQS_PENDING;
 		desc->depth++;
+    #ifndef CONFIG_SS_PM_WAKEUP_PATCH
 		irq_disable(desc);
 		pm_system_irq_wakeup(irq_desc_get_irq(desc));
+    #endif
 		return true;
 	}
 	return false;

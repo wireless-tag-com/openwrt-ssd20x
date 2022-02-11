@@ -114,13 +114,14 @@
 
 
 #define REG_CLK_IP_SDIO (0x45)
-
+#define REG_CKG_CLK     (0x25)
 
 #define pr_sd_err(fmt, arg...)  printk(fmt, ##arg)
 
 static volatile U16_T _gu16PowerPadNumForEachIp[IP_TOTAL] = {PAD_UNKNOWN};
 static volatile U16_T _gu16CdzPadNumForEachIp[IP_TOTAL] = {PAD_UNKNOWN};
 
+extern u32 gu32_SlotEnPwrHighValid[3];
 
 //***********************************************************************************************************
 // IP Setting for Card Platform
@@ -523,6 +524,38 @@ void Hal_CARD_SetClock(IpOrder eIP, U32_T u32ClkFromIPSet)
     }
 }
 
+#ifdef CONFIG_PM_SLEEP
+//***********************************************************************************************************
+// Get pm clock from Card Platform
+//***********************************************************************************************************
+void Hal_CARD_devpm_GetClock(IpOrder eIP, U32_T *pu32PmIPClk, U32_T *pu32PmBlockClk)
+{
+    IpSelect eIpSel = (IpSelect)eIP;
+
+    *pu32PmBlockClk = CARD_REG(GET_CARD_REG_ADDR(A_SC_GP_CTRL_BANK, REG_CKG_CLK));
+
+    if (eIpSel == IP_SDIO)
+    {
+        *pu32PmIPClk = CARD_REG(GET_CARD_REG_ADDR(A_CLKGEN_BANK, REG_CLK_IP_SDIO));
+    }
+}
+
+//***********************************************************************************************************
+// Set pm clock to Card Platform
+//***********************************************************************************************************
+void Hal_CARD_devpm_setClock(IpOrder eIP, U32_T u32PmIPClk, U32_T u32PmBlockClk)
+{
+    IpSelect eIpSel = (IpSelect)eIP;
+
+    CARD_REG(GET_CARD_REG_ADDR(A_SC_GP_CTRL_BANK, REG_CKG_CLK)) = u32PmBlockClk;
+
+    if (eIpSel == IP_SDIO)
+    {
+        CARD_REG(GET_CARD_REG_ADDR(A_CLKGEN_BANK, REG_CLK_IP_SDIO)) = u32PmIPClk;
+    }
+}
+#endif
+
 U32_T Hal_CARD_FindClockSetting(IpOrder eIP, U32_T u32ReffClk)
 {
     U8_T  u8LV = 0;
@@ -569,7 +602,10 @@ void Hal_CARD_PowerOn(IpOrder eIP, U16_T u16DelayMs)
 #if (GPIO_SET == GPIO_SET_BY_FUNC)
 
     // Whatever mdrv_padmux_active is ON or OFF, just do GPIO_set.
-    MDrv_GPIO_Set_Low(nPadNo);
+    if(gu32_SlotEnPwrHighValid[eIP])
+        MDrv_GPIO_Set_High(nPadNo);
+    else
+        MDrv_GPIO_Set_Low(nPadNo);
 
 #else
 
@@ -577,12 +613,18 @@ void Hal_CARD_PowerOn(IpOrder eIP, U16_T u16DelayMs)
     {
         case PAD_TTL0:
             CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT05_T);   // output mode
-            CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT04_T);   // output:0
+            if(gu32_SlotEnPwrHighValid[eIP])
+                CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT04_T);   // output:1
+            else
+                CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT04_T);   // output:0
             break;
 
         case PAD_GPIO0:
             CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT05_T);   // output mode
-            CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT04_T);   // output:0
+            if(gu32_SlotEnPwrHighValid[eIP])
+                CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT04_T);   // output:1
+            else
+                CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT04_T);   // output:0
             break;
 
         default:
@@ -618,7 +660,10 @@ void Hal_CARD_PowerOff(IpOrder eIP, U16_T u16DelayMs)
 #if (GPIO_SET == GPIO_SET_BY_FUNC)
 
     // Whatever mdrv_padmux_active is ON or OFF, just do GPIO_set.
-    MDrv_GPIO_Set_High(nPadNo);
+    if(gu32_SlotEnPwrHighValid[eIP])
+        MDrv_GPIO_Set_Low(nPadNo);
+    else
+        MDrv_GPIO_Set_High(nPadNo);
 
 #else
 
@@ -626,12 +671,18 @@ void Hal_CARD_PowerOff(IpOrder eIP, U16_T u16DelayMs)
     {
         case PAD_TTL0:
             CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT05_T);   // output mode
-            CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT04_T);   // output:1
+            if(gu32_SlotEnPwrHighValid[eIP])
+                CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT04_T);   // output:0
+            else
+                CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x20), BIT04_T);   // output:1
             break;
 
         case PAD_GPIO0:
             CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT05_T);   // output mode
-            CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT04_T);   // output:1
+            if(gu32_SlotEnPwrHighValid[eIP])
+                CARD_REG_CLRBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT04_T);   // output:0
+            else
+                CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PADTOP_BANK, 0x00), BIT04_T);   // output:1
             break;
 
         default:
@@ -671,7 +722,16 @@ void Hal_CARD_ConfigCdzPad(IpOrder eIP, U16_T nPadNum) // Hal_CARD_InitGPIO
 
     if (0 == mdrv_padmux_active())
     {
-        MDrv_GPIO_PadVal_Set(nPadNo, PINMUX_FOR_GPIO_MODE);
+        // This is a special case, SD_CDZ mode ON/OFF status will use different GIC path.
+        // We must switch ON - SD_CDZ mode
+        if (nPadNo == PAD_PM_SD_CDZ)
+        {
+            MDrv_GPIO_PadVal_Set(nPadNo, PINMUX_FOR_PM_SD_CDZ_MODE);
+        }
+        else
+        {
+            MDrv_GPIO_PadVal_Set(nPadNo, PINMUX_FOR_GPIO_MODE);
+        }
     }
 
 #else
@@ -693,7 +753,11 @@ void Hal_CARD_ConfigCdzPad(IpOrder eIP, U16_T nPadNum) // Hal_CARD_InitGPIO
 // GPIO
 #if (GPIO_SET == GPIO_SET_BY_FUNC)
     // Whatever mdrv_padmux_active is ON or OFF, just set it to input mode.
+#if 1 // Harry test
+    MDrv_GPIO_Pad_Oen(nPadNo);
+#else
     MDrv_GPIO_Pad_Odn(nPadNo);
+#endif
 #else
 
     switch (nPadNo)
@@ -709,13 +773,6 @@ void Hal_CARD_ConfigCdzPad(IpOrder eIP, U16_T nPadNum) // Hal_CARD_InitGPIO
     }
 
 #endif
-
-    // This is a special case, SD_CDZ mode ON/OFF status will use different GIC path.
-    // We must switch ON - SD_CDZ mode
-    if (nPadNo == PAD_PM_SD_CDZ)
-    {
-        CARD_REG_SETBIT(GET_CARD_REG_ADDR(A_PM_SLEEP_BANK, 0x28), BIT14_T); //SD_CDZ mode en
-    }
 
     // Save CDZ PadNum
     _gu16CdzPadNumForEachIp[(U16_T)eIpSel] = nPadNo;

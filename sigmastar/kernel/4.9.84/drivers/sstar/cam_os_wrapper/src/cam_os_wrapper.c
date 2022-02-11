@@ -113,19 +113,27 @@ typedef struct
     u32 nObjSize;
 } CamOsMemCacheRtk_t, *pCamOsMemCacheRtk;
 
+typedef struct
+{
+    void **ppEntryPtr;
+    unsigned long *pBitmap;
+    unsigned long entry_num;
+} CamOsInformalIdr_t, *pCamOsInformalIdr;
+
 static Ms_Mutex_t _gtSelfInitLock = {0};
 static Ms_Mutex_t _gtMemLock = {0};
 
 static u32 _gTimeOfDayOffsetSec = 0;
 static u32 _gTimeOfDayOffsetNanoSec = 0;
 
-_Static_assert(sizeof(CamOsMutex_t) >= sizeof(Ms_Flag_t) + 4, "CamOsMutex_t size define not enough!");
+_Static_assert(sizeof(CamOsMutex_t) >= sizeof(CamOsMutexRtk_t), "CamOsMutex_t size define not enough!");
 _Static_assert(sizeof(CamOsTsem_t) >= sizeof(CamOsTsemRtk_t), "CamOsTsem_t size define not enough!");
 _Static_assert(sizeof(CamOsRwsem_t) >= sizeof(CamOsRwsemRtk_t), "CamOsRwsem_t size define not enough!");
 _Static_assert(sizeof(CamOsTcond_t) >= sizeof(CamOsTcondRtk_t), "CamOsTcond_t size define not enough!");
 _Static_assert(sizeof(CamOsSpinlock_t) >= sizeof(CamOsSpinlockRtk_t), "CamOsSpinlock_t size define not enough!");
 _Static_assert(sizeof(CamOsTimer_t) >= sizeof(CamOsTimerRtk_t), "CamOsTimer_t size define not enough!");
 _Static_assert(sizeof(CamOsMemCache_t) >= sizeof(CamOsMemCacheRtk_t), "CamOsMemCache_t size define not enough!");
+_Static_assert(sizeof(CamOsIdr_t) >= sizeof(CamOsInformalIdr_t), "CamOsIdr_t size define not enough!");
 
 CAM_OS_DECLARE_BITMAP(aThreadStopBitmap, RTK_MAX_TASKS);
 static u8 nThreadStopBitmapInited=0;
@@ -155,7 +163,7 @@ static u8 nThreadStopBitmapInited=0;
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <stdarg.h>
-#include "time.h"
+#include <time.h>
 #include "cam_os_wrapper.h"
 #include "cam_os_util.h"
 #include "cam_os_util_list.h"
@@ -212,21 +220,22 @@ typedef struct
 
 typedef struct
 {
-    u32 nIdrSize;
-    void *pEntryPtr;
-} CamOsIdrLU_t, *pCamOsIdrLU;
+    void **ppEntryPtr;
+    unsigned long *pBitmap;
+    unsigned long entry_num;
+} CamOsInformalIdr_t, *pCamOsInformalIdr;
 
 static pthread_mutex_t _gtSelfInitLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _gtMemLock = PTHREAD_MUTEX_INITIALIZER;
 
-_Static_assert(sizeof(CamOsMutex_t) >= sizeof(pthread_mutex_t) + 4, "CamOsMutex_t size define not enough! %d");
+_Static_assert(sizeof(CamOsMutex_t) >= sizeof(CamOsMutexLU_t), "CamOsMutex_t size define not enough!");
 _Static_assert(sizeof(CamOsTsem_t) >= sizeof(CamOsTsemLU_t), "CamOsTsem_t size define not enough!");
 _Static_assert(sizeof(CamOsRwsem_t) >= sizeof(CamOsRwsemLU_t), "CamOsRwsem_t size define not enough!");
 _Static_assert(sizeof(CamOsTcond_t) >= sizeof(CamOsTcondLU_t), "CamOsTcond_t size define not enough!");
 _Static_assert(sizeof(CamOsSpinlock_t) >= sizeof(CamOsSpinlockLU_t), "CamOsSpinlock_t size define not enough!");
-_Static_assert(sizeof(CamOsTimer_t) >= sizeof(CamOsTimerLU_t), "CamOsTimer_t size define not enough!");
 _Static_assert(sizeof(CamOsTimespec_t) == sizeof(struct timespec), "CamOsTimespec_t size define error!");
-_Static_assert(sizeof(CamOsIdr_t) >= sizeof(CamOsIdrLU_t), "CamOsIdr_t size define not enough!");
+_Static_assert(sizeof(CamOsTimer_t) >= sizeof(CamOsTimerLU_t), "CamOsTimer_t size define not enough!");
+_Static_assert(sizeof(CamOsIdr_t) >= sizeof(CamOsInformalIdr_t), "CamOsIdr_t size define not enough!");
 
 #elif defined(CAM_OS_LINUX_KERNEL)
 #include <linux/sched.h>
@@ -329,7 +338,7 @@ extern int msys_find_dmem_by_phys(unsigned long long phys, MSYS_DMEM_INFO* pdmem
 static DEFINE_MUTEX(_gtSelfInitLock);
 static DEFINE_MUTEX(_gtMemLock);
 
-_Static_assert(sizeof(CamOsMutex_t) >= sizeof(struct mutex) + 4, "CamOsMutex_t size define not enough! %d");
+_Static_assert(sizeof(CamOsMutex_t) >= sizeof(CamOsMutexLK_t), "CamOsMutex_t size define not enough!");
 _Static_assert(sizeof(CamOsTsem_t) >= sizeof(CamOsTsemLK_t), "CamOsTsem_t size define not enough!");
 _Static_assert(sizeof(CamOsRwsem_t) >= sizeof(CamOsRwsemLK_t), "CamOsRwsem_t size define not enough!");
 _Static_assert(sizeof(CamOsTcond_t) >= sizeof(CamOsTcondLK_t), "CamOsTcond_t size define not enough!");
@@ -3481,6 +3490,20 @@ void* CamOsMemAlloc(u32 nSize)
 #endif
 }
 
+void* CamOsMemAllocAtomic(u32 nSize)
+{
+#ifdef CAM_OS_RTK
+    return MsGetCHeapMemory(nSize);
+#elif defined(CAM_OS_LINUX_USER)
+    return malloc(nSize);
+#elif defined(CAM_OS_LINUX_KERNEL)
+    if (nSize > KMALLOC_THRESHOLD_SIZE)
+        return NULL;
+    else
+        return kzalloc(nSize, GFP_ATOMIC);
+#endif
+}
+
 void* CamOsMemCalloc(u32 nNum, u32 nSize)
 {
 #ifdef CAM_OS_RTK
@@ -3492,6 +3515,20 @@ void* CamOsMemCalloc(u32 nNum, u32 nSize)
         return vzalloc(nNum * nSize);
     else
         return kzalloc(nNum * nSize, GFP_KERNEL);
+#endif
+}
+
+void* CamOsMemCallocAtomic(u32 nNum, u32 nSize)
+{
+#ifdef CAM_OS_RTK
+    return MsGetCHeapMemory(nNum * nSize);
+#elif defined(CAM_OS_LINUX_USER)
+    return calloc(nNum, nSize);
+#elif defined(CAM_OS_LINUX_KERNEL)
+    if ((nNum * nSize) > KMALLOC_THRESHOLD_SIZE)
+        return NULL;
+    else
+        return kzalloc(nNum * nSize, GFP_ATOMIC);
 #endif
 }
 
@@ -3508,6 +3545,29 @@ void* CamOsMemRealloc(void* pPtr, u32 nSize)
         pAddr = vzalloc(nSize);
     else
         pAddr = kzalloc(nSize, GFP_KERNEL);
+
+    if(pPtr && pAddr)
+    {
+        memcpy(pAddr, pPtr, nSize);
+        kvfree(pPtr);
+    }
+    return pAddr;
+#endif
+}
+
+void* CamOsMemReallocAtomic(void* pPtr, u32 nSize)
+{
+#ifdef CAM_OS_RTK
+    return MsHeapRealloc(pPtr, nSize);
+#elif defined(CAM_OS_LINUX_USER)
+    return realloc(pPtr, nSize);
+#elif defined(CAM_OS_LINUX_KERNEL)
+    void *pAddr;
+
+    if (nSize > KMALLOC_THRESHOLD_SIZE)
+        pAddr = NULL;
+    else
+        pAddr = kzalloc(nSize, GFP_ATOMIC);
 
     if(pPtr && pAddr)
     {
@@ -4415,7 +4475,7 @@ void* CamOsPhyMemMap(void* pPhyPtr, u32 nSize, u8 bNonCache)
 #endif
     return pMmapPtr;
 #elif defined(CAM_OS_LINUX_KERNEL)
-    unsigned long long nCpuBusAddr;
+    unsigned long long nCpuBusAddr = 0;
     void *pVirtPtr = NULL;
     int nRet, i, j, k;
     struct sg_table *pSgTable;
@@ -4456,6 +4516,7 @@ void* CamOsPhyMemMap(void* pPhyPtr, u32 nSize, u8 bNonCache)
     {
         CAM_OS_WARN("wrong addr");
         CamOsPrintf("%s input MIU addr 0x%08X\n", __FUNCTION__, (u32)pPhyPtr);
+        return NULL;
     }
 
     sg_set_page(pSgTable->sgl, pfn_to_page(__phys_to_pfn(nCpuBusAddr)), PAGE_ALIGN(nSize), 0);
@@ -4539,7 +4600,7 @@ CamOsRet_e CamOsMemCacheCreate(CamOsMemCache_t *ptMemCache, char *szName, u32 nS
 
     if(ptHandle)
     {
-        ptKmemCache = kmem_cache_create(szName, nSize, bHwCacheAlign ? SLAB_HWCACHE_ALIGN : 0, 0, NULL);
+        ptKmemCache = kmem_cache_create(szName, nSize, 0, bHwCacheAlign ? SLAB_HWCACHE_ALIGN : 0, NULL);
 
         if(ptKmemCache)
         {
@@ -4594,6 +4655,28 @@ void *CamOsMemCacheAlloc(CamOsMemCache_t *ptMemCache)
 
     if(ptHandle && ptHandle->ptKmemCache)
         return kmem_cache_alloc(ptHandle->ptKmemCache, GFP_KERNEL);
+    else
+        return NULL;
+#endif
+}
+
+void *CamOsMemCacheAllocAtomic(CamOsMemCache_t *ptMemCache)
+{
+#ifdef CAM_OS_RTK
+    CamOsMemCacheRtk_t *ptHandle = (CamOsMemCacheRtk_t *)ptMemCache;
+
+    if(ptHandle)
+        return MsGetPoolMemory(ptHandle->nObjSize);
+    else
+        return NULL;
+#elif defined(CAM_OS_LINUX_USER)
+    CAM_OS_WARN("not support in "OS_NAME);
+    return NULL;
+#elif defined(CAM_OS_LINUX_KERNEL)
+    CamOsMemCacheLK_t *ptHandle = (CamOsMemCacheLK_t *)ptMemCache;
+
+    if(ptHandle && ptHandle->ptKmemCache)
+        return kmem_cache_alloc(ptHandle->ptKmemCache, GFP_ATOMIC);
     else
         return NULL;
 #endif
@@ -5812,7 +5895,7 @@ void CamOsListSort(void *priv, struct CamOsListHead_t *head,
                               struct CamOsListHead_t *b))
 {
     struct CamOsListHead_t *part[CAM_OS_MAX_LIST_LENGTH_BITS + 1]; /* sorted partial lists
-						-- last slot is a sentinel */
+                        -- last slot is a sentinel */
     int lev;  /* index into part[] */
     int max_lev = 0;
     struct CamOsListHead_t *list;

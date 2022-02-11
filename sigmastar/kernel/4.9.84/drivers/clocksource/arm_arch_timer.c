@@ -479,7 +479,7 @@ static int arch_timer_starting_cpu(unsigned int cpu)
 	struct clock_event_device *clk = this_cpu_ptr(arch_timer_evt);
 	u32 flags;
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_LH_RTOS)
+#if defined(CONFIG_ARCH_SSTAR) && !defined(CONFIG_SS_DUALOS)
 	/* PATCH from Kernel 5.1:
 	 * https://patchwork.kernel.org/patch/10353743/
 	 */

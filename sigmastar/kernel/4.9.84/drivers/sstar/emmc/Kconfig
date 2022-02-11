@@ -18,3 +18,4 @@ config MS_EMMC_CHICAGO
 config MS_EMMC_UNIFY_DRIVER
     bool "UNIFY EMMC DRIVER"
     depends on MS_EMMC
+    default y

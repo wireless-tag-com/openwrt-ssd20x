@@ -2090,14 +2090,15 @@ unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
 	if (!list_empty(&q->done_list))
 		vb = list_first_entry(&q->done_list, struct vb2_buffer,
 					done_entry);
-	spin_unlock_irqrestore(&q->done_lock, flags);
 
 	if (vb && (vb->state == VB2_BUF_STATE_DONE
 			|| vb->state == VB2_BUF_STATE_ERROR)) {
+		spin_unlock_irqrestore(&q->done_lock, flags);
 		return (q->is_output) ?
 				POLLOUT | POLLWRNORM :
 				POLLIN | POLLRDNORM;
 	}
+	spin_unlock_irqrestore(&q->done_lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_poll);

@@ -494,5 +494,10 @@ typedef struct MI_SYS_GlobalPrivPoolConfig_s
     }uConfig;
 }MI_SYS_GlobalPrivPoolConfig_t;
 
+typedef struct MI_SYS_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_SYS_InitParam_t;
 
 #endif ///_MI_SYS_DATATYPE_H_

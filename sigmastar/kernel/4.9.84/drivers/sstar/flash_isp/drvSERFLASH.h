@@ -392,12 +392,34 @@ MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_All_Range(void);
 //-------------------------------------------------------------------------------------------------
 /// Description : Set flash disable lower bound and size
 /// @param  u32DisableLowerBound    \b IN: the lower bound to disable write protect
-/// @param  u32DisableSize    \b IN: size to disable write protect
+/// @param  u32DisableUpperBound    \b IN: the upper bound to disable write protect
 /// @return TRUE : succeed
 /// @return FALSE : fail before timeout or illegal parameters
 /// @note   Not allowed in interrupt context
 //-------------------------------------------------------------------------------------------------
-MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound, MS_U32 u32DisableSize);
+MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound, MS_U32 u32DisableUpperBound);
+
+//-------------------------------------------------------------------------------------------------
+/// Description : Get flash disable lower bound and size
+/// @param  u32DisableLowerBound    \b IN: the lower bound to disable write protect
+/// @param  u32DisableUpperBound    \b IN: the upper bound to disable write protect
+/// @return TRUE : succeed
+/// @return FALSE : fail before timeout or illegal parameters
+/// @note   Not allowed in interrupt context
+//-------------------------------------------------------------------------------------------------
+MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Get(MS_U32* u32DisableLowerBound, MS_U32* u32DisableUpperBound);
+
+//-------------------------------------------------------------------------------------------------
+/// Description : Check lower bound and upper bound is protected or not
+/// @param  u32DisableLowerBound    \b IN: the lower bound to disable write protect
+/// @param  u32DisableUpperBound    \b IN: the upper bound to disable write protect
+//  @param  u32DisableUpperBound    \b IN: the pointer of check result
+/// @return TRUE : succeed
+/// @return FALSE : fail before timeout or illegal parameters
+/// @note   Not allowed in interrupt context
+//-------------------------------------------------------------------------------------------------
+MS_BOOL MDrv_SERFLASH_WriteProtect_Check(MS_U32 u32DisableLowerBound, MS_U32 u32DisableUpperBound, MS_U8* pu8IsProctected);
+
 
 //-------------------------------------------------------------------------------------------------
 /// Description : Protect blocks in Serial Flash

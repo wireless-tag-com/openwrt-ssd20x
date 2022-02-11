@@ -47,6 +47,7 @@
 #include "cam_os_wrapper.h"
 #define CONSOLE_DMA             1
 #define DEBUG_PAD_MUX           0
+#define SUPPORT_TX_LEVEL        1
 
 #define UART_DEBUG 0
 #define MS_UART_8250_BUG_THRE 0
@@ -92,6 +93,12 @@
 #define UART_IER_THRI           0x02    /* Transmitter Holding Register Empty Interrupt */
 #define UART_IER_RLSI           0x04    /* Receiver Line Status Interrupt */
 #define UART_IER_MSI            0x08    /* Modem Status Interrupt */
+#if SUPPORT_TX_LEVEL
+    #define UART_IER_PTHRI          0x80    /* Programmable THRE Interrupt */
+#else
+    #define UART_IER_PTHRI          0x00    /* Don't Set Programmable THRE Interrupt */
+#endif
+
 
 /* Interrupt Identification Register (IIR) */
 #define UART_IIR_MSI            0x00    /* 0000: Modem Status */
@@ -493,7 +500,7 @@ static int ms_uart_rs485_gpio(struct serial_rs485 *rs485,bool send)
             gpio_set_value(rs485->padding[0],0);UART_ERR("send set low\n");
         }
     }
-    else if ((rs485->flags & SER_RS485_ENABLED) && !send) 
+    else if ((rs485->flags & SER_RS485_ENABLED) && !send)
     {
         if(rs485->delay_rts_after_send)udelay(rs485->delay_rts_after_send);
         if(rs485->flags&SER_RS485_RTS_AFTER_SEND)
@@ -547,10 +554,16 @@ void inline ms_uart_clear_fifos(struct uart_port *p)
     unsigned int timeout=0;
 
     while( ((INREG8(REG_USR(p)) & UART_USR_BUSY)) && timeout < 2000)
+    {
+        udelay(2);
         timeout++;
-    OUTREG8(REG_IIR_FCR(p), UART_FCR_FIFO_ENABLE);
-    OUTREG8(REG_IIR_FCR(p), UART_FCR_FIFO_ENABLE | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
-    OUTREG8(REG_IIR_FCR(p), 0);
+        OUTREG8(REG_IIR_FCR(p), UART_FCR_FIFO_ENABLE | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
+    }
+    if(timeout == 2000)
+    {
+        UART_ERR("[UART] clear fifos timeout!!!\n");
+    }
+//    OUTREG8(REG_IIR_FCR(p), 0); //fifo enabled no effect
 }
 
 static u8 u8SelectPad[] = { 2, 3, 1, 4 };
@@ -583,14 +596,11 @@ void ms_force_rx_disable(u8 padmux, BOOL status)
 {
     switch(padmux)  //set 0 for disable, 1 for enable
     {
-        case MUX_PM_UART:
-            OUTREGMSK16(REG_FORCE_RX_DISABLE, (~status) << 2, 1 << 2);
-            break;
         case MUX_FUART:
-            OUTREGMSK16(REG_FORCE_RX_DISABLE, (~status) << 0, 1 << 0);
+            OUTREGMSK16(REG_FORCE_RX_DISABLE, (~status) << 1, 1 << 1);
             break;
         case MUX_UART0:
-            OUTREGMSK16(REG_FORCE_RX_DISABLE, (~status) << 1, 1 << 1);
+            OUTREGMSK16(REG_FORCE_RX_DISABLE, (~status) << 2, 1 << 2);
             break;
         case MUX_UART1:
             OUTREGMSK16(REG_FORCE_RX_DISABLE, (~status) << 3, 1 << 3);
@@ -690,6 +700,8 @@ U16 ms_uart_set_clk(struct uart_port *p, u32 request_baud)
 
 void ms_uart_set_divisor(struct uart_port *p, u16 divisor)
 {
+    unsigned long flags;
+    spin_lock_irqsave(&p->lock, flags);
     ms_uart_clear_fifos(p);
 
     // enable Divisor Latch Access, so Divisor Latch register can be accessed
@@ -698,10 +710,22 @@ void ms_uart_set_divisor(struct uart_port *p, u16 divisor)
     OUTREG8(REG_DLL_THR_RBR(p), (u8 )(divisor & 0xff));
     // disable Divisor Latch Access
     OUTREG8(REG_LCR(p), INREG8(REG_LCR(p)) & ~UART_LCR_DLAB);
+    spin_unlock_irqrestore(&p->lock, flags);
 }
 
 static void ms_uart_console_putchar(struct uart_port *p, s32 ch)
 {
+#if SUPPORT_TX_LEVEL
+    u8  usr_u8  = 0;    /* UART Status Register (USR) */
+    /* Check if Transmit FIFO full */
+    /* We always enable FIFO mode */
+
+    usr_u8 = INREG8(REG_USR(p));
+    while(!(usr_u8 & UART_USR_TXFIFO_NOT_FULL))
+    {
+        usr_u8 = INREG8(REG_USR(p));
+    }
+#else
     u8  lsr_u8  = 0;    /* Line Status Register (LSR) */
 
     /* Check if Transmit FIFO full */
@@ -712,7 +736,7 @@ static void ms_uart_console_putchar(struct uart_port *p, s32 ch)
     {
         lsr_u8 = INREG8(REG_LSR(p));
     }
-
+#endif
     OUTREG8(REG_DLL_THR_RBR(p),ch);
 
     /* Check if both TX FIFO buffer & shift register are empty */
@@ -744,7 +768,7 @@ static s32 _ms_uart_console_prepare(int idx)
     struct device_node *console_np;
     struct resource res;
 
-    char* uart_name[] = 
+    char* uart_name[] =
         {
             "/soc/uart0@1F221000",
             "/soc/uart1@1F221200",
@@ -770,7 +794,7 @@ static s32 _ms_uart_console_prepare(int idx)
 
     console_port.port.ops=&ms_uart_ops;
     console_port.port.regshift = 0;
-    console_port.port.fifosize = 16;
+    console_port.port.fifosize = 32; //HW FIFO is 32Bytes
     console_port.port.cons=&ms_uart_console;
 
     console_port.port.line= idx;
@@ -801,7 +825,7 @@ static s32 _ms_uart_console_prepare(int idx)
     #define UART_BAUDRATE       115200
     #define UART_CLK            172800000
 
-#define UART_LCR_PARITY             0x08 
+#define UART_LCR_PARITY             0x08
 #define UART_FCR_ENABLE_FIFO        0x01
 
 // #define REG_UART_SEL3210    GET_REG16_ADDR(REG_ADDR_BASE_CHIPTOP, 0x53)
@@ -877,6 +901,10 @@ static void ms_uart_console_write(struct console *co, const char *str, u32 count
     struct uart_port *p;
     unsigned long flags;
     int locked = 1;
+#if SUPPORT_TX_LEVEL
+    unsigned int step_count;
+#endif
+
 
     if( (!str )|| co->index>=NR_CONSOLE_PORTS || co->index < 0)
     {
@@ -885,6 +913,37 @@ static void ms_uart_console_write(struct console *co, const char *str, u32 count
 
     mp = &console_port;
     p = &(mp->port);
+#if SUPPORT_TX_LEVEL
+    while(count)        //shorten the time of interrupt closed by console log need verify
+    {
+        if(count < 16)
+        {
+            step_count = count;
+            count = 0;
+        }
+        else
+        {
+            step_count = 16;
+            count -= 16;
+        }
+
+        if (p->sysrq || oops_in_progress)
+            locked = spin_trylock_irqsave(&p->lock, flags);
+        else
+            spin_lock_irqsave(&p->lock, flags);
+
+        if(!mp->use_dma)
+            uart_console_write(p, str, step_count, ms_uart_console_putchar);
+        else if (mp->urdma)
+        {
+            uart_console_write(p, str, step_count, ms_uart_console_putchar_dma);
+        }
+
+        if (locked)
+            spin_unlock_irqrestore(&p->lock, flags);
+        str += step_count;
+    }
+#else
 
     if (p->sysrq || oops_in_progress)
         locked = spin_trylock_irqsave(&p->lock, flags);
@@ -900,7 +959,7 @@ static void ms_uart_console_write(struct console *co, const char *str, u32 count
 
     if (locked)
         spin_unlock_irqrestore(&p->lock, flags);
-
+#endif
     return;
 }
 
@@ -940,6 +999,9 @@ static void ms_uart_console_write(struct console *co, const char *str, u32 count
     struct uart_port *p;
     unsigned long flags;
     int locked = 1;
+#if SUPPORT_TX_LEVEL
+    unsigned int step_count;
+#endif
 
     if( (!str )|| co->index>=NR_CONSOLE_PORTS || co->index < 0)
     {
@@ -948,7 +1010,37 @@ static void ms_uart_console_write(struct console *co, const char *str, u32 count
 
     mp = console_ports[co->index];
     p = &(mp->port);
+#if SUPPORT_TX_LEVEL
+    while(count)        //shorten the time of interrupt closed by console log need verify
+    {
+        if(count < 16)
+        {
+            step_count = count;
+            count = 0;
+        }
+        else
+        {
+            step_count = 16;
+            count -= 16;
+        }
 
+        if (p->sysrq || oops_in_progress)
+            locked = spin_trylock_irqsave(&p->lock, flags);
+        else
+            spin_lock_irqsave(&p->lock, flags);
+
+        if(!mp->use_dma)
+            uart_console_write(p, str, step_count, ms_uart_console_putchar);
+        else if (mp->urdma)
+        {
+            uart_console_write(p, str, step_count, ms_uart_console_putchar_dma);
+        }
+
+        if (locked)
+            spin_unlock_irqrestore(&p->lock, flags);
+        str += step_count;
+    }
+#else
     if (p->sysrq || oops_in_progress)
         locked = spin_trylock_irqsave(&p->lock, flags);
     else
@@ -959,7 +1051,7 @@ static void ms_uart_console_write(struct console *co, const char *str, u32 count
 
     if (locked)
         spin_unlock_irqrestore(&p->lock, flags);
-
+#endif
     return;
 }
 
@@ -1058,10 +1150,10 @@ static void ms_uart_stop_tx(struct uart_port *p)
 #if UART_USE_SPINLOCK
         unsigned long flags;
         spin_lock_irqsave(&p->lock, flags);
-        CLRREG8(REG_DLH_IER(p), UART_IER_THRI);
+        CLRREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);
         spin_unlock_irqrestore(&p->lock, flags);
 #else
-        CLRREG8(REG_DLH_IER(p), UART_IER_THRI);
+        CLRREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);//set PTHRI to enable tx_trigger lever
     //NOTE: Read IIR to clear dummy THRI after disable THRI occurred at ZEBU -- Spade
         INREG8(REG_IIR_FCR(p));
 #endif
@@ -1115,10 +1207,10 @@ static void ms_uart_start_tx(struct uart_port *p)
 #if UART_USE_SPINLOCK
         unsigned long flags;
         spin_lock_irqsave(&p->lock, flags);
-        SETREG8(REG_DLH_IER(p), UART_IER_THRI);
+        SETREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);
         spin_unlock_irqrestore(&p->lock, flags);
 #else
-        SETREG8(REG_DLH_IER(p), UART_IER_THRI);
+        SETREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI); //set PTHRI to enable tx_trigger lever
 #endif
     }
     else
@@ -1231,11 +1323,11 @@ static void ms_do_xmit_task(unsigned long port_address)
     {
         unsigned long flags;
         spin_lock_irqsave(&p->lock, flags);
-        SETREG8(REG_DLH_IER(p), UART_IER_THRI);
+        SETREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);
         spin_unlock_irqrestore(&p->lock, flags);
     }
 #else
-    SETREG8(REG_DLH_IER(p), UART_IER_THRI);
+    SETREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);
 #endif
     return;
 }
@@ -1313,6 +1405,8 @@ static void ms_putchar(struct uart_port *p)
 #endif
 
 static int silent_state = 0;
+module_param(silent_state, int, 0644);
+
 static void ms_getchar(struct uart_port *p)
 {
     u8  lsr = 0;    /* Line Status Register (LSR) */
@@ -1506,7 +1600,7 @@ static irqreturn_t ms_uart_interrupt(s32 irq, void *dev_id)
         /* Read Interrupt Identification Register */
         iir_fcr = INREG8(REG_IIR_FCR(p)) & UART_IIR_ID_MASK;
 
-        if( (iir_fcr == UART_IIR_RDI || iir_fcr == UART_IIR_RX_TIMEOUT) ) /* Receive Data Available or Character timeout */
+        if( (iir_fcr == UART_IIR_RDI || iir_fcr == UART_IIR_RX_TIMEOUT || iir_fcr == UART_IIR_RLSI) ) /* Receive Data Available or Character timeout or Receiver line status */
         {
             ms_getchar(p);
         }
@@ -1516,10 +1610,10 @@ static irqreturn_t ms_uart_interrupt(s32 irq, void *dev_id)
         #if UART_USE_SPINLOCK
             unsigned long flags=0;
             spin_lock_irqsave(&p->lock, flags);
-            CLRREG8(REG_DLH_IER(p), UART_IER_THRI);
+            CLRREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);
             spin_unlock_irqrestore(&p->lock, flags);
         #else
-            CLRREG8(REG_DLH_IER(p), UART_IER_THRI);
+            CLRREG8(REG_DLH_IER(p), UART_IER_THRI | UART_IER_PTHRI);
         #endif
 
             tasklet_schedule(&mp->xmit_tasklet);
@@ -1550,11 +1644,11 @@ static irqreturn_t ms_uart_interrupt(s32 irq, void *dev_id)
                 UART_ERR("UART Interrupt: UART_IIR_BUSY\n");
 
         }
-        else if( iir_fcr == UART_IIR_RLSI ) /* Receiver line status */
-        {
-            // Read LSR to clear
-            INREG8(REG_LSR(p));
-        }
+//        else if( iir_fcr == UART_IIR_RLSI ) /* Receiver line status */
+//        {
+//            // Read LSR to clear
+//            INREG8(REG_LSR(p));          //for recognize break signal
+//        }
         else if( iir_fcr == UART_IIR_NO_INT ) /* No pending interrupts */
         {
             while( ((INREG8(REG_USR(p)) & UART_USR_BUSY) == UART_USR_BUSY) && (count < retry))
@@ -1597,8 +1691,8 @@ static void serial8250_backup_timeout(unsigned long data)
     if ((iir & UART_IIR_NO_INT) && (ier & UART_IER_THRI) &&
             (!uart_circ_empty(&up->port.state->xmit) || up->port.x_char) &&
             (lsr & UART_LSR_THRE)) {
-        CLRREG8(REG_DLH_IER((&up->port)), UART_IER_THRI);
-        SETREG8(REG_DLH_IER((&up->port)), UART_IER_THRI);
+        CLRREG8(REG_DLH_IER((&up->port)), UART_IER_THRI | UART_IER_PTHRI);
+        SETREG8(REG_DLH_IER((&up->port)), UART_IER_THRI | UART_IER_PTHRI);
         gu32_console_bug_thre_hits++;
         ms_putchar((&up->port));
     }
@@ -1722,6 +1816,7 @@ static void ms_uart_shutdown(struct uart_port *p)
         p->rs485.flags &= ~SER_RS485_ENABLED;
         ms_uart_rs485_config(p, &p->rs485);
     }
+    ms_force_rx_disable(mp->padmux, DISABLE);
     if(mp->use_dma)
     {
         URDMA_RxEnable(p,FALSE);
@@ -1758,7 +1853,6 @@ static void ms_uart_shutdown(struct uart_port *p)
         del_timer_sync(&mp->timer);
     }
 
-    ms_force_rx_disable(mp->padmux, DISABLE);
 }
 
 static void ms_uart_set_termios(struct uart_port *p, struct ktermios *pTermios_st, struct ktermios *pOld_st)
@@ -1835,15 +1929,22 @@ static void ms_uart_set_termios(struct uart_port *p, struct ktermios *pTermios_s
         /* Parity Disable */
         uartflag &= (~UART_LCR_PARITY_EN);
     }
-    OUTREG8(REG_LCR(p), uartflag);
+    if(uartflag != INREG8(REG_LCR(p)))
+    {
+        ms_uart_clear_fifos(p);
+        OUTREG8(REG_LCR(p), uartflag);
+    }
 
     //NOTE: we are going to set LCR, be carefully here
-    baudrate = uart_get_baud_rate(p, pTermios_st, pOld_st, 0, 115200 * 14);
-    divisor = ms_uart_set_clk(p, baudrate);
-    if(divisor)
-        ms_uart_set_divisor(p, divisor);
+    if (!pOld_st || (tty_termios_baud_rate(pOld_st) != tty_termios_baud_rate(pTermios_st))) {
+        baudrate = uart_get_baud_rate(p, pTermios_st, pOld_st, 0, 115200 * 30);
+        divisor = ms_uart_set_clk(p, baudrate);
+        if(divisor) {
+            ms_uart_set_divisor(p, divisor);
+        }
+    }
 
-    OUTREG8(REG_IIR_FCR(p), UART_FCR_FIFO_ENABLE | UART_FCR_TRIGGER_TX_L0 | UART_FCR_TRIGGER_RX_L0);
+    OUTREG8(REG_IIR_FCR(p), UART_FCR_FIFO_ENABLE | UART_FCR_TRIGGER_TX_L1 | UART_FCR_TRIGGER_RX_L0);
     INREG8(REG_DLL_THR_RBR(p));
 
     if(p->dev != NULL){
@@ -2111,7 +2212,7 @@ dma_err:
     mp->port.dev = &pdev->dev;
     mp->port.ops=&ms_uart_ops;
     mp->port.regshift = 0;
-    mp->port.fifosize = 16;
+    mp->port.fifosize = 32;
     mp->port.timeout  =HZ;
     mp->port.iotype=UPIO_MEM;
     mp->port.rs485_config = ms_uart_rs485_config;
@@ -2263,7 +2364,7 @@ static int __init ms_early_console_init(void)
 
     console_port.port.ops=&ms_uart_ops;
     console_port.port.regshift = 0;
-    console_port.port.fifosize = 16;
+    console_port.port.fifosize = 32;
     console_port.port.line=0;
     console_port.port.cons=&ms_uart_console;
     ms_uart_add_console_port(&console_port);

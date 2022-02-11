@@ -381,17 +381,6 @@ MS_BOOL MDrv_SERFLASH_BlockToAddress(MS_U32 u32BlockIndex, MS_U32 *pu32FlashAddr
     return HAL_SERFLASH_BlockToAddress(u32BlockIndex, pu32FlashAddr);
 }
 
-
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-
-MS_BOOL MDrv_SERFLASH_BlockErase_CUS_ZY(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_BOOL bWait);
-
-MS_BOOL MDrv_SERFLASH_BlockErase_CUS_ZY(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_BOOL bWait)
-{
-    return HAL_SERFLASH_BlockErase_CUS_ZY(u32StartAddr, u32EraseSize, bWait);
-}
-#endif
-
 //-------------------------------------------------------------------------------------------------
 /// Description : Erase certain sectors given starting address and size in Serial Flash
 /// @param  u32StartAddr    \b IN: start address at block boundry
@@ -408,13 +397,6 @@ MS_BOOL MDrv_SERFLASH_AddressErase(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_
 
     DEBUG_SER_FLASH(E_SERFLASH_DBGLV_DEBUG, printk("%s(0x%08x, 0x%08x, %d)\n", __FUNCTION__,
             (unsigned int)u32StartAddr, (unsigned int)u32EraseSize, (int)bWait));
-
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-    if ((u32StartAddr == 0x5F000)&&(u32EraseSize == 0x1000))
-    {
-        return MDrv_SERFLASH_BlockErase_CUS_ZY(u32StartAddr, u32EraseSize, bWait);
-    }
-#endif
 
     if (   FALSE == MDrv_SERFLASH_AddressToBlock(u32StartAddr, &u32StartBlock)
         || FALSE == MDrv_SERFLASH_AddressToBlock(u32StartAddr + u32EraseSize - 1, &u32EndBlock)
@@ -456,22 +438,25 @@ MS_BOOL MDrv_SERFLASH_SectorErase(MS_U32 u32StartAddr, MS_U32 u32EndAddr)
     MS_U32 u32I = 0;
     MS_BOOL bRet = FALSE;
 
-#define DRV_SERFLASH_SECTOR_SIZE    0x1000UL
-    for( u32I = u32StartAddr; u32I < u32EndAddr; )
-    {
-        HAL_SERFLASH_SectorErase(u32I);
-        if((u32EndAddr-u32I) <= DRV_SERFLASH_SECTOR_SIZE)
-        {
-            bRet = HAL_SERFLASH_SectorErase(u32EndAddr);
-            if(!bRet)
-            {
-                printk("[FSP] Sector Erase fail!!!!\r\n");
-            }
+    #define DRV_SERFLASH_SECTOR_SIZE    0x1000UL
 
-        }
-        u32I+=DRV_SERFLASH_SECTOR_SIZE;
+    if(u32StartAddr%DRV_SERFLASH_SECTOR_SIZE)
+    {
+        printk("\nAddress 0x%x is not 4K aligned.\n", (unsigned int)u32StartAddr);
+        return FALSE;
     }
-    return TRUE;
+
+
+    for( u32I = u32StartAddr; u32I < u32EndAddr; u32I+=DRV_SERFLASH_SECTOR_SIZE)
+    {
+        bRet = HAL_SERFLASH_SectorErase(u32I);
+        if ( bRet ==  FALSE)
+        {
+            printk("%s Failed at (0x%08X)\n", __FUNCTION__, (int)u32I);
+            return bRet;
+        }
+    }
+    return bRet;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -592,20 +577,17 @@ MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_All_Range(void)
 
 
 //-------------------------------------------------------------------------------------------------
-/// Description : Set flash disable lower bound and size
+/// Description : Set flash disable lower bound and upper bound
 /// @param  u32DisableLowerBound    \b IN: the lower bound to disable write protect
-/// @param  u32DisableSize    \b IN: size to disable write protect
+/// @param  u32DisableUpperBound    \b IN: the upper bound to disable write protect
 /// @return TRUE : succeed
 /// @return FALSE : fail before timeout or illegal parameters
 /// @note   Not allowed in interrupt context
 //-------------------------------------------------------------------------------------------------
-MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound, MS_U32 u32DisableSize)
+MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound, MS_U32 u32DisableUpperBound)
 {
-    MS_U32  u32EnableLowerBound;
-    MS_U32  u32EnableUpperBound;
     MS_U8   u8BlockProtectBit;
 
-    MS_U32  u32DisableUpperBound;
     MS_U32  u32FlashIndexMax;
 
     EN_WP_AREA_EXISTED_RTN enWpAreaExistedRtn;
@@ -615,7 +597,6 @@ MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound
 
     _SERFLASHDrvStatus.bIsBusy = TRUE;
 
-    u32DisableUpperBound = u32DisableLowerBound + u32DisableSize - 1;
     u32FlashIndexMax = _SERFLASHInfo.u32TotalSize - 1;
 
 
@@ -629,50 +610,23 @@ MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound
         return FALSE;
     }
 
-
-    // Step 1. decide u32DisableUpperBound // TODO: review, prefer to unprotect the end of the flash
-    if (   u32DisableUpperBound != u32FlashIndexMax
-        && u32DisableLowerBound != 0
-        )
-    {
-        u32DisableUpperBound = u32FlashIndexMax;
-    }
-
-
-    // Step 2. decide u32EnableLowerBound & u32EnableUpperBound
-    if (   u32DisableUpperBound > (u32FlashIndexMax - _SERFLASHInfo.u32SecSize)
-        && u32DisableLowerBound == 0
-        )
-    {
-        // i.e. no protect
-        u32EnableLowerBound = 0xFFFFFFFFUL;
-        u32EnableUpperBound = 0xFFFFFFFFUL;
-    }
-    else if (u32DisableLowerBound == 0)
-    {
-        u32EnableUpperBound = u32FlashIndexMax;
-        u32EnableLowerBound = u32DisableUpperBound + 1;
-    }
-    else // i.e. (u32DisableUpperBound == u32FlashIndexMax) because of Step 1
-    {
-        u32EnableUpperBound = u32DisableLowerBound - 1;
-        u32EnableLowerBound = 0;
-    }
-
+    if(!HAL_SERFLASH_ReadStatusReg(&u8BlockProtectBit))
+        return FALSE;
 
     // Step 3. get u8BlockProtectBit
-    enWpAreaExistedRtn = HAL_SERFLASH_WP_Area_Existed(u32EnableUpperBound, u32EnableLowerBound, &u8BlockProtectBit);
+    enWpAreaExistedRtn = HAL_SERFLASH_WP_Area_Existed(u32DisableUpperBound, u32DisableLowerBound, &u8BlockProtectBit);
 
     switch (enWpAreaExistedRtn)
     {
-    case WP_AREA_NOT_AVAILABLE:
-    case WP_TABLE_NOT_SUPPORT:
-        u8BlockProtectBit = 0;
-        break;
+        case WP_AREA_PARTIALLY_AVAILABLE:
+        case WP_AREA_NOT_AVAILABLE:
+        case WP_TABLE_NOT_SUPPORT:
+            u8BlockProtectBit = 0;
+            return FALSE;
 
-    default:
-        /* DO NOTHING */
-        break;
+        default:
+            /* DO NOTHING */
+            break;
     }
 
     DEBUG_SER_FLASH(E_SERFLASH_DBGLV_DEBUG, printk("\n"));
@@ -680,6 +634,72 @@ MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Set(MS_U32 u32DisableLowerBound
     return HAL_SERFLASH_WriteProtect_Area(FALSE, u8BlockProtectBit);
 }
 
+//-------------------------------------------------------------------------------------------------
+/// Description : Get flash disable lower bound and upper bound
+/// @param  u32DisableLowerBound    \b IN: the lower bound to disable write protect
+/// @param  u32DisableUpperBound    \b IN: the upper bound to disable write protect
+/// @return TRUE : succeed
+/// @return FALSE : fail before timeout or illegal parameters
+/// @note   Not allowed in interrupt context
+//-------------------------------------------------------------------------------------------------
+MS_BOOL MDrv_SERFLASH_WriteProtect_Disable_Range_Get(MS_U32* u32DisableLowerBound, MS_U32* u32DisableUpperBound)
+{
+    MS_U8 u8StatusReg;
+    EN_WP_AREA_EXISTED_RTN enWpAreaExistedRtn;
+
+    if(!HAL_SERFLASH_ReadStatusReg(&u8StatusReg))
+        return FALSE;
+
+    enWpAreaExistedRtn = HAL_SERFLASH_WP_Status_Existed(u32DisableUpperBound, u32DisableLowerBound, u8StatusReg);
+
+    switch (enWpAreaExistedRtn)
+    {
+        case WP_AREA_PARTIALLY_AVAILABLE:
+        case WP_AREA_NOT_AVAILABLE:
+        case WP_TABLE_NOT_SUPPORT:
+            return FALSE;
+
+        default:
+            /* DO NOTHING */
+            break;
+    }
+
+    return TRUE;
+}
+
+//-------------------------------------------------------------------------------------------------
+/// Description : Check lower bound and upper bound is protected or not
+/// @param  u32DisableLowerBound    \b IN: the lower bound to disable write protect
+/// @param  u32DisableUpperBound    \b IN: the upper bound to disable write protect
+//  @param  u32DisableUpperBound    \b IN: the pointer of check result
+/// @return TRUE : succeed
+/// @return FALSE : fail before timeout or illegal parameters
+/// @note   Not allowed in interrupt context
+//-------------------------------------------------------------------------------------------------
+MS_BOOL MDrv_SERFLASH_WriteProtect_Check(MS_U32 u32DisableLowerBound, MS_U32 u32DisableUpperBound, MS_U8* pu8IsProctected)
+{
+    MS_U32 u32LowerBound;
+    MS_U32 u32UpperBound;
+
+    if(!MDrv_SERFLASH_WriteProtect_Disable_Range_Get(&u32LowerBound, &u32UpperBound))
+        return FALSE;
+
+    // judge wether range is crossed or not?
+
+    u32LowerBound = max(u32LowerBound, u32DisableLowerBound);
+    u32UpperBound = min(u32UpperBound, u32DisableUpperBound);
+
+    if(u32UpperBound >= u32LowerBound)
+    {
+        *pu8IsProctected = TRUE;
+    }
+    else
+    {
+        *pu8IsProctected = FALSE;
+    }
+
+    return TRUE;
+}
 
 //-------------------------------------------------------------------------------------------------
 /// Description : Protect blocks in Serial Flash

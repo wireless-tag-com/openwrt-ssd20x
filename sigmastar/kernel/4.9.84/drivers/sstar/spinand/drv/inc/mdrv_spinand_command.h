@@ -44,7 +44,7 @@ typedef enum
 #define READ_MODE        _gtSpinandInfo.u8ReadMode
 #define WRITE_MODE       _gtSpinandInfo.u8WriteMode
 #define BLOCKCNT         _gtSpinandInfo.u16_BlkCnt
-#define DENSITY_2G   2048
+
 // SPI NAND COMMAND                            //opcode
 #define SPI_NAND_CMD_PGRD                        0x13  //page read
 #define SPI_NAND_CMD_RDID                        0x9F  //read ID
@@ -74,6 +74,8 @@ typedef enum
                 #define ECC_7_8_CORRECTED                (0x05 << 4)
                 #define SPI_NAND_STAT_OIP              (0x1)
 #define SPI_NAND_REG_FUT                 0xD0
+#define SPI_NAND_CMD_DIESELECT                   0xC2
+#define DENSITY_2G   2048
 
 #define SPI_NAND_ADDR_LEN                        3
 #define SPI_NAND_PAGE_ADDR_LEN                   2

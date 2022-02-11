@@ -446,9 +446,9 @@ SS_HOST_AHCI_EN_DONE:
 #if  defined(CONFIG_ARCH_INFINITY2M) && defined(CONFIG_PM_SLEEP)
 static int sstar_ahci_suspend(struct device *dev)
 {
-	struct ata_host *host = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = host->private_data;
-	struct brcm_ahci_priv *priv = hpriv->plat_data;
+	//struct ata_host *host = dev_get_drvdata(dev);
+	//struct ahci_host_priv *hpriv = host->private_data;
+	//struct brcm_ahci_priv *priv = hpriv->plat_data;
 	int ret;
 
 	ret = ahci_platform_suspend(dev);
@@ -459,9 +459,9 @@ static int sstar_ahci_suspend(struct device *dev)
 
 static int sstar_ahci_resume(struct device *dev)
 {
-	struct ata_host *host = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = host->private_data;
-	struct brcm_ahci_priv *priv = hpriv->plat_data;
+	//struct ata_host *host = dev_get_drvdata(dev);
+	//struct ahci_host_priv *hpriv = host->private_data;
+	//struct brcm_ahci_priv *priv = hpriv->plat_data;
 
 	//brcm_sata_init(priv);
 	//brcm_sata_phys_enable(priv);

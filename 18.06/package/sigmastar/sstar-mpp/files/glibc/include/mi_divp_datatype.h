@@ -77,5 +77,11 @@ typedef struct MI_DIVP_DirectBuf_s
     MI_PHY phyAddr[3];
 }MI_DIVP_DirectBuf_t;
 
+typedef struct MI_DIVP_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_DIVP_InitParam_t;
+
 #pragma pack(pop)
 #endif

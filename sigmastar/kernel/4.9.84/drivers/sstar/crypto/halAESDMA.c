@@ -118,8 +118,6 @@ void HAL_AESDMA_FileOutEnable(U8 u8FileOutEnable)
 
 void HAL_AESDMA_SetFileinAddr(U32 u32addr)
 {
-    u32addr = u32addr & (~0xF0000000); //mask bit to avoid MIU/IMI wrap
-
     //SHA_SetLength:5c~5d(sha_message_length)
     RIU[(AESDMA_BASE_ADDR+(0x52<<1))]= (U16)((0x0000ffff)&(u32addr));
     RIU[(AESDMA_BASE_ADDR+(0x53<<1))]= (U16)(((0xffff0000)&(u32addr))>>16);
@@ -127,8 +125,6 @@ void HAL_AESDMA_SetFileinAddr(U32 u32addr)
 
 void HAL_AESDMA_SetFileoutAddr(U32 u32addr, U32 u32Size)
 {
-    u32addr = u32addr & (~0xF0000000); //mask bit to avoid MIU/IMI wrap
-
     //SHA_SetLength:5c~5d(sha_message_length)
     RIU[(AESDMA_BASE_ADDR+(0x56<<1))]= (U16)((0x0000ffff)&(u32addr));
     RIU[(AESDMA_BASE_ADDR+(0x57<<1))]= (U16)(((0xffff0000)&(u32addr))>>16);
@@ -528,12 +524,10 @@ void HAL_SHA_Reset(void)
 void HAL_SHA_SetAddress(U32 u32Address)
 {
     /**/
-   // u32Address = u32Address & (~0xF0000000); //mask bit to avoid MIU/IMI wrap
     if (u32Address < ARM_MIU1_BASE_ADDR) {
         RIU[(SHARNG_BASE_ADDR+(0x0E<<1))]= 0x80;
     }
     else {
-        u32Address -= ARM_MIU1_BASE_ADDR;
         RIU[(SHARNG_BASE_ADDR+(0x0E<<1))]= 0x20;
     }
 

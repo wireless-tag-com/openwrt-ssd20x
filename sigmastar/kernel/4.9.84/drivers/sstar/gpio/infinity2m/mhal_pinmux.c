@@ -168,12 +168,23 @@ static S32 HalPadSetMode_General(U32 u32PadID, U32 u32Mode)
 
     return (u8ModeIsFind) ? 0 : -1;
 }
+#define ETH_BANK                          0x003300
+#define ARBPHY_BANK                          0x003200
 
 static S32 HalPadSetMode_MISC(U32 u32PadID, U32 u32Mode)
 {
     U32 utmi_bank;
     U16 u16BitMask;
     U8  u8BitMask;
+
+    if((u32PadID>=PAD_ETH_RN)&&(u32PadID<=PAD_ETH_TP) &&(u32Mode ==PINMUX_FOR_GPIO_MODE))//PAD_ETH_XX
+    {
+        _GPIO_W_WORD_MASK(_RIUA_16BIT(ARBPHY_BANK, 0x69), BIT14, BIT14);//0x32D3#6~#7=11b
+        _GPIO_W_WORD_MASK(_RIUA_16BIT(ARBPHY_BANK, 0x69), BIT15, BIT15);
+        _GPIO_W_WORD_MASK(_RIUA_16BIT(ARBPHY_BANK, 0x69), BIT10, BIT10);//0x32D3#3~#2=11b
+        _GPIO_W_WORD_MASK(_RIUA_16BIT(ARBPHY_BANK, 0x69), BIT11, BIT11);
+        _GPIO_W_WORD_MASK(_RIUA_16BIT(ETH_BANK, 0x44), BIT4, BIT4);//0x3388 #4=1b
+    }
 
     switch(u32PadID)
     {
@@ -242,34 +253,87 @@ static S32 HalPadSetMode_MISC(U32 u32PadID, U32 u32Mode)
         }
         break;
 
-     /* lan-top */
-     case PAD_ETH_RN:
-     case PAD_ETH_RP:
-     case PAD_ETH_TN:
-     case PAD_ETH_TP:
-         if (u32PadID == PAD_ETH_RN)
-             u16BitMask = BIT0;
-         else if (u32PadID == PAD_ETH_RP)
-             u16BitMask = BIT1;
-         else if (u32PadID == PAD_ETH_TN)
-             u16BitMask = BIT2;
-         else if (u32PadID == PAD_ETH_TP)
-             u16BitMask = BIT3;
-
-         if (u32Mode == PINMUX_FOR_GPIO_MODE) {
+        /* lan-top */
+    case PAD_ETH_RN:
+        if (u32Mode == PINMUX_FOR_GPIO_MODE)
+        {
             _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
             _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
-            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), u16BitMask, u16BitMask);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), BIT14, BIT14);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), BIT0, BIT0);
         }
-        else if (u32Mode == PINMUX_FOR_ETH_MODE) {
+        else if (u32Mode == PINMUX_FOR_ETH_MODE)
+        {
             _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
             _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
-            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), 0, u16BitMask);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), 0, BIT14);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), 0, BIT0);
         }
-        else {
+        else
+        {
             return -1;
         }
         break;
+    case PAD_ETH_RP:
+        if (u32Mode == PINMUX_FOR_GPIO_MODE) {
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), BIT14, BIT14);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), BIT1, BIT1);
+        }
+        else if (u32Mode == PINMUX_FOR_ETH_MODE)
+        {
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), 0, BIT14);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), 0, BIT1);
+        }
+        else
+        {
+            return -1;
+        }
+        break;
+        case PAD_ETH_TN:
+        if (u32Mode == PINMUX_FOR_GPIO_MODE)
+        {
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), BIT15, BIT15);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), BIT2, BIT2);
+        }
+        else if (u32Mode == PINMUX_FOR_ETH_MODE)
+        {
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), 0, BIT15);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), 0, BIT2);
+        }
+        else
+        {
+            return -1;
+        }
+        break;
+        case PAD_ETH_TP:
+        if (u32Mode == PINMUX_FOR_GPIO_MODE)
+        {
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), BIT15, BIT15);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), BIT3, BIT3);
+        }
+        else if (u32Mode == PINMUX_FOR_ETH_MODE)
+        {
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE_2);
+            _HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE_2);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY1_BANK,REG_ATOP_RX_INOFF), 0, BIT15);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(ALBANY2_BANK,REG_ETH_GPIO_EN), 0, BIT3);
+        }
+        else
+        {
+            return -1;
+        }
+        break;
+
 
     /* UTMI */
     case PAD_DM_P1:
@@ -289,9 +353,9 @@ static S32 HalPadSetMode_MISC(U32 u32PadID, U32 u32Mode)
             //_HalPadDisablePadMux(PINMUX_FOR_TEST_IN_MODE);
             //_HalPadDisablePadMux(PINMUX_FOR_TEST_OUT_MODE);
             _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_GPIO_EN), REG_UTMI_GPIO_EN_MASK, REG_UTMI_GPIO_EN_MASK);
-            _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_CLK_EXTRA0_EN), REG_UTMI_CLK_EXTRA0_EN_MASK, REG_UTMI_CLK_EXTRA0_EN_MASK);
-            _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_REG_PDN), REG_UTMI_REG_PDN_MASK, REG_UTMI_REG_PDN_MASK);
-            _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_FL_XVR_PDN), REG_UTMI_FL_XVR_PDN_MASK, REG_UTMI_FL_XVR_PDN_MASK);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_CLK_EXTRA0_EN), ~REG_UTMI_CLK_EXTRA0_EN_MASK, REG_UTMI_CLK_EXTRA0_EN_MASK);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_REG_PDN), ~REG_UTMI_REG_PDN_MASK, REG_UTMI_REG_PDN_MASK);
+            _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_FL_XVR_PDN), ~REG_UTMI_FL_XVR_PDN_MASK, REG_UTMI_FL_XVR_PDN_MASK);
         }
         else if (u32Mode == PINMUX_FOR_USB_MODE) {
             _GPIO_W_WORD_MASK(_RIUA_16BIT(utmi_bank,REG_UTMI_GPIO_EN), ~REG_UTMI_GPIO_EN_MASK, REG_UTMI_GPIO_EN_MASK);

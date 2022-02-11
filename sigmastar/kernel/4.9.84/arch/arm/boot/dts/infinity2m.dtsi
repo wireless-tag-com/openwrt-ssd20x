@@ -360,6 +360,20 @@
             gpio-controller;
         };
 
+        sar-gpio{
+            compatible = "sstar,sar-gpio";
+            interrupts = <GIC_SPI INT_FIQ_SAR_GPIO_0 IRQ_TYPE_NONE>,
+                         <GIC_SPI INT_FIQ_SAR_GPIO_1 IRQ_TYPE_NONE>,
+                         <GIC_SPI INT_FIQ_SAR_GPIO_2 IRQ_TYPE_NONE>,
+                         <GIC_SPI INT_FIQ_SAR_GPIO_3 IRQ_TYPE_NONE>;
+        };
+
+        wakeup:wakeup{
+            compatible = "sstar,wakeup-gpio";
+            wakeup_num = <1>;
+            wakeup_source = <PAD_GPIO0>,<PAD_UNKNOWN>,<PAD_UNKNOWN>;
+        };
+
         sound {
             compatible = "sstar,audio";
 //            reg = <0x1F000000 0x1000000>;
@@ -370,13 +384,15 @@
             micin-pregain-level=<0>;    //0~3
             micin-gain-level=<3>;    //0~7
             linein-gain-level=<2>;  //0~7
-            amp-gpio = <PAD_FUART_RX 1>;
+            amp-gpio = <PAD_GPIO12 1 PAD_UNKNOWN 1>;
             clocks = <&CLK_upll_384m>;
            // playback-dma-buffer=<98304>; //512(ms)*48(kHz)*2(ch)*2(16bits)
            // capture-dma-buffer=<122880>; //640(ms)*48(kHz)*2(ch)*2(16bits)
             digmic-padmux = <1>;
             i2s-padmux = <3>;
             keep-i2s-clk = <0>;
+            i2s-pcm = <0>;
+            dmic-hpf = <6>;
             status = "ok";
         };
 
@@ -385,6 +401,7 @@
             clocks =<&CLK_sdio>, <&CLK_sdio>;
             interrupts =  <GIC_SPI INT_IRQ_SDIO IRQ_TYPE_LEVEL_HIGH>;
             bus-width = <4>;
+	    reset-pin = <0>;
             max-clks = <2>; // 0:48M 1:43M 2:40M 3:36M 4:32M 5:20M 6:12M 7:300K
             clk-driving = <0>;
             cmd-driving = <0>;
@@ -404,8 +421,10 @@
             slot-intcdzs = <1>,<1>,<1>;
             slot-fakecdzs = <0>,<0>,<0>;
             slot-cdzs-gpios = <PAD_PM_SD_CDZ>,<0>,<0>;
-            slot-pwr-gpios = <PAD_TTL0>,<0>,<0>; // ssc010a:PAD_TTL0 P2_ssc011a: PAD_GPIO0
+            slot-pwr-gpios = <PAD_GPIO0>,<0>,<0>; // ssc010a:PAD_TTL0 P2_ssc011a: PAD_GPIO0
+            slot-en-pwr-high-valid = <1>,<0>,<0>; //gpio output (1/0), power on.
             slot-pwr-off-delay = <30>,<30>,<30>;
+            slot-pwr-on-delay = <1>,<1>,<1>;
             slot-sdio-use = <0>,<0>,<0>;
 
             interrupts-extended = <&ms_main_intc GIC_SPI INT_IRQ_SDIO IRQ_TYPE_LEVEL_HIGH>,//was INT_IRQ_SDIO
@@ -494,17 +513,18 @@
             status = "ok";
         };
 
-        /*core_voltage {
+        core_voltage {
             vid_width = <2>;
             vid_gpios = <PAD_UART1_RX PAD_SAR_GPIO1>;
             vid_voltages = <850 900 950 1000>;  //2b'00 2b'01 2b'10 2b'11
-        };*/
-
+        };
+/*
         core_voltage {
             vid_width = <1>;
             vid_gpios = <PAD_SAR_GPIO1>;
             vid_voltages = <950 1000>;  //2b'00 2b'01
         };
+*/
         watchdog: watchdog {
             compatible = "sstar,infinity-wdt";
             reg = <0x1F006000 0x40>;
@@ -515,7 +535,7 @@
             compatible = "sstar,infinity-sar";
             reg = <0x1F002800 0x200>;
             clocks = <&CLK_sar>;
-            status = "disabled";
+            status = "ok";
         };
 
         ircut {
@@ -523,7 +543,7 @@
             ircut-gpio-num = <PAD_PM_IRIN>;///PM_GPIO_IRIN
             interrupt-parent = <&ms_pm_intc>;
             interrupts = <INT_PMSLEEP_IRIN>;
-            status = "disabled";
+            status = "ok";
         };
 
         ir: ir@1F007A00 {

@@ -608,7 +608,7 @@
             slot-fakecdzs = <0>,<0>,<0>;
             slot-pwr-gpios = <19>,<0>,<0>;
             slot-pwr-off-delay = <30>,<30>,<30>;
-
+            slot-pwr-on-delay = <1>,<1>,<1>;
             //clocks = <&CLK_sdio>,<&GATE_MCM_sdio>,<&GATE_SRAM_sdio>,<&CLK_fcie>,<&GATE_MCM_fcie>,<&GATE_SRAM_fcie>;
             //clocks = <&CLK_fcie_syn>,<&CLK_sdio_0>,<&CLK_sdio_1>;
             interrupts = <GIC_SPI  INT_IRQ_101_SD_INT IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI INT_IRQ_80_SDIO_INT IRQ_TYPE_LEVEL_HIGH>;

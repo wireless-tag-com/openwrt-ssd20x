@@ -63,6 +63,10 @@ void Hal_CARD_PullPADPin(IpOrder eIP, PadOrder ePAD, PinPullEmType ePinPull);
 //----------------------------------------------------------------------------------------------------------
 void Hal_CARD_SetClock(IpOrder eIP, U32_T u32ClkFromIPSet);
 U32_T Hal_CARD_FindClockSetting(IpOrder eIP, U32_T u32ReffClk);
+#ifdef CONFIG_PM_SLEEP
+void Hal_CARD_devpm_GetClock(IpOrder eIP, U32_T *pu32PmIPClk, U32_T *pu32PmBlockClk);
+void Hal_CARD_devpm_setClock(IpOrder eIP, U32_T u32PmIPClk, U32_T u32PmBlockClk);
+#endif
 
 // Power and Voltage Setting for Card Platform
 //----------------------------------------------------------------------------------------------------------

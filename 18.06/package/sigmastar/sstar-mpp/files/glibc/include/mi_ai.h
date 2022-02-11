@@ -104,6 +104,8 @@ MI_S32 MI_AI_GetBfConfigAttr(MI_AUDIO_DEV AiDevId, MI_AI_CHN AiChn, MI_AI_BfConf
 MI_S32 MI_AI_EnableBf(MI_AUDIO_DEV AiDevId, MI_AI_CHN AiChn);
 MI_S32 MI_AI_DisableBf(MI_AUDIO_DEV AiDevId, MI_AI_CHN AiChn);
 MI_S32 MI_AI_SetBfAngle(MI_AUDIO_DEV AiDevId, MI_AI_CHN AiChn, MI_S32 s32BfAngle);
+MI_S32 MI_AI_InitDev(MI_AI_InitParam_t *pstInitParam);
+MI_S32 MI_AI_DeInitDev(void);
 
 #ifdef __cplusplus
 }

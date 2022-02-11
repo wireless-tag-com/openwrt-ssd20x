@@ -53,6 +53,10 @@ MI_S32 MI_SNR_SetPlaneMode(MI_SNR_PAD_ID_e      ePADId, MI_BOOL bEnable);
 MI_S32 MI_SNR_GetPlaneMode(MI_SNR_PAD_ID_e      ePADId, MI_BOOL *pbEnable);
 
 MI_S32 MI_SNR_CustFunction(MI_SNR_PAD_ID_e ePADId, MI_U32 u32CmdId, MI_U32 u32DataSize, void *pCustData, MI_SNR_CUST_DIR_e eDir);
+MI_S32 MI_SNR_InitDev(MI_SNR_InitParam_t *pstInitParam);
+MI_S32 MI_SNR_DeInitDev(void);
+
+
 #ifdef __cplusplus
 }
 #endif

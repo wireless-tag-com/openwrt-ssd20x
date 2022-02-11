@@ -626,7 +626,9 @@ void handle_edge_irq(struct irq_desc *desc)
 
 	if (!irq_may_run(desc)) {
 		desc->istate |= IRQS_PENDING;
-		mask_ack_irq(desc);
+        #ifndef CONFIG_SS_PM_WAKEUP_PATCH
+                mask_ack_irq(desc);
+        #endif
 		goto out_unlock;
 	}
 

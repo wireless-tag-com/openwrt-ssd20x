@@ -39,6 +39,7 @@
 #include "mdrv_spinand.h"
 #include "mhal_spinand.h"
 #include "../include/ms_platform.h"
+#include "mdrv_spinand_dev.h"
 
 //==========================================================================
 // Local Variables
@@ -52,6 +53,8 @@ SPINAND_MODE _SpinandRdMode = E_SPINAND_QUAD_MODE;
 #else
 SPINAND_MODE _SpinandRdMode = E_SPINAND_SINGLE_MODE;
 #endif
+
+SPI_NAND_DEVICE_t *_gtSpinandWpInfo;
 
 /********Read nand info by sni & pni, so no need the table.********/
 #if USE_SPINAND_INFO_TABLE
@@ -160,7 +163,10 @@ inline BOOL MS_SPINAND_RELEASE_MUTEX (S32 s32MutexId)
 BOOL MDrv_SPINAND_Init(SPINAND_FLASH_INFO_t *tSpinandInfo)
 {
     #define SPINAND_ID_SIZE 2
+    U8 u8Idx;
+    U8 u8Idx1;
     U32 u32Ret;
+    U8 u8Ismatch;
 
     // 1. HAL init
     _u8SPINANDDbgLevel = E_SPINAND_DBGLV_DEBUG;
@@ -229,6 +235,36 @@ BOOL MDrv_SPINAND_Init(SPINAND_FLASH_INFO_t *tSpinandInfo)
         spi_nand_msg("Detected ID: MID =%x, DID =%x",_gtSpinandInfo.au8_ID[0] ,_gtSpinandInfo.au8_ID[1]);
         memcpy(tSpinandInfo, &_gtSpinandInfo, sizeof(SPINAND_FLASH_INFO_t));
     }
+
+    for (u8Idx = 0; _gtSpinandWpTable[u8Idx].pWriteProtectTable != NULL; u8Idx++)
+    {
+        u8Ismatch = TRUE;
+        for(u8Idx1 = 0; u8Idx1 < _gtSpinandInfo.u8_IDByteCnt; u8Idx1++)
+        {
+            if(_gtSpinandInfo.au8_ID[u8Idx1] != _gtSpinandWpTable[u8Idx].pu8MID[u8Idx1])
+            {
+                u8Ismatch = FALSE;
+            }
+        }
+        if(u8Ismatch)
+        {
+            _gtSpinandWpInfo = &_gtSpinandWpTable[u8Idx];
+            break;
+        }
+    }
+
+    if (_gtSpinandInfo.au8_ID[0] == 0x01 &&
+        (_gtSpinandInfo.au8_ID[1] == 0x25 || _gtSpinandInfo.au8_ID[1] == 0x35)) /*S35ML NAND flash need setting A[0] 1BIT to unlock A[0]reg*/
+    {
+        U8 u8Status;
+        HAL_SPINAND_ReadStatusRegister(&u8Status, SPI_NAND_REG_PROT);
+        if(~(u8Status & 0x2))
+        {
+            u8Status |= (0x2);
+            HAL_SPINAND_WriteStatusRegister(&u8Status, SPI_NAND_REG_PROT);
+        }
+    }
+
 #if defined(SUPPORT_SPINAND_QUAD) && SUPPORT_SPINAND_QUAD
     printk("\r\nQuad mode enabled\r\n");
     {
@@ -412,6 +448,34 @@ U32 MDrv_SPINAND_SetMode(SPINAND_MODE eMode)
     return u32Ret;
 }
 
+U32 MDrv_SPINAND_program(U32 u32_page, U16 u16_offset, U8 *pu8_buf, U32 u32_size)
+{
+    U32 u32Ret;
+
+    MS_ASSERT( MS_SPINAND_IN_INTERRUPT() == FALSE );
+
+    if (FALSE == MS_SPINAND_OBTAIN_MUTEX(_s32SPINAND_Mutex, SPINAND_MUTEX_WAIT_TIME))
+    {
+        spi_nand_err("%s ENTRY fails!\n", __FUNCTION__);
+        return FALSE;
+    }
+
+    if ((ID1 == 0xEF) && (ID2 == 0xAB) && (ID3 == 0x21))
+    {
+        U16 u16DiePageCnt = MDrv_SPINAND_CountBits(BLOCKCNT * BLOCK_PAGE_SIZE);
+        HAL_SPINAND_DieSelect((U8)(u32_page >> (u16DiePageCnt - 1)));
+    }
+#if defined(SPINAND_MEASURE_PERFORMANCE) && SPINAND_MEASURE_PERFORMANCE
+        u64_TotalWriteBytes += _gtSpinandInfo.u16_PageByteCnt;
+#endif
+    u32Ret=HAL_SPINAND_program(u32_page, u16_offset, pu8_buf, u32_size);
+
+    MS_SPINAND_RELEASE_MUTEX(_s32SPINAND_Mutex);
+
+    return u32Ret;
+
+}
+
 U32 MDrv_SPINAND_Write(U32 u32_PageIdx, U8 *u8Data, U8 *pu8_SpareBuf)
 {
     U32 u32Ret;
@@ -480,6 +544,248 @@ U32 MDrv_SPINAND_BLOCK_ERASE(U32 u32_PageIdx)
 void MDrv_SPINAND_Device(struct device *dev)
 {
     spi_nand_dev = dev;
+}
+
+SPINAND_WP_AREA_e MDrv_SPINAND_WP_Area_Existed(U32 u32UpperBound, U32 u32LowerBound, U8 *pu8BlockProtectBits)
+{
+    SPI_NAND_WP_t   *pWriteProtectTable;
+    U8              u8Index;
+    BOOL            bPartialBoundFitted;
+    BOOL            bEndOfTable;
+    U32             u32PartialFittedLowerBound = u32UpperBound;
+    U32             u32PartialFittedUpperBound = u32LowerBound;
+
+
+    if (NULL == _gtSpinandWpInfo)
+    {
+        return E_WP_TABLE_NOT_SUPPORT;
+    }
+
+
+    for (u8Index = 0, bEndOfTable = FALSE, bPartialBoundFitted = FALSE; FALSE == bEndOfTable; u8Index++)
+    {
+        pWriteProtectTable = &(_gtSpinandWpInfo->pWriteProtectTable[u8Index]);
+
+        if (   0xFFFFFFFF == pWriteProtectTable->u32LowerBound
+            && 0xFFFFFFFF == pWriteProtectTable->u32UpperBound
+            )
+        {
+            bEndOfTable = TRUE;
+        }
+
+        if (   pWriteProtectTable->u32LowerBound == u32LowerBound
+            && pWriteProtectTable->u32UpperBound == u32UpperBound
+            )
+        {
+            *pu8BlockProtectBits &= ~pWriteProtectTable->u8BlockProtectMask;
+            *pu8BlockProtectBits |= pWriteProtectTable->u8BlockProtectBits;
+
+            return E_WP_AREA_EXACTLY_AVAILABLE;
+        }
+        else if (u32LowerBound <= pWriteProtectTable->u32LowerBound && pWriteProtectTable->u32UpperBound <= u32UpperBound)
+        {
+            //
+            // u32PartialFittedUpperBound & u32PartialFittedLowerBound would be initialized first time when bPartialBoundFitted == FALSE (init value)
+            // 1. first match:  FALSE == bPartialBoundFitted
+            // 2. better match: (pWriteProtectTable->u32UpperBound - pWriteProtectTable->u32LowerBound) > (u32PartialFittedUpperBound - u32PartialFittedLowerBound)
+            //
+
+            if (   FALSE == bPartialBoundFitted
+                || (pWriteProtectTable->u32UpperBound - pWriteProtectTable->u32LowerBound) > (u32PartialFittedUpperBound - u32PartialFittedLowerBound)
+                )
+            {
+                u32PartialFittedUpperBound = pWriteProtectTable->u32UpperBound;
+                u32PartialFittedLowerBound = pWriteProtectTable->u32LowerBound;
+                *pu8BlockProtectBits &= ~pWriteProtectTable->u8BlockProtectMask;
+                *pu8BlockProtectBits |= pWriteProtectTable->u8BlockProtectBits;
+            }
+
+            bPartialBoundFitted = TRUE;
+        }
+    }
+
+    if (TRUE == bPartialBoundFitted)
+    {
+        return E_WP_AREA_PARTIALLY_AVAILABLE;
+    }
+    else
+    {
+        return E_WP_AREA_NOT_AVAILABLE;
+    }
+}
+
+U32 MDrv_SPINAND_WriteProtect_Disable_Range_Set(U32 u32DisableLowerBound, U32 u32DisableUpperBound)
+{
+    U32  u32Ret;
+    U8   u8ProtectBack;
+    U8   u8BlockProtectBit;
+    U32  u32FlashIndexMax;
+
+    SPINAND_WP_AREA_e enWpAreaExistedRtn;
+
+    MS_ASSERT( MS_SPINAND_IN_INTERRUPT() == FALSE );
+    if (FALSE == MS_SPINAND_OBTAIN_MUTEX(_s32SPINAND_Mutex, SPINAND_MUTEX_WAIT_TIME))
+    {
+        spi_nand_err("%s ENTRY fails!\n", __FUNCTION__);
+        return FALSE;
+    }
+
+    u32FlashIndexMax = _gtSpinandInfo.u16_PageByteCnt * _gtSpinandInfo.u16_BlkPageCnt * _gtSpinandInfo.u16_BlkCnt - 1;
+
+    if (   u32DisableLowerBound > u32FlashIndexMax
+        || u32DisableUpperBound > u32FlashIndexMax
+        || u32DisableLowerBound > u32DisableUpperBound
+        )
+    {
+        spi_nand_err(" = FALSE, u32DisableLowerBound(0x%08X), u32DisableUpperBound(0x%08X), u32FlashIndexMax(0x%08X)\n", (int)u32DisableLowerBound, (int)u32DisableUpperBound, (int)u32FlashIndexMax);
+        u32Ret = ERR_SPINAND_INVALID;
+        goto err;
+    }
+
+    if(HAL_SPINAND_ReadStatusRegister(&u8BlockProtectBit, SPI_NAND_REG_PROT))
+    {
+        u32Ret = ERR_SPINAND_INVALID;
+        goto err;
+    }
+
+    // Step 3. get u8BlockProtectBit
+    enWpAreaExistedRtn = MDrv_SPINAND_WP_Area_Existed(u32DisableUpperBound, u32DisableLowerBound, &u8BlockProtectBit);
+
+    switch (enWpAreaExistedRtn)
+    {
+        case E_WP_AREA_PARTIALLY_AVAILABLE:
+        case E_WP_AREA_NOT_AVAILABLE:
+        case E_WP_TABLE_NOT_SUPPORT:
+            u8BlockProtectBit = 0;
+            u32Ret = ERR_SPINAND_INVALID;
+            goto err;
+
+        default:
+            /* DO NOTHING */
+            break;
+    }
+
+    if(!HAL_SPINAND_WriteStatusRegister(&u8BlockProtectBit, SPI_NAND_REG_PROT))
+    {
+        u32Ret = ERR_SPINAND_TIMEOUT;
+        goto err;
+    }
+
+    if(HAL_SPINAND_ReadStatusRegister(&u8ProtectBack, SPI_NAND_REG_PROT))
+    {
+        u32Ret = ERR_SPINAND_INVALID;
+        goto err;
+    }
+
+    if(u8ProtectBack != u8BlockProtectBit)
+    {
+        u32Ret = ERR_SPINAND_INVALID;
+        goto err;
+    }
+
+    u32Ret = ERR_SPINAND_SUCCESS;
+
+err:
+    MS_SPINAND_RELEASE_MUTEX(_s32SPINAND_Mutex);
+    return u32Ret;
+}
+
+SPINAND_WP_AREA_e MDrv_SPINAND_WP_Status_Existed(U32* u32UpperBound, U32* u32LowerBound, U8 u8BlockProtectBits)
+{
+    SPI_NAND_WP_t   *pWriteProtectTable;
+    U8               u8Index;
+    BOOL             bEndOfTable;
+
+    if (NULL == _gtSpinandWpInfo)
+    {
+        return E_WP_TABLE_NOT_SUPPORT;
+    }
+
+    for (u8Index = 0, bEndOfTable = FALSE; FALSE == bEndOfTable; u8Index++)
+    {
+        pWriteProtectTable = &(_gtSpinandWpInfo->pWriteProtectTable[u8Index]);
+
+        if (   0xFFFFFFFF == pWriteProtectTable->u32LowerBound
+            && 0xFFFFFFFF == pWriteProtectTable->u32UpperBound
+            )
+        {
+            bEndOfTable = TRUE;
+        }
+
+        if((u8BlockProtectBits & pWriteProtectTable->u8BlockProtectMask) == pWriteProtectTable->u8BlockProtectBits)
+        {
+            *u32UpperBound = pWriteProtectTable->u32UpperBound;
+            *u32LowerBound = pWriteProtectTable->u32LowerBound;
+            return E_WP_AREA_EXACTLY_AVAILABLE;
+        }
+    }
+    return E_WP_AREA_NOT_AVAILABLE;
+
+}
+
+U32 MDrv_SPINAND_WriteProtect_Disable_Range_Get(U32* u32DisableLowerBound, U32* u32DisableUpperBound)
+{
+    U32 u32Ret;
+    U8 u8StatusReg;
+    SPINAND_WP_AREA_e enWpAreaExistedRtn;
+
+    MS_ASSERT( MS_SPINAND_IN_INTERRUPT() == FALSE );
+    if (FALSE == MS_SPINAND_OBTAIN_MUTEX(_s32SPINAND_Mutex, SPINAND_MUTEX_WAIT_TIME))
+    {
+        spi_nand_err("%s ENTRY fails!\n", __FUNCTION__);
+        return FALSE;
+    }
+
+    if(HAL_SPINAND_ReadStatusRegister(&u8StatusReg, SPI_NAND_REG_PROT))
+    {
+        u32Ret = ERR_SPINAND_INVALID;
+        goto err;
+    }
+
+    enWpAreaExistedRtn = MDrv_SPINAND_WP_Status_Existed(u32DisableUpperBound, u32DisableLowerBound, u8StatusReg);
+
+    switch (enWpAreaExistedRtn)
+    {
+        case E_WP_AREA_PARTIALLY_AVAILABLE:
+        case E_WP_AREA_NOT_AVAILABLE:
+        case E_WP_TABLE_NOT_SUPPORT:
+            u32Ret = ERR_SPINAND_INVALID;
+            goto err;
+
+        default:
+            /* DO NOTHING */
+            break;
+    }
+
+    u32Ret = ERR_SPINAND_SUCCESS;
+err:
+    MS_SPINAND_RELEASE_MUTEX(_s32SPINAND_Mutex);
+    return u32Ret;
+}
+
+U32 MDrv_SPINAND_WriteProtect_Check(U32 u32DisableLowerBound, U32 u32DisableUpperBound, U8* pu8IsProctected)
+{
+    U32 u32LowerBound;
+    U32 u32UpperBound;
+
+    if(MDrv_SPINAND_WriteProtect_Disable_Range_Get(&u32LowerBound, &u32UpperBound))
+        return ERR_SPINAND_INVALID;
+
+    // judge wether range is crossed or not?
+
+    u32LowerBound = max(u32LowerBound, u32DisableLowerBound);
+    u32UpperBound = min(u32UpperBound, u32DisableUpperBound);
+
+    if(u32UpperBound >= u32LowerBound)
+    {
+        *pu8IsProctected = TRUE;
+    }
+    else
+    {
+        *pu8IsProctected = FALSE;
+    }
+
+    return ERR_SPINAND_SUCCESS;
 }
 
 U32 MDrv_SPINAND_WriteProtect(BOOL bEnable)

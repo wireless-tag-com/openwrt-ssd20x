@@ -45,6 +45,14 @@
 #define BOOL unsigned char
 #endif
 
+typedef enum
+{
+    E_WP_AREA_EXACTLY_AVAILABLE,
+    E_WP_AREA_PARTIALLY_AVAILABLE,
+    E_WP_AREA_NOT_AVAILABLE,
+    E_WP_TABLE_NOT_SUPPORT,
+} SPINAND_WP_AREA_e;
+
 typedef enum _SPINAND_ERROR_NUM
 {
     ERR_SPINAND_SUCCESS,

@@ -35,6 +35,8 @@
 #include "karma.h"
 #include "sysv68.h"
 #include "cmdline.h"
+#include "emmc.h"
+
 
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
@@ -108,6 +110,10 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #ifdef CONFIG_SYSV68_PARTITION
 	sysv68_partition,
 #endif
+#if defined (CONFIG_EMMC_PARTITION)
+	emmc_partition,
+#endif
+
 	NULL
 };
 

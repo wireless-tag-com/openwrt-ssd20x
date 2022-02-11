@@ -30,6 +30,13 @@
 #include "ms_platform.h"
 #include "registers.h"
 #include "voltage_ctrl.h"
+#define CPUFREQ_DEBUG  0
+
+#if CPUFREQ_DEBUG
+#define CPUFREQ_DBG(fmt, arg...) printk(KERN_ERR fmt, ##arg)
+#else
+#define CPUFREQ_DBG(fmt, arg...)
+#endif
 
 u32 sidd_th_100x = 1243;  //sidd threshold=12.74mA
 static struct device *cpu;
@@ -62,9 +69,9 @@ static int ms_cpufreq_target_index(struct cpufreq_policy *policy, unsigned int i
         pr_err("[%s] %d not found in OPP\n", __func__, freqs.new);
         return -EINVAL;
     }
-    rcu_read_unlock();
 
     opp_voltage_mV = (dev_pm_opp_get_voltage(opp)? dev_pm_opp_get_voltage(opp)/1000 : 0);
+    rcu_read_unlock();
 
 #ifdef CONFIG_SS_VOLTAGE_CTRL
     if (opp_voltage_mV > get_core_voltage())
@@ -195,6 +202,7 @@ static ssize_t store_temp_adjust_threshold_hi(struct kobject *kobj, struct attri
 define_one_global_rw(temp_adjust_threshold_hi);
 
 int g_sEfuseTrimValue = 400;
+bool g_sEfuseTrimValueUpdated = false;
 static ssize_t show_temp_trim_value(struct kobject *kobj, struct attribute *attr, char *buf)
 {
     char *str = buf;
@@ -217,6 +225,20 @@ int ms_get_temp(void)
     OUTREG16(BASE_REG_PMSAR_PA + REG_ID_00, 0xA20);
     SETREG16(BASE_REG_PMSAR_PA + REG_ID_00, BIT14);
     temp = INREG16(BASE_REG_PMSAR_PA + REG_ID_46);
+
+    CPUFREQ_DBG("vbe code: %d\n", temp);
+
+    if(!g_sEfuseTrimValueUpdated)
+    {
+        CLRREG16(BASE_REG_EFUSE_PA + REG_ID_03, BIT4); // switch to sel outa~outd
+        if(OUTREG16(BASE_REG_PMSAR_PA + REG_ID_00, 0x0400))
+        {
+            g_sEfuseTrimValue = INREGMSK16(BASE_REG_EFUSE_PA + REG_ID_09, 0x3FF);
+            CPUFREQ_DBG("Tsensor trim value updated: %d\n", g_sEfuseTrimValue);
+            g_sEfuseTrimValueUpdated = true;
+        }
+    }
+
     //GF28LP equation to calculate temperature
     return (1370 * (g_sEfuseTrimValue - temp) + 25000)/1000;
 }
@@ -281,6 +303,19 @@ static int ms_cpufreq_exit(struct cpufreq_policy *policy)
     return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ms_cpufreq_suspend(struct cpufreq_policy *policy)
+{
+    return 0;
+}
+
+static int ms_cpufreq_resume(struct cpufreq_policy *policy)
+{
+    ms_cpufreq_target_index(policy, 0);
+    return 0;
+}
+#endif
+
 static struct cpufreq_driver ms_cpufreq_driver = {
     .verify = cpufreq_generic_frequency_table_verify,
     .attr   = cpufreq_generic_attr,
@@ -288,6 +323,10 @@ static struct cpufreq_driver ms_cpufreq_driver = {
     .get    = cpufreq_generic_get,
     .init   = ms_cpufreq_init,
     .exit   = ms_cpufreq_exit,
+#ifdef CONFIG_PM_SLEEP
+    .suspend = ms_cpufreq_suspend,
+    .resume = ms_cpufreq_resume,
+#endif
     .name   = "Mstar cpufreq",
 };
 

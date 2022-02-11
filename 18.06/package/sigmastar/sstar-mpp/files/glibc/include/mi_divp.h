@@ -129,6 +129,20 @@ MI_S32 MI_DIVP_RefreshChn(MI_DIVP_CHN DivpChn);
 
 MI_S32 MI_DIVP_StretchBuf(MI_DIVP_DirectBuf_t *pstSrcBuf, MI_SYS_WindowRect_t *pstSrcCrop, MI_DIVP_DirectBuf_t *pstDstBuf);
 
+//------------------------------------------------------------------------------
+/// @brief Init DIVP module.
+/// @return MI_SUCCESS: succeed in Init DIVP module.
+///             MI_DIVP_ERR_FAILED: Fail to Init DIVP module.
+//------------------------------------------------------------------------------
+MI_S32 MI_DIVP_InitDev(MI_DIVP_InitParam_t *pstInitParam);
+
+//------------------------------------------------------------------------------
+/// @brief DeInit DIVP module.
+/// @return MI_SUCCESS: succeed in DeInit DIVP module.
+///             MI_DIVP_ERR_FAILED: Fail to DeInit DIVP module.
+//------------------------------------------------------------------------------
+MI_S32 MI_DIVP_DeInitDev(void);
+
 #ifdef __cplusplus
 }
 #endif

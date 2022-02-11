@@ -42,6 +42,8 @@ MI_S32 MI_MipiTx_StopChannel(MI_U32 u32ChannelId);
 
 MI_S32 MI_MipiTx_SetTimingConfig(MI_U32 u32ChannelId, MI_MipiTx_TimingConfig_t *pstMipiTimingCfg);
 MI_S32 MI_MipiTx_GetTimingConfig(MI_U32 u32ChannelId, MI_MipiTx_TimingConfig_t *pstMipiTimingCfg);
+MI_S32 MI_MipiTx_InitDev(MI_MipiTx_InitParam_t *pstInitParam);
+MI_S32 MI_MipiTx_DeInitDev(void);
 
 #ifdef __cplusplus
 }

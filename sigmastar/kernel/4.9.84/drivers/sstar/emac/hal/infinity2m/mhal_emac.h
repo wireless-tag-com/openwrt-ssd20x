@@ -512,6 +512,8 @@ void MHal_EMAC_mdio_path(void* hal, int mdio_path);
 
 void MHal_EMAC_Phy_Restart_An(void* hal);
 
+u32 MHal_EMAC_Phy_MDI_MDIX(void* hal, int bSwitch);
+
 #endif
 // -----------------------------------------------------------------------------
 // Linux EMAC.c End

@@ -40,45 +40,6 @@
  * until we're ready for them to initialise.
  */
 ENTRY(infinity2m_secondary_startup)
-#ifdef CONFIG_LH_RTOS
-    ldr 	r0, =0xA0001000
-    mov 	sp, r0
-
-    bl secure_cntvoff_init
-
-    bl infinity2m_secondary_gic
-
-    //ACTLR
-    mrc	p15, 0, r0, c1, c0, 1
-    orr	r0, r0, #(ACTLR_DDVM_DISABLE)
-    orr	r0, r0, #(ACTLR_L1PCTL_3_PREFETCH)
-    orr	r0, r0, #(ACTLR_L1RADIS_DISABLE)
-    orr	r0, r0, #(ACTLR_L2RADIS_DISABLE)
-    orr	r0, r0, #(ACTLR_DODMBS_DISABLE)
-    orr	r0, r0, #(ACTLR_SMP_ENABLE)
-    mcr	p15, 0, r0, c1, c0, 1
-    isb
-
-    //NSACR
-    mrc p15, 0, r0, c1, c1, 2
-    orr r0, r0, #(NSACR_CP11)
-    orr r0, r0, #(NSACR_CP10)
-    mcr p15, 0, r0, c1, c1, 2
-    isb
-
-    //switch to NS
-    mrc	p15, 0, r1, c1, c1, 0
-    orr	r0, r1, #1
-    mcr	p15, 0, r0, c1, c1, 0
-    isb
-
-    //CPACR
-    mrc p15, 0, r0, c1, c0, 2
-    orr r0, r0, #(CPACR_CP11_FULL)
-    orr r0, r0, #(CPACR_CP10_FULL)
-    mcr p15, 0, r0, c1, c0, 2
-    isb
-#endif
 
     /* Native ARMv7 L1 invalide function */
     bl v7_invalidate_l1

@@ -29,5 +29,6 @@ wtinclude wt_4g
 
 CONFIG_PACKAGE_sstar-init=y
 CONFIG_SSTAR_LCD_CC0702I50R=y
+CONFIG_PACKAGE_tinyalsa=y
 
 CONFIG_PACKAGE_uboot-nand-sstar-WT2022=y

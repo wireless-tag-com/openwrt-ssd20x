@@ -113,6 +113,7 @@
 #define FLASH_IC_EN25P16         0x090EUL      // 2M
 #define FLASH_IC_EN25F40         0x090AUL      // 512k
 #define FLASH_IC_EN25QH16        0x090BUL      // 2M
+#define FLASH_IC_EN25QX128       0x09CCUL      // 2M
 
 // ESMT
 #define FLASH_IC_ESMT_F25L016A   0x0A00UL      // 2M
@@ -142,10 +143,21 @@
 #define FLASH_IC_25Q128AS       0x1100UL       // 25q128as
 
 #define FLASH_IC_XM25QH128A     0x1200UL
+#define FLASH_IC_XM25QH128B   0x1204UL      // 16M
+#define FLASH_IC_XM25QH128C   0x1205UL      // 16M
 #define FLASH_IC_XM25QH256B     0x1201UL
 
 //XTX
 #define FLASH_IC_XT25F128B      0x1300UL
+
+//CFX
+#define FALSH_IC_GM25Q128A      0x1400UL
+
+//BoYa
+#define FLASH_IC_BY25Q128AS     0x1500UL  //16MB
+
+//End of table
+#define FLASH_IC_ENDTABLE       0x0000UL
 
 // Flash Manufacture ID
 #define MID_MXIC                0xC2UL
@@ -163,7 +175,10 @@
 #define MID_25Q                 0x68UL
 #define MID_ZB                  0x5EUL
 #define MID_XMC                 0x20UL
+#define MID_WUHAN               0x20UL
 #define MID_XTX                 0x0BUL
+#define MID_CFX                 0x1CUL
+#define MID_BY                  0x68UL
 
 // Flash Storage Size
 #define SIZE_1KB                0x400UL
@@ -196,6 +211,7 @@
 typedef struct
 {
     MS_U8   u8BlockProtectBits;  // Block Protection Bits
+    MS_U8   u8BlockProtectMask;  // Block Protection Mask
     MS_U32  u32LowerBound;
     MS_U32  u32UpperBound;
 } ST_WRITE_PROTECT;

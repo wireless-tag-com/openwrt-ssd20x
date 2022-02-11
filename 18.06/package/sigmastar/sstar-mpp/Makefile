@@ -44,6 +44,11 @@ endif
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/lib/modules/$(LINUX_VERSION)
 	$(INSTALL_DIR) $(1)/config $(1)/appconfigs $(1)/usr/sbin $(1)/etc/uci-defaults
+	$(CP) $(LINUX_DIR)/sound/soundcore.ko $(1)/lib/modules/$(LINUX_VERSION)/
+	$(CP) $(LINUX_DIR)/sound/core/snd.ko $(1)/lib/modules/$(LINUX_VERSION)/
+	$(CP) $(LINUX_DIR)/sound/core/snd-pcm.ko $(1)/lib/modules/$(LINUX_VERSION)/
+	$(CP) $(LINUX_DIR)/sound/core/oss/snd-pcm-oss.ko $(1)/lib/modules/$(LINUX_VERSION)/
+	$(CP) $(LINUX_DIR)/sound/core/snd-timer.ko $(1)/lib/modules/$(LINUX_VERSION)/
 	$(CP) ./files/$(LIBC)/modules/4.9.84/*.ko $(1)/lib/modules/$(LINUX_VERSION)/
 	$(CP) ./files/config/* $(1)/config/
 	$(CP) ./files/$(SSTAR_MPP_DIR)/* $(1)/config/

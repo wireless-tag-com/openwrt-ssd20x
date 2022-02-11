@@ -98,3 +98,14 @@ config ANALOG_PD_USB20_P3
 config SS_PROFILING_TIME
     bool "Record timestamp in sram"
     default n
+
+config REBOOT_DDR_SELFREFRESH
+    bool "Reboot with DDR self-refresh"
+    depends on PM_SLEEP
+    help
+      Reboot with DDR self-refresh
+
+config SS_PM_WAKEUP_PATCH
+    bool "Disable pm_system_wakeup when suspending"
+    default n
+

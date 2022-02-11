@@ -47,6 +47,8 @@ MI_S32 MI_HDMI_SetInfoFrame(MI_HDMI_DeviceId_e eHdmi, MI_HDMI_InfoFrame_t *pstIn
 MI_S32 MI_HDMI_GetInfoFrame(MI_HDMI_DeviceId_e eHdmi, MI_HDMI_InfoFrameType_e eInfoFrameType,
     MI_HDMI_InfoFrame_t *pstInfoFrame);
 MI_S32 MI_HDMI_SetAnalogDrvCurrent(MI_HDMI_DeviceId_e eHdmi, MI_HDMI_AnalogDrvCurrent_t *pstAnalogDrvCurrent);
+MI_S32 MI_HDMI_InitDev(MI_HDMI_InitParam_t *pstInitParam);
+MI_S32 MI_HDMI_DeInitDev(void);
 
 #ifdef __cplusplus
 }

@@ -140,4 +140,7 @@ static FORCE_INLINE s32 CAM_OS_FLS64(u64 x)
 #define CAM_OS_MIN(a,b) (((a)<(b))?(a):(b))
 #define CAM_OS_MAX(a,b) (((a)>(b))?(a):(b))
 
+#define CAM_OS_ALIGN_DOWN(val, alignment)   (((val)/(alignment))*(alignment))
+#define CAM_OS_ALIGN_UP(val, alignment)     ((((val)+(alignment)-1)/(alignment))*(alignment))
+
 #endif //__CAM_OS_UTIL_H__

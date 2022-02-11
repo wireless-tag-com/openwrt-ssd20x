@@ -53,6 +53,7 @@ int msys_dma_blit(MSYS_DMA_BLIT *pstMdmaCfg)
     HalMoveDmaParam_t       tMoveDmaParam;
     HalMoveDmaLineOfst_t    tMoveDmaLineOfst;
 
+    memset(&tMoveDmaParam, 0, sizeof(HalMoveDmaParam_t));
     tMoveDmaParam.u32SrcAddr    = pstMdmaCfg->phyaddr_src;
     tMoveDmaParam.u32SrcMiuSel  = (pstMdmaCfg->phyaddr_src < ARM_MIU1_BASE_ADDR) ? (0) : (1);
     tMoveDmaParam.u32DstAddr    = pstMdmaCfg->phyaddr_dst;
@@ -79,11 +80,11 @@ int msys_dma_blit(MSYS_DMA_BLIT *pstMdmaCfg)
         tMoveDmaLineOfst.u32DstWidth    = pstMdmaCfg->width_dst;
         tMoveDmaLineOfst.u32DstOffset   = pstMdmaCfg->lineofst_dst;
 
-        tMoveDmaParam.bEnLineOfst       = 1;
+        tMoveDmaParam.u32Mode           = HAL_MOVEDMA_LINE_OFFSET;
         tMoveDmaParam.pstLineOfst       = &tMoveDmaLineOfst;
     }
     else {
-        tMoveDmaParam.bEnLineOfst       = 0;
+        tMoveDmaParam.u32Mode           = HAL_MOVEDMA_LINEAR;
         tMoveDmaParam.pstLineOfst       = NULL;
     }
 
@@ -107,6 +108,7 @@ int msys_dma_fill(MSYS_DMA_FILL *pstDmaCfg)
 {
     HalBdmaParam_t  tBdmaParam;
     u8              u8DmaCh = HAL_BDMA_CH1;
+    memset(&tBdmaParam, 0, sizeof(HalBdmaParam_t));
     tBdmaParam.ePathSel     = (pstDmaCfg->phyaddr < ARM_MIU1_BASE_ADDR) ? (HAL_BDMA_MEM_TO_MIU0) : (HAL_BDMA_MEM_TO_MIU1);
     tBdmaParam.bIntMode     = 1;
     tBdmaParam.eDstAddrMode = HAL_BDMA_ADDR_INC;
@@ -136,6 +138,7 @@ int  msys_dma_copy(MSYS_DMA_COPY *cfg)
 #else
     u8              u8DmaCh = HAL_BDMA_CH2;
 #endif
+    memset(&tBdmaParam, 0, sizeof(HalBdmaParam_t));
     tBdmaParam.ePathSel     = ((U32)cfg->phyaddr_src < ARM_MIU1_BASE_ADDR) ? (HAL_BDMA_MIU0_TO_MIU0) : (HAL_BDMA_MIU1_TO_MIU0);
     tBdmaParam.ePathSel     = ((U32)cfg->phyaddr_dst < ARM_MIU1_BASE_ADDR) ? tBdmaParam.ePathSel : tBdmaParam.ePathSel+1;
     tBdmaParam.pSrcAddr     = ((U32)cfg->phyaddr_src < ARM_MIU1_BASE_ADDR) ? (void *)((U32)cfg->phyaddr_src) : (void *)((U32)cfg->phyaddr_src - ARM_MIU1_BASE_ADDR);
@@ -165,6 +168,7 @@ int msys_dma_fill_lineoffset(MSYS_DMA_FILL_BILT *pstDmaCfg)
     HalBdmaLineOfst_t tBdmaLineOfst;
     u8              u8DmaCh = HAL_BDMA_CH1;
 
+    memset(&tBdmaParam, 0, sizeof(HalBdmaParam_t));
     tBdmaParam.ePathSel     = (pstDmaCfg->phyaddr < ARM_MIU1_BASE_ADDR) ? (HAL_BDMA_MEM_TO_MIU0) : (HAL_BDMA_MEM_TO_MIU1);
     tBdmaParam.bIntMode     = 1;
     tBdmaParam.eDstAddrMode = HAL_BDMA_ADDR_INC;
@@ -220,6 +224,7 @@ int msys_dma_copy_lineoffset(MSYS_DMA_BLIT *cfg)
     u8              u8DmaCh = HAL_BDMA_CH2;
 #endif
 
+    memset(&tBdmaParam, 0, sizeof(HalBdmaParam_t));
     tBdmaParam.ePathSel     = ((U32)cfg->phyaddr_src < ARM_MIU1_BASE_ADDR) ? (HAL_BDMA_MIU0_TO_MIU0) : (HAL_BDMA_MIU1_TO_MIU0);
     tBdmaParam.ePathSel     = ((U32)cfg->phyaddr_dst < ARM_MIU1_BASE_ADDR) ? tBdmaParam.ePathSel : tBdmaParam.ePathSel+1;
     tBdmaParam.pSrcAddr     = ((U32)cfg->phyaddr_src < ARM_MIU1_BASE_ADDR) ? (void *)((U32)cfg->phyaddr_src) : (void *)((U32)cfg->phyaddr_src - ARM_MIU1_BASE_ADDR);

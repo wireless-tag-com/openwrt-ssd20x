@@ -290,6 +290,12 @@ typedef struct MI_VIF_VIFDev2SnrPadMuxConf_s
     MI_U32 u32PlaneID;              //For HDR,0 is short exposure, 1 is long exposure
 } MI_VIF_Dev2SnrPadMuxCfg_t;
 
+typedef struct MI_VIF_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_VIF_InitParam_t;
+
 #pragma pack(pop)
 
 #endif //_MI_VIF_DATATYPE_H_

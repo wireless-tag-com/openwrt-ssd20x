@@ -35,6 +35,7 @@ extern "C" {
 //=============================================================================
 #define MI_AI_DEV_NUM_MAX   4
 #define MI_AI_CHAN_NUM_MAX  4
+#define _AEC_BAND_NUM               (7)
 
 #define MI_AI_ERR_INVALID_DEVID     (MI_DEF_ERR( E_MI_MODULE_ID_AI, E_MI_ERR_LEVEL_ERROR, E_MI_ERR_INVALID_DEVID))
 #define MI_AI_ERR_ILLEGAL_PARAM     (MI_DEF_ERR( E_MI_MODULE_ID_AI, E_MI_ERR_LEVEL_ERROR, E_MI_ERR_ILLEGAL_PARAM))
@@ -85,8 +86,10 @@ typedef struct MI_AI_AecConfig_s
 {
     MI_BOOL bComfortNoiseEnable;
     MI_S16 s16DelaySample;
-    MI_U32 u32AecSupfreq[6];
-    MI_U32 u32AecSupIntensity[7];
+    MI_U32 u32AecSupfreq[_AEC_BAND_NUM-1];
+    MI_U32 u32AecSupIntensity[_AEC_BAND_NUM];
+    MI_U32 u32AecRatioThreshold;
+    MI_U32 u32AecDistortionTestFreq[2];
     MI_S32 s32Reserved;
 } MI_AI_AecConfig_t;
 
@@ -187,6 +190,12 @@ typedef struct MI_AI_BfConfigAttr_s
 	MI_S32 s32NoiseEstimation;
 	MI_FLOAT outputGain;
 } MI_AI_BfConfigAttr_t;
+
+typedef struct MI_AI_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_AI_InitParam_t;
 
 //=============================================================================
 // Variable definition

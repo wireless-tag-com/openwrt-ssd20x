@@ -59,6 +59,10 @@ MI_S32 MI_SHADOW_EnableOutputPort(MI_SHADOW_HANDLE hShadow, MI_U32 u32ChnId, MI_
 MI_S32 MI_SHADOW_DisableOutputPort(MI_SHADOW_HANDLE hShadow, MI_U32 u32ChnId, MI_U32 u32PortId);
 MI_S32 MI_SHADOW_EnableInputPort(MI_SHADOW_HANDLE hShadow, MI_U32 u32ChnId, MI_U32 u32PortId);
 MI_S32 MI_SHADOW_DisableInputPort(MI_SHADOW_HANDLE hShadow, MI_U32 u32ChnId, MI_U32 u32PortId);
+MI_S32 MI_SHADOW_InitDev(MI_SHADOW_InitParam_t *pstInitParam);
+MI_S32 MI_SHADOW_DeInitDev(void);
+
+
 MI_S32 MI_SHADOW_SetInputPortBufExtConf(
     MI_SHADOW_HANDLE hShadow,
     MI_U32 u32ChnId,

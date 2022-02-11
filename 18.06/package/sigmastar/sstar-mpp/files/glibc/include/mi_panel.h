@@ -42,6 +42,7 @@ MI_S32 MI_PANEL_SetBackLightLevel(MI_PANEL_BackLightConfig_t *pstBackLightCfg);
 MI_S32 MI_PANEL_GetBackLightLevel(MI_PANEL_BackLightConfig_t *pstBackLightCfg);
 MI_S32 MI_PANEL_SetSscConfig(MI_PANEL_SscConfig_t *pstSscCfg);
 MI_S32 MI_PANEL_SetMipiDsiConfig(MI_PANEL_MipiDsiConfig_t *pstMipiDsiCfg);
+MI_S32 MI_PANEL_SetMipiDsiCmdConfig(MI_PANEL_MipiDsiCmdConfig_t *pstMipiDsiCmdCfg);
 MI_S32 MI_PANEL_SetTimingConfig(MI_PANEL_TimingConfig_t *pstTimingCfg);
 MI_S32 MI_PANEL_SetDrvCurrentConfig(MI_PANEL_DrvCurrentConfig_t *pstDrvCurrentCfg);
 MI_S32 MI_PANEL_SetOutputPattern(MI_PANEL_TestPatternConfig_t * pstTestPatternCfg);
@@ -50,6 +51,8 @@ MI_S32 MI_PANEL_GPIO_Init(MI_PANEL_GpioConfig_t *pstGpioCfg);
 MI_S32 MI_PANEL_SetGpioStatus(MI_U16 u16GpioNum, MI_BOOL bValue);
 MI_S32 MI_PANEL_SetCmd(MI_U32 u32Value, MI_U8 u8Bits);
 MI_S32 MI_PANEL_PWM_Init(MI_PANEL_PwmConfig_t *pstPwmCfg);
+MI_S32 MI_PANEL_InitDev(MI_PANEL_InitParam_t *pstInitParam);
+MI_S32 MI_PANEL_DeInitDev(void);
 
 #ifdef __cplusplus
 }

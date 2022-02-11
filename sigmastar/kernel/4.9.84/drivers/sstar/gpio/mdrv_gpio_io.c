@@ -95,6 +95,26 @@ typedef struct
     struct fasync_struct        *async_queue; /* asynchronous readers */
 } GPIO_ModHandle_t;
 
+#ifdef CONFIG_PM_SLEEP
+typedef enum
+{
+    GPIO_INVAILD = 0,
+    GPIO_OUT,
+    GPIO_IN,
+}GPIO_Dir_e;
+
+typedef struct
+{
+    U8 isreq;
+    U8 dir;
+    U8 val;
+}GPIO_State_t;
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static GPIO_State_t gpio_state_table[GPIO_NR];
+#endif
+
 
 #define MOD_GPIO_DEVICE_COUNT         1
 #define MOD_GPIO_NAME                 "ModGPIO"
@@ -113,6 +133,9 @@ static struct device *dev;
 
 int camdriver_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
+ 	#ifdef CONFIG_PM_SLEEP
+    gpio_state_table[offset].isreq = TRUE;
+    #endif
     MDrv_GPIO_Pad_Set(offset);
     GPIO_PRINT("[camdriver-gpio]camdriver_gpio_request offset=%d\n",offset);
     return 0;
@@ -120,11 +143,17 @@ int camdriver_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void camdriver_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
+    #ifdef CONFIG_PM_SLEEP
+    gpio_state_table[offset].isreq = FALSE;
+    #endif
     GPIO_PRINT("[camdriver-gpio]camdriver_gpio_free\n");
 }
 
 void camdriver_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
+    #ifdef CONFIG_PM_SLEEP
+    gpio_state_table[offset].val = value;
+    #endif
     if(value==0)
         MDrv_GPIO_Pull_Low(offset);
     else
@@ -140,6 +169,9 @@ int camdriver_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 int camdriver_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
+    #ifdef CONFIG_PM_SLEEP
+    gpio_state_table[offset].dir = GPIO_IN;
+    #endif
     GPIO_PRINT("[camdriver-gpio]camdriver_gpio_direction_input\n");
     MDrv_GPIO_Pad_Odn(offset);
     return 0;
@@ -148,6 +180,10 @@ int camdriver_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 int camdriver_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
                     int value)
 {
+    #ifdef CONFIG_PM_SLEEP
+    gpio_state_table[offset].val = value;
+    gpio_state_table[offset].dir = GPIO_OUT;
+    #endif
     MDrv_GPIO_Pad_Oen(offset);
     if(value==0)
         MDrv_GPIO_Pull_Low(offset);
@@ -169,6 +205,50 @@ int camdriver_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 
     return virq;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int camdriver_gpio_suspend(struct device *dev)
+{
+    return 0;
+}
+
+static int camdriver_gpio_resume(struct device *dev)
+{
+    int i;
+    for (i = 0; i < GPIO_NR; i++)
+    {
+        if(gpio_state_table[i].isreq == TRUE)
+        {
+            MDrv_GPIO_Pad_Set(i);
+            if(gpio_state_table[i].dir == GPIO_IN)
+            {
+                MDrv_GPIO_Pad_Odn(i);
+            }
+            else if(gpio_state_table[i].dir == GPIO_OUT)
+            {
+                MDrv_GPIO_Pad_Oen(i);
+                if(gpio_state_table[i].val == 0)
+                {
+                    MDrv_GPIO_Pull_Low(i);
+                }
+                else
+                {
+                    MDrv_GPIO_Pull_High(i);
+                }
+            }
+        }
+    }
+    return 0;
+}
+#else
+#define camdriver_gpio_suspend    NULL
+#define camdriver_gpio_resume     NULL
+#endif
+
+static const struct dev_pm_ops camdriver_gpio_pm_ops = {
+    .suspend = camdriver_gpio_suspend,
+    .resume = camdriver_gpio_resume,
+};
 
 static struct gpio_chip camdriver_gpio_chip = {
     .label          = "gpio",
@@ -244,6 +324,7 @@ static struct platform_driver camdriver_gpio_driver = {
         .name   = "gpio",
         .owner  = THIS_MODULE,
         .of_match_table = camdriver_gpio_of_match,
+		.pm = &camdriver_gpio_pm_ops,
     },
     .probe      = camdriver_gpio_probe,
 };
@@ -266,6 +347,7 @@ postcore_initcall(camdriver_gpio_init);
 EXPORT_SYMBOL(camdriver_gpio_to_irq);
 EXPORT_SYMBOL(camdriver_gpio_direction_output);
 EXPORT_SYMBOL(camdriver_gpio_request);
+EXPORT_SYMBOL(camdriver_gpio_free);
 EXPORT_SYMBOL(camdriver_gpio_set);
 EXPORT_SYMBOL(camdriver_gpio_get);
 EXPORT_SYMBOL(camdriver_gpio_direction_input);

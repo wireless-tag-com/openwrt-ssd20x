@@ -191,7 +191,25 @@ typedef struct
     MI_U8  u8PolCh4;  // channel 4 polarity, 0:HW default, 1:positive, 2:negative
 
     MI_PANEL_MipiDsiPacketType_e ePacketType;
+
+    MI_U8 u8HSpeedCmdMode;
 }MI_PANEL_MipiDsiConfig_t;
+
+typedef enum
+{
+    E_MI_PNL_WRITE_CMD = 0,
+    E_MI_PNL_READ_CMD = 1,
+}MI_PANEL_MipiDsiCmdType_e;
+
+typedef struct
+{
+    MI_PANEL_MipiDsiPacketType_e ePacketType;
+    MI_U32 u32ReadCmdBufSize;
+    MI_U8  *pu8ReadCmdBuf;
+    MI_U32 u32WriteCmdBufSize;
+    MI_U8  *pu8WriteCmdBuf;
+    MI_PANEL_MipiDsiCmdType_e eMipiDsiCmdType;
+}MI_PANEL_MipiDsiCmdConfig_t;
 
 typedef struct
 {
@@ -361,6 +379,10 @@ typedef struct
     MI_U16 u16PwmMode;
 }MI_PANEL_PwmConfig_t;
 
+typedef struct MI_PANEL_InitParam_s
+{
+    MI_PANEL_LinkType_e eLinkType;
+} MI_PANEL_InitParam_t;
 #ifdef __cplusplus
 }
 #endif

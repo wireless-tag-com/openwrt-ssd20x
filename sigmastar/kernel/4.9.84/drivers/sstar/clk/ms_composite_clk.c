@@ -1,3 +1,4 @@
+
 /*
 * ms_composite_clk.c- Sigmastar
 *
@@ -22,6 +23,12 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/cpu.h>
+#ifdef CONFIG_PM_SLEEP
+#include <linux/syscore_ops.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
+#define DEBUG_AUTOEN 0
+#endif
 #include "ms_types.h"
 #include "ms_platform.h"
 
@@ -35,7 +42,17 @@ struct ms_clk_mux {
     u8              flags;
     u8              glitch;  //this is specific usage for MSTAR
     spinlock_t      *lock;
+#ifdef CONFIG_PM_SLEEP
+    u8              parent;  //store parent index for resume
+    struct clk_gate *gate;
+    struct list_head list;
+#endif
 };
+
+#ifdef CONFIG_PM_SLEEP
+static u8 _is_syscore_register = 0;
+LIST_HEAD(ms_clk_mux_list);
+#endif
 
 #define to_ms_clk_mux(_hw) container_of(_hw, struct ms_clk_mux, hw)
 
@@ -60,8 +77,9 @@ static int ms_clk_mux_set_parent(struct clk_hw *hw, u8 index)
     u32 val;
     unsigned long flags = 0;
 
-    if (mux->table)
+    if ((mux->table)){
         index = mux->table[index];
+    }
     else
     {
         if (mux->flags & CLK_MUX_INDEX_BIT)
@@ -84,7 +102,7 @@ static int ms_clk_mux_set_parent(struct clk_hw *hw, u8 index)
         val &= ~(mux->mask << mux->shift);
     }
 
-    //switch to glitch-free mux(set 0)
+//    //switch to glitch-free mux(set 0)
     if (mux->glitch)
     {
         val &= ~(1 << mux->glitch);
@@ -130,6 +148,132 @@ static unsigned long ms_clk_mux_recalc_rate(struct clk_hw *hw, unsigned long par
 
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ms_clk_mux_suspend(void)
+{
+    struct ms_clk_mux *mux;
+    struct clk *clk;
+    //keep parent index for restoring clocks in resume
+    list_for_each_entry(mux, &ms_clk_mux_list, list)
+    {
+        if (mux && mux->hw.clk) {
+            clk = mux->hw.clk;
+            pr_debug("clk %s cnt %d parent %d\n", __clk_get_name(clk),
+                                                __clk_get_enable_count(clk),
+                                                ms_clk_mux_get_parent(&mux->hw));
+            mux->parent = ms_clk_mux_get_parent(&mux->hw);
+        }
+
+        if (mux && mux->gate) {
+            //clock already disabled, not need to restore it in resume
+            if (clk_gate_ops.is_enabled(&mux->gate->hw) == 0) {
+                mux->gate = NULL;
+            }
+        }
+    }
+    return 0;
+}
+
+static void ms_clk_mux_resume(void)
+{
+    struct ms_clk_mux *mux;
+
+    //restore auto-enable clocks in list
+    list_for_each_entry(mux, &ms_clk_mux_list, list)
+    {
+        if (mux && mux->gate && mux->hw.clk) {
+            //Don't set the CLK_mcu, because of mux_glitch!=0, it will gate the clock.
+             if (strcmp(__clk_get_name(mux->hw.clk), "CLK_mcu")) {
+                ms_clk_mux_set_parent(&mux->hw, mux->parent);
+            }
+            clk_gate_ops.enable(&mux->gate->hw);
+        }
+    }
+}
+
+#if DEBUG_AUTOEN //debug
+ssize_t clk_auto_show_write( struct file * file,  const char __user * buf,
+                     size_t count, loff_t *ppos)
+{
+    printk("clk_auto_showwr\r\n");
+    return 1;
+}
+
+static ssize_t clk_auto_show(struct seq_file *s, void *pArg)
+{
+    struct ms_clk_mux *mux;
+    struct clk *clk;
+
+    //keep parent index for restoring clocks in resume
+    list_for_each_entry(mux, &ms_clk_mux_list, list)
+    {
+        if (mux && mux->gate) {
+            clk = mux->hw.clk;
+
+            if(!&mux->hw){
+                ms_clk_mux_set_parent(&mux->hw, mux->parent);
+            clk_gate_ops.enable(&mux->gate->hw);
+            printk("clk %s cnt %d parent %d\r\n", __clk_get_name(clk), __clk_get_enable_count(clk), mux->parent);
+            }
+            printk("clk %s cnt %d parent %d\r\n", __clk_get_name(clk), __clk_get_enable_count(clk), mux->parent);
+        }
+    #if 0
+        if (mux && mux->gate) {
+            //clock already disabled, not need to restore it in resume
+            if (clk_gate_ops.is_enabled(&mux->gate->hw) == 0) {
+                mux->gate = NULL;
+            }
+                clk = mux->hw.clk;
+                if(mux->hw.clk){
+//                    seq_printf(s, "clk %s cnt %d", __clk_get_name(clk), __clk_get_enable_count(clk));
+                    printk("clk %s cnt %d\r\n", __clk_get_name(clk), __clk_get_enable_count(clk));
+                    pr_err("clk %s cnt %d parent %d\n", __clk_get_name(clk),
+                                                __clk_get_enable_count(clk),
+                                                ms_clk_mux_get_parent(&mux->hw));
+                    ms_clk_mux_set_parent(&mux->hw, mux->parent);
+                }
+        }
+        #endif
+    }
+    return 0;
+}
+
+static int clk_auto_open(struct inode *inode, struct file *file)
+{
+    single_open(file, clk_auto_show, PDE_DATA(inode));
+    return 0;
+}
+
+static const struct file_operations clk_auto_showfops = {
+    .owner   = THIS_MODULE,
+    .open = clk_auto_open,
+    .read = seq_read,
+    .write = clk_auto_show_write,
+    .llseek  = seq_lseek,
+    .release = single_release,
+};
+struct proc_dir_entry *g_pClk_auto_proc = NULL;
+void clk_auto_proc(void)
+{
+    struct  proc_dir_entry  *entry;
+
+    g_pClk_auto_proc = proc_mkdir("clk_autoen", NULL);
+
+    entry =  proc_create("dump_auto_en", 0666, g_pClk_auto_proc, &clk_auto_showfops);
+    if (!entry)
+    {
+        printk(KERN_ERR "failed  to  create  procfs  file.\n");
+    }
+}
+
+#endif
+
+struct syscore_ops ms_clk_mux_syscore_ops = {
+    .suspend = ms_clk_mux_suspend,
+    .resume = ms_clk_mux_resume,
+};
+#endif
+
 struct clk_ops ms_clk_mux_ops = {
     .get_parent = ms_clk_mux_get_parent,
     .set_parent = ms_clk_mux_set_parent,
@@ -146,7 +290,7 @@ static void __init ms_clk_composite_init(struct device_node *node)
     struct ms_clk_mux *mux = NULL;
     struct clk_gate *gate = NULL;
     void __iomem *reg;
-    u32 i, mux_shift, mux_width, mux_glitch, bit_idx, auto_enable;
+    u32 i, mux_shift, mux_width, mux_glitch, bit_idx, auto_enable,ignore;
     struct clk *clk;
     unsigned int flag = 0;
 
@@ -178,7 +322,14 @@ static void __init ms_clk_composite_init(struct device_node *node)
     gate->flags = CLK_GATE_SET_TO_DISABLE;
 
     //flag = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED; //remove ignore_unused flag when all drivers use clk framework, so some clks will be gated
-
+    if(!of_property_read_u32(node, "ignore", &ignore))
+    {
+        if(ignore)
+        {
+            pr_debug("<%s> ignore gate clock\n",clk_name);
+            flag = CLK_IGNORE_UNUSED;
+        }
+    }
     if(of_property_read_u32(node, "mux-shift", &mux_shift))
     {
         pr_debug("<%s> no mux-shift, treat as gate clock\n", clk_name);
@@ -189,7 +340,7 @@ static void __init ms_clk_composite_init(struct device_node *node)
 
     if(of_property_read_u32(node, "mux-width", &mux_width))
     {
-        pr_debug("<%s> no mux-width, set to default 2 bits\n", clk_name);
+        printk("<%s> no mux-width, set to default 2 bits\n", clk_name);
         mux->mask = BIT(2) - 1;
     }
     else
@@ -227,6 +378,7 @@ static void __init ms_clk_composite_init(struct device_node *node)
                                     &mux->hw, &ms_clk_mux_ops,
                                     NULL, NULL, flag);
         kfree(gate);
+        gate = NULL;
     }
     else if(gate->bit_idx != 0xFF)
     {
@@ -234,7 +386,7 @@ static void __init ms_clk_composite_init(struct device_node *node)
                                     NULL, NULL,
                                     NULL, NULL,
                                     &gate->hw, &clk_gate_ops, flag);
-        kfree(mux);
+//        kfree(mux);
     }
     else
     {
@@ -256,10 +408,23 @@ static void __init ms_clk_composite_init(struct device_node *node)
         if (auto_enable)
         {
             clk_prepare_enable(clk);
+#ifdef CONFIG_PM_SLEEP
+            //keep auto-enable clocks into list for restoring clock in resume
+            mux->gate = gate;
+            list_add(&mux->list, &ms_clk_mux_list);
+#endif
             pr_debug("clk_prepare_enable <%s>\n", clk_name);
         }
     }
-
+#ifdef CONFIG_PM_SLEEP
+    if (!_is_syscore_register) {
+        register_syscore_ops(&ms_clk_mux_syscore_ops);
+        _is_syscore_register = 1;
+        #if DEBUG_AUTOEN
+                clk_auto_proc();
+        #endif
+    }
+#endif
     return;
 
 fail:

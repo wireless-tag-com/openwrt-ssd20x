@@ -163,8 +163,6 @@ typedef struct KeMoveDma_s
     u32 reg_dma_move0_miu_sel_en        :1;
     u32 reg_dma_move0_src_miu_sel       :1;
     u32 reg_dma_move0_dst_miu_sel       :1;
-        #define REG_DMA_MOVE0_SEL_MIU0  (0)
-        #define REG_DMA_MOVE0_SEL_MIU1  (1)
     u32                                 :29;
     // 0x31
     u32                                 :32;
@@ -213,6 +211,35 @@ typedef struct KeMoveDma_s
     u32                                 :31;
     // 0x45
     u32 reg_dma_cmdq_irq_raw_status     :1;     // [RO]
+    u32                                 :31;
+    // 0x46
+    u32                                 :32;
+    // 0x47
+    u32                                 :32;
+    // 0x48
+    u32                                 :32;
+    // 0x49
+    u32                                 :32;
+    // 0x4A
+    u32                                 :32;
+    // 0x4B
+    u32                                 :32;
+    // 0x4C
+    u32                                 :32;
+    // 0x4D
+    u32                                 :32;
+    // 0x4E
+    u32                                 :32;
+    // 0x4F
+    u32                                 :32;
+    // 0x50
+    u32 reg_dma_spi_rw                  :1;
+    u32                                 :31;
+    // 0x51
+    u32 reg_dma_spi_device_mode         :1;
+    u32                                 :31;
+    // 0x52
+    u32 reg_spi_device_select           :1;
     u32                                 :31;
 } KeMoveDma_t;
 

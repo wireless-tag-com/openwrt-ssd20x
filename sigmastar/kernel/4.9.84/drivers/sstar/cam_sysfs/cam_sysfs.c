@@ -120,7 +120,13 @@ void CamSysfsRemoveFiles(struct kobject *kobj, const struct attribute **attr)
 struct device *CamDeviceCreate(struct class *class, struct device *parent,
                              dev_t devt, void *drvdata, const char *fmt, ...)
 {
-    return device_create(class, parent, devt, drvdata, fmt);
+    va_list vargs;
+    struct device *dev;
+
+    va_start(vargs, fmt);
+    dev = device_create_vargs(class, parent, devt, drvdata, fmt, vargs);
+    va_end(vargs);
+    return dev;
 }
 
 int CamDeviceCreateFile(struct device *dev,

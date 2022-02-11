@@ -11,6 +11,7 @@
 
 #define DEBUG		/* Enable initcall_debug */
 #ifdef CONFIG_SS_PROFILING_TIME
+extern void recode_timestamp_init(void);
 extern void recode_timestamp(int mark, const char* name);
 extern void recode_show(void);
 extern unsigned int read_timestamp(void);
@@ -488,7 +489,9 @@ asmlinkage __visible void __init start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 #ifdef CONFIG_SS_PROFILING_TIME
-    unsigned int t1 = read_timestamp();
+//    unsigned int t1 =0;
+//    recode_timestamp_init();
+//    t1 = read_timestamp();
 #endif
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
@@ -513,7 +516,8 @@ asmlinkage __visible void __init start_kernel(void)
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
 #ifdef CONFIG_SS_PROFILING_TIME
-    recode_timestamp_ext(0, "start_kernel+", t1); 
+//    recode_timestamp_ext(0, "start_kernel+", t1);
+    recode_timestamp_init();
     recode_timestamp(__LINE__, "setup_arch-");
 #endif
 	mm_init_cpumask(&init_mm);

@@ -608,6 +608,10 @@ U32 eMMC_FCIE_Init(void)
 
     REG_FCIE_W(FCIE_MIE_INT_EN, 0);
     REG_FCIE_W(FCIE_MIE_FUNC_CTL, BIT_MIE_FUNC_ENABLE|BIT_EMMC_ACTIVE);
+
+    //Select MIU burst 8, if set to 1, the MIU may not have time to process events.
+    REG_FCIE_SETBIT(FCIE_MMA_PRI_REG, BIT4|BIT5);
+
     // all cmd are 5 bytes (excluding CRC)
     REG_FCIE_CLRBIT(FCIE_CMD_RSP_SIZE, BIT_CMD_SIZE_MASK);
     REG_FCIE_SETBIT(FCIE_CMD_RSP_SIZE, (eMMC_CMD_BYTE_CNT)<< BIT_CMD_SIZE_SHIFT);

@@ -54,16 +54,29 @@
 /*        |      SGI (16)     |                 */
 /*        |_ _ _ _ _ _ _ _ _ _|                 */
 /*                                              */
+#ifdef CONFIG_PM_SLEEP
+/**
+ * struct ms_main_irq_priv - private main interrupt data
+ * @irq_polarity:   irq polarity
+ * @fiq_polarity:   fiq polarity
+ */
+struct ms_main_irq_priv {
+    U16     irq_polarity[(GIC_SPI_MS_IRQ_NR)>>4];
+    U16     fiq_polarity[(GIC_SPI_MS_FIQ_NR)>>4];
+};
 
+static struct ms_main_irq_priv ms_main_irq_priv;
+#endif
 static void ms_main_irq_ack(struct irq_data *d)
 {
     s16 ms_fiq;
-
+  
     ms_fiq = d->hwirq - GIC_SPI_ARM_INTERNAL_NR - GIC_SPI_MS_IRQ_NR;
 
     if( ms_fiq >= 0 && ms_fiq < GIC_SPI_MS_FIQ_NR )
     {
         SETREG16( (BASE_REG_INTRCTL_PA + REG_ID_4C + (ms_fiq/16)*4 ) , (1 << (ms_fiq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else if( ms_fiq >= GIC_SPI_MS_FIQ_NR )
     {
@@ -86,6 +99,7 @@ static void ms_main_irq_eoi(struct irq_data *d)
     if( ms_fiq >= 0 && ms_fiq < GIC_SPI_MS_FIQ_NR )
     {
         SETREG16( (BASE_REG_INTRCTL_PA + REG_ID_4C + (ms_fiq/16)*4 ) , (1 << (ms_fiq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else if( ms_fiq >= GIC_SPI_MS_FIQ_NR )
     {
@@ -108,10 +122,12 @@ static void ms_main_irq_mask(struct irq_data *d)
     if( ms_fiq >= 0 && ms_fiq < GIC_SPI_MS_FIQ_NR )
     {
         SETREG16( (BASE_REG_INTRCTL_PA + REG_ID_44 + (ms_fiq/16)*4 ) , (1 << (ms_fiq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else if( ms_irq >=0 && ms_irq < GIC_SPI_MS_IRQ_NR )
     {
         SETREG16( (BASE_REG_INTRCTL_PA + REG_ID_54 + (ms_irq/16)*4 ) , (1 << (ms_irq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else
     {
@@ -129,14 +145,17 @@ static void ms_main_irq_unmask(struct irq_data *d)
 
     ms_irq = d->hwirq - GIC_SPI_ARM_INTERNAL_NR;
     ms_fiq = d->hwirq - GIC_SPI_ARM_INTERNAL_NR - GIC_SPI_MS_IRQ_NR;
+    pr_debug("%s %d irq: %ld\r\n", __FUNCTION__, __LINE__, d->hwirq);
 
     if( ms_fiq >= 0 && ms_fiq < GIC_SPI_MS_FIQ_NR )
     {
         CLRREG16( (BASE_REG_INTRCTL_PA + REG_ID_44 + (ms_fiq/16)*4 ) , (1 << (ms_fiq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else if( ms_irq >=0 && ms_irq < GIC_SPI_MS_IRQ_NR )
     {
         CLRREG16( (BASE_REG_INTRCTL_PA + REG_ID_54 + (ms_irq/16)*4 ) , (1 << (ms_irq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else
     {
@@ -194,6 +213,20 @@ static int  ms_main_irq_set_type(struct irq_data *data, unsigned int flow_type)
 
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ms_irq_set_wake(struct irq_data *d, unsigned int enable)
+{
+    if (enable){
+        ms_main_irq_unmask(d);
+    }
+    else
+    {
+        ms_main_irq_mask(d);
+    }
+    return 0;
+}
+#endif
+
 struct irq_chip ms_main_intc_irqchip = {
     .name = "MS_MAIN_INTC",
     .irq_ack = ms_main_irq_ack,
@@ -204,7 +237,11 @@ struct irq_chip ms_main_intc_irqchip = {
 #ifdef CONFIG_SMP
 	.irq_set_affinity=ms_irq_set_affinity,
 #endif
-
+#ifdef CONFIG_PM_SLEEP
+    .irq_set_wake = ms_irq_set_wake,
+    .irq_enable = ms_main_irq_unmask,
+    .irq_disable = ms_main_irq_mask,
+#endif
 };
 EXPORT_SYMBOL(ms_main_intc_irqchip);
 
@@ -272,17 +309,28 @@ struct irq_domain_ops ms_main_intc_domain_ops = {
     .free       = ms_main_intc_domain_free,
 };
 
-
+#ifdef CONFIG_PM_SLEEP
 static int ms_irqchip_suspend(void)
 {
-    pr_debug("\nms_irqchip_suspend\n\n");
+    unsigned int i, num;
+    pr_debug("\nms_irqchip_suspend\n");
+    num = (GIC_SPI_MS_IRQ_NR) >> 4;
+    for (i = 0; i < num; i++) {
+        ms_main_irq_priv.irq_polarity[i] = INREG16(BASE_REG_INTRCTL_PA + REG_ID_58 + (i << 2));
+    }
+    num = (GIC_SPI_MS_FIQ_NR) >> 4;
+    for (i = 0; i < num; i++) {
+        ms_main_irq_priv.fiq_polarity[i] = INREG16(BASE_REG_INTRCTL_PA + REG_ID_48 + (i << 2));
+    }
     return 0;
 }
 
 static void ms_irqchip_resume(void)
 {
-    pr_debug("\nms_irqchip_resume\n\n");
 
+    unsigned int i, num;
+
+    pr_debug("\nms_irqchip_resume\n\n");
     //Patch for disable bypass IRQ/FIQ
     {
         u32 bypass = 0;
@@ -290,12 +338,21 @@ static void ms_irqchip_resume(void)
         bypass |= GICC_DIS_BYPASS_MASK;
         OUTREG32(GIC_PHYS + 0x2000 + GIC_CPU_CTRL, bypass | GICC_ENABLE);
     }
+     num = (GIC_SPI_MS_IRQ_NR) >> 4;
+    for (i = 0; i < num; i++) {
+         OUTREG16(BASE_REG_INTRCTL_PA + REG_ID_58 + (i << 2), ms_main_irq_priv.irq_polarity[i]);
+    }
+    num = (GIC_SPI_MS_FIQ_NR) >> 4;
+    for (i = 0; i < num; i++) {
+         OUTREG16(BASE_REG_INTRCTL_PA + REG_ID_48 + (i << 2), ms_main_irq_priv.fiq_polarity[i]);
+    }
 }
 
 struct syscore_ops ms_irq_syscore_ops = {
     .suspend = ms_irqchip_suspend,
     .resume = ms_irqchip_resume,
 };
+#endif
 
 static int __init ms_init_main_intc(struct device_node *np, struct device_node *interrupt_parent)
 {
@@ -333,9 +390,9 @@ static int __init ms_init_main_intc(struct device_node *np, struct device_node *
         pr_err("%s: %s allocat domain fail\n", __func__, np->name);
         return -ENOMEM;
     }
-
+#ifdef CONFIG_PM_SLEEP
     register_syscore_ops(&ms_irq_syscore_ops);
-
+#endif
     return 0;
 }
 

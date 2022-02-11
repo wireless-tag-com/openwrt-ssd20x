@@ -64,6 +64,7 @@ static void ms_pm_irq_ack(struct irq_data *d)
     if( pmsleep_fiq >= PMSLEEP_FIQ_START && pmsleep_fiq < PMSLEEP_FIQ_END)
     {
         SETREG16(BASE_REG_PMGPIO_PA + (pmsleep_fiq << 2), PMGPIO_FIQ_CLEAR);
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
 	else
 	{
@@ -82,6 +83,7 @@ static void ms_pm_irq_eoi(struct irq_data *d)
     if( pmsleep_fiq >= PMSLEEP_FIQ_START && pmsleep_fiq < PMSLEEP_FIQ_END)
     {
         SETREG16(BASE_REG_PMGPIO_PA + (pmsleep_fiq << 2), PMGPIO_FIQ_CLEAR);
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
 	else
 	{
@@ -100,16 +102,18 @@ static void ms_pm_irq_mask(struct irq_data *d)
     if( pmsleep_fiq >= PMSLEEP_FIQ_START && pmsleep_fiq < PMSLEEP_FIQ_END)
     {
         SETREG16(BASE_REG_PMGPIO_PA + (pmsleep_fiq << 2), PMGPIO_FIQ_MASK);
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else if(pmsleep_fiq < PMSLEEP_IRQ_END)
     {
         SETREG8(BASE_REG_PMSLEEP_PA + REG_ID_08, 1<<(pmsleep_fiq-PMSLEEP_IRQ_START) );
-   }
-   else
-   {
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
+    }
+    else
+    {
         pr_err("[%s] Unknown hwirq %lu\n", __func__, d->hwirq);
         return;
-   }
+    }
 
 
 }
@@ -136,6 +140,7 @@ static void ms_pm_irq_unmask(struct irq_data *d)
     }
 
     CLRREG16(BASE_REG_INTRCTL_PA + REG_ID_54, BIT2);
+    INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
 }
 
 static int ms_pm_irq_set_type(struct irq_data *d, unsigned int type)
@@ -282,6 +287,7 @@ static void ms_handle_cascade_pm_irq(struct irq_desc *desc)
         for(i=0;i<=75;i++)
         {
             SETREG16(BASE_REG_PMGPIO_PA+i*4, PMGPIO_FIQ_CLEAR);
+            INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
         }
 #else
         pr_err("[%s:%d] error final_status:%d 0x%04X virq:%d\n", __FUNCTION__, __LINE__, cascade_irq, final_status, virq);

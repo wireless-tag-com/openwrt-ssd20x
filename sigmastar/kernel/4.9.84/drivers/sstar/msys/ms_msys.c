@@ -44,10 +44,18 @@
 #include "mdrv_msys_io.h"
 #include "platform_msys.h"
 #include "mdrv_verchk.h"
+#include "ms_msys.h"
 
 #include "mdrv_system.h"
 #ifdef CONFIG_MS_CPU_FREQ
 #include "cpu_freq.h"
+#endif
+#ifdef CONFIG_SS_FLASH_ISP_WP
+#include "drvSERFLASH.h"
+#include "drvDeviceInfo.h"
+#endif
+#ifdef CONFIG_SS_SPINAND_WP
+#include "mdrv_spinand_dev.h"
 #endif
 #include "cam_os_wrapper.h"
 
@@ -1179,6 +1187,35 @@ int msys_read_uuid(unsigned long long* udid)
 }
 EXPORT_SYMBOL(msys_read_uuid);
 
+void msys_set_rebootType(u16 arg)
+{
+    if (arg==MSYS_REBOOT_BY_SW_RST)
+    {
+        SETREG16(BASE_REG_PMPOR_PA+REG_ID_01, BIT0); //assign bit to bank por, POR will be clear to 0 only when hw reset or power on
+        SETREG16(BASE_REG_WDT_PA+REG_ID_02,BIT0);    //clear wdt before sw reset to recognize reset type correctly
+    }
+}
+EXPORT_SYMBOL(msys_set_rebootType);
+
+int msys_get_rebootType(void)
+{
+    U16 RegVal = 0,rebootType=0;
+
+    RegVal = INREG16(BASE_REG_WDT_PA+REG_ID_02);
+    if(RegVal&0x01)
+        rebootType=MSYS_REBOOT_BY_WDT_RST;
+    else
+    {
+        RegVal = INREG16(BASE_REG_PMPOR_PA+REG_ID_01);
+        if(RegVal&0x01)
+            rebootType=MSYS_REBOOT_BY_SW_RST;
+        else
+            rebootType=MSYS_REBOOT_BY_HW_RST;
+    }
+    return rebootType;
+}
+EXPORT_SYMBOL(msys_get_rebootType);
+
 CHIP_VERSION msys_get_chipVersion(void)
 {
     CHIP_VERSION eRet = U01;
@@ -1910,6 +1947,18 @@ static ssize_t TEMP_show(struct device *dev, struct device_attribute *attr, char
 DEVICE_ATTR(TEMP_R, 0444, TEMP_show, NULL);
 #endif
 
+static ssize_t ms_dump_reboot_type(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    char *str = buf;
+    char *end = buf + PAGE_SIZE;
+
+    str += scnprintf(str, end - str, "Reboot_Type: %d\n", msys_get_rebootType());
+
+    return (str - buf);
+}
+
+DEVICE_ATTR(REBOOT_TYPE, 0444, ms_dump_reboot_type, NULL);
+
 static ssize_t ms_dump_chip_version(struct device *dev, struct device_attribute *attr, char *buf)
 {
     char *str = buf;
@@ -1922,6 +1971,130 @@ static ssize_t ms_dump_chip_version(struct device *dev, struct device_attribute 
 
 DEVICE_ATTR(CHIP_VERSION, 0444, ms_dump_chip_version, NULL);
 
+#if defined(CONFIG_SS_FLASH_ISP_WP) || defined(CONFIG_SS_SPINAND_WP)
+
+static ssize_t flash_protect_valid_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    char *str = buf;
+    char *end = buf + PAGE_SIZE;
+
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    extern hal_SERFLASH_t _hal_SERFLASH;
+    u8 i;
+
+    ST_WRITE_PROTECT *protect_table = &_hal_SERFLASH.pWriteProtectTable[0];
+    if(protect_table)
+    {
+        str += scnprintf(str, end - str, "Flash Valid Protect Area:\n");
+        for (i = 0; protect_table->u32LowerBound != 0xFFFFFFFF && protect_table->u32UpperBound != 0xFFFFFFFF; i++)
+        {
+            str += scnprintf(str, end - str, " %2d : 0x%08X - 0x%08X\n", i, protect_table->u32LowerBound, protect_table->u32UpperBound);
+            protect_table = &_hal_SERFLASH.pWriteProtectTable[i + 1];
+        }
+    }
+    else
+    {
+        str += scnprintf(str, end - str, "Flash Write Protect Info Not Find\n");
+    }
+
+#endif
+
+#ifdef CONFIG_SS_SPINAND_WP
+    extern SPI_NAND_DEVICE_t *_gtSpinandWpInfo;
+    u8 i;
+
+    SPI_NAND_WP_t *protect_table;
+
+    if(_gtSpinandWpInfo)
+    {
+        protect_table = &_gtSpinandWpInfo->pWriteProtectTable[0];
+        str += scnprintf(str, end - str, "Flash Valid Protect Area:\n");
+        for (i = 0; protect_table->u32LowerBound != 0xFFFFFFFF && protect_table->u32UpperBound != 0xFFFFFFFF; i++)
+        {
+            str += scnprintf(str, end - str, " %2d : 0x%08X - 0x%08X\n", i, protect_table->u32LowerBound, protect_table->u32UpperBound);
+            protect_table = &_gtSpinandWpInfo->pWriteProtectTable[i + 1];
+        }
+    }
+    else
+    {
+        str += scnprintf(str, end - str, "Flash Write Protect Info Not Find\n");
+    }
+
+#endif
+
+    return (str - buf);
+}
+
+DEVICE_ATTR(protect_valid, 0444, flash_protect_valid_show, NULL);
+
+static ssize_t flash_protect_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    char *str = buf;
+    char *end = buf + PAGE_SIZE;
+
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    MS_U32 upper;
+    MS_U32 lower;
+
+    if(MDrv_SERFLASH_WriteProtect_Disable_Range_Get(&lower, &upper))
+    {
+        str += scnprintf(str, end - str, "Flash Protect Area:\n");
+        str += scnprintf(str, end - str, " 0x%08X - 0x%08X\n", (u32)lower, (u32)upper);
+    }
+    else
+    {
+        str += scnprintf(str, end - str, "Read Flash Protect Area Failed !\n");
+    }
+
+#endif
+
+#ifdef CONFIG_SS_SPINAND_WP
+    extern U32 MDrv_SPINAND_WriteProtect_Disable_Range_Get(U32* u32DisableLowerBound, U32* u32DisableUpperBound);
+    U32 upper;
+    U32 lower;
+
+    if(!MDrv_SPINAND_WriteProtect_Disable_Range_Get(&lower, &upper))
+    {
+        str += scnprintf(str, end - str, "Flash Protect Area:\n");
+        str += scnprintf(str, end - str, " 0x%08X - 0x%08X\n", (u32)lower, (u32)upper);
+    }
+    else
+    {
+        str += scnprintf(str, end - str, "Read Flash Protect Area Failed !\n");
+    }
+
+#endif
+
+
+    return (str - buf);
+}
+
+static ssize_t flash_protect_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t n)
+{
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    u32 upper;
+    u32 lower;
+    if(sscanf(buf, "%x %x", &lower, &upper) != 2)
+        return -EINVAL;
+    if(!MDrv_SERFLASH_WriteProtect_Disable_Range_Set(lower, upper))
+        return -EINVAL;
+#endif
+
+#ifdef CONFIG_SS_SPINAND_WP
+    u32 upper;
+    u32 lower;
+    extern U32 MDrv_SPINAND_WriteProtect_Disable_Range_Set(U32 u32DisableLowerBound, U32 u32DisableUpperBound);
+    if(sscanf(buf, "%x %x", &lower, &upper) != 2)
+        return -EINVAL;
+    if(MDrv_SPINAND_WriteProtect_Disable_Range_Set(lower, upper))
+        return -EINVAL;
+#endif
+
+    return n;
+}
+
+DEVICE_ATTR(protect, 0644, flash_protect_show, flash_protect_store);
+#endif
 
 #ifdef CONFIG_SS_PROFILING_TIME
 extern void recode_timestamp(int mark, const char* name);
@@ -2381,8 +2554,12 @@ static int __init msys_init(void)
 #ifdef CONFIG_MS_CPU_FREQ
     device_create_file(sys_dev.this_device, &dev_attr_TEMP_R);
 #endif
-
+    device_create_file(sys_dev.this_device, &dev_attr_REBOOT_TYPE);
     device_create_file(sys_dev.this_device, &dev_attr_CHIP_VERSION);
+#if defined(CONFIG_SS_FLASH_ISP_WP) || defined(CONFIG_SS_SPINAND_WP)
+    device_create_file(sys_dev.this_device, &dev_attr_protect);
+    device_create_file(sys_dev.this_device, &dev_attr_protect_valid);
+#endif
 
 #ifdef CONFIG_MS_US_TICK_API
     device_create_file(sys_dev.this_device, &dev_attr_us_ticks);

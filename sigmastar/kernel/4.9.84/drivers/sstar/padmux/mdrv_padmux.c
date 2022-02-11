@@ -139,6 +139,29 @@ static int _mdrv_padmux_dts(struct device_node* np)
     return 0;
 }
 
+#ifdef CONFIG_PM
+static int sstar_padmux_suspend(struct device *dev)
+{
+    PAD_PRINT("%s\r\n", __FUNCTION__);
+    if (_pPadInfo) {
+        kfree(_pPadInfo);
+        _pPadInfo = NULL;
+    }
+    return 0;
+}
+
+static int sstar_padmux_resume(struct device *dev)
+{
+    PAD_PRINT("%s\r\n", __FUNCTION__);
+    _mdrv_padmux_dts(dev->of_node);
+    return 0;
+}
+#else
+#define sstar_padmux_suspend    NULL
+#define sstar_padmux_resume     NULL
+#endif
+
+
 static int sstar_padmux_probe(struct platform_device *pdev)
 {
     _mdrv_padmux_dts(pdev->dev.of_node);
@@ -150,11 +173,17 @@ static const struct of_device_id sstar_padmux_of_match[] = {
     { },
 };
 
+static const struct dev_pm_ops sstar_padmux_pm_ops = {
+    .suspend = sstar_padmux_suspend,
+    .resume  = sstar_padmux_resume,
+};
+
 static struct platform_driver sstar_padmux_driver = {
     .driver     = {
         .name   = "padmux",
         .owner  = THIS_MODULE,
         .of_match_table = sstar_padmux_of_match,
+        .pm = &sstar_padmux_pm_ops,
     },
     .probe      = sstar_padmux_probe,
 };

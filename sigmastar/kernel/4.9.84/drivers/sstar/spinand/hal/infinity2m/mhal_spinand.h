@@ -86,6 +86,7 @@ BOOL HAL_SPINAND_IsActive(void);
 U32 HAL_SPINAND_RIU_READ(U16 u16Addr, U32 u32DataSize, U8 *u8pData);
 U8 HAL_QSPI_FOR_DEBUG(void);
 void HAL_SPINAND_Chip_Config(void);
+U32 HAL_SPINAND_program(U32 u32_row_address, U16 u16_col_address, U8 *pu8_buf, U32 u32_size);
 
 
 //-------------------------------------------------------------------------------------------------

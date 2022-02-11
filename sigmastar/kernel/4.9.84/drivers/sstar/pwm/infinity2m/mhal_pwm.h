@@ -109,10 +109,15 @@ struct mstar_pwm_chip {
 //void DrvBacklightOff(void);
 //void DrvPWMSetEn(U8 u8Id, U8 u8Val);
 void DrvPWMInit(struct mstar_pwm_chip *ms_chip, U8 u8Id);
+#ifdef CONFIG_PWM_NEW
+void DrvPWMSetConfig(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32 duty,U32 period);
+void DrvPWMGetConfig(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32* Duty,U32* Period);
+#else
 void DrvPWMSetPeriod(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32 u32Val);
 void DrvPWMGetPeriod(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32* pu32Val);
 void DrvPWMSetDuty(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32 u32Val);
 void DrvPWMGetDuty(struct mstar_pwm_chip *ms_chip, U8 u8Id, U32* pu32Val);
+#endif
 void DrvPWMEnable(struct mstar_pwm_chip *ms_chip, U8 u8Id, U8 u8Val);
 void DrvPWMEnableGet(struct mstar_pwm_chip *ms_chip, U8 u8Id, U8* pu8Val);
 void DrvPWMSetPolarity(struct mstar_pwm_chip *ms_chip, U8 u8Id, U8 u8Val);

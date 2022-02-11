@@ -478,7 +478,8 @@ static int cpuhp_down_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
 		ret = cpuhp_invoke_callback(cpu, st->state, false, NULL);
 		if (ret) {
 			st->target = prev_state;
-			undo_cpu_down(cpu, st);
+			if (st->state < prev_state)
+				undo_cpu_down(cpu, st);
 			break;
 		}
 	}
@@ -928,7 +929,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	 * to do the further cleanups.
 	 */
 	ret = cpuhp_down_callbacks(cpu, st, target);
-	if (ret && st->state > CPUHP_TEARDOWN_CPU && st->state < prev_state) {
+	if (ret && st->state ==  CPUHP_TEARDOWN_CPU && st->state < prev_state) {
 		st->target = prev_state;
 		st->rollback = true;
 		cpuhp_kick_ap_work(cpu);
@@ -1104,8 +1105,9 @@ static cpumask_var_t frozen_cpus;
 int freeze_secondary_cpus(int primary)
 {
 	int cpu, error = 0;
-
+*(unsigned short volatile *) 0xFD200800 = 0x660;
 	cpu_maps_update_begin();
+    *(unsigned short volatile *) 0xFD200800 = 0x661;
 	if (!cpu_online(primary))
 		primary = cpumask_first(cpu_online_mask);
 	/*
@@ -1113,34 +1115,40 @@ int freeze_secondary_cpus(int primary)
 	 * with the userspace trying to use the CPU hotplug at the same time
 	 */
 	cpumask_clear(frozen_cpus);
-
+    *(unsigned short volatile *) 0xFD200800 = 0x662;
 	pr_info("Disabling non-boot CPUs ...\n");
 	for_each_online_cpu(cpu) {
+        *(unsigned short volatile *) 0xFD200800 = 0x777;
 		if (cpu == primary)
 			continue;
+                *(unsigned short volatile *) 0xFD200800 = 0x888;
 		trace_suspend_resume(TPS("CPU_OFF"), cpu, true);
 		error = _cpu_down(cpu, 1, CPUHP_OFFLINE);
+        *(unsigned short volatile *) 0xFD200800 = 0x999;
 		trace_suspend_resume(TPS("CPU_OFF"), cpu, false);
-		if (!error)
+		if (!error){
+            *(unsigned short volatile *) 0xFD200800 = 0xAA;
 			cpumask_set_cpu(cpu, frozen_cpus);
+             *(unsigned short volatile *) 0xFD200800 = 0xBB;}
 		else {
+             *(unsigned short volatile *) 0xFD200800 = 0x444;
 			pr_err("Error taking CPU%d down: %d\n", cpu, error);
 			break;
 		}
 	}
-
+    *(unsigned short volatile *) 0xFD200800 = 0x663;
 	if (!error)
 		BUG_ON(num_online_cpus() > 1);
 	else
 		pr_err("Non-boot CPUs are not disabled\n");
-
+    *(unsigned short volatile *) 0xFD200800 = 0x664;
 	/*
 	 * Make sure the CPUs won't be enabled by someone else. We need to do
 	 * this even in case of failure as all disable_nonboot_cpus() users are
 	 * supposed to do enable_nonboot_cpus() on the failure path.
 	 */
 	cpu_hotplug_disabled++;
-
+    *(unsigned short volatile *) 0xFD200800 = 0x665;
 	cpu_maps_update_done();
 	return error;
 }

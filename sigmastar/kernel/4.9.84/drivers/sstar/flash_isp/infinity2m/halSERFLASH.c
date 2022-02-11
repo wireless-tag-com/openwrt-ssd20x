@@ -198,7 +198,12 @@ MS_U32 BASE_FLASH_OFFSET = 0;
 #define BDMA_SIZE_WARNING (128*1024+BDMA_ALIGN) //print message for unresonable size
 
 //E_QUAD_MODE;//E_FAST_MODE;
-const static SPI_READ_MODE gReadMode = E_QUAD_MODE;
+#ifdef CONFIG_NOR_QUAL_READ
+    const static SPI_READ_MODE gReadMode = E_QUAD_MODE;
+#else
+    const static SPI_READ_MODE gReadMode = E_FAST_MODE;
+#endif
+
 static MS_U32 u32BdmaSize = 64 * 1024 + BDMA_ALIGN;//default size
 static MSYS_DMEM_INFO mem_info;
 
@@ -1324,6 +1329,9 @@ MS_BOOL HAL_SERFLASH_DetectType(void)
 
 #endif
 
+    if(_hal_SERFLASH.u8DID0 == 0x40 && _hal_SERFLASH.u8DID1 == 0x18)
+        HAL_FSP_WriteProtect(0);
+
     return bDetect;
 
 }
@@ -1478,14 +1486,6 @@ MS_BOOL HAL_SERFLASH_BlockToAddress(MS_U32 u32BlockIndex, MS_U32 *pu32FlashAddr)
 
     return TRUE;
 }
-
-
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-MS_BOOL HAL_SERFLASH_BlockErase_CUS_ZY(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_BOOL bWait)
-{
-    return  HAL_FSP_BlockErase_CUS_ZY(u32StartAddr, u32EraseSize, bWait);
-}
-#endif
 
 MS_BOOL HAL_SERFLASH_BlockErase(MS_U32 u32StartBlock, MS_U32 u32EndBlock, MS_BOOL bWait)
 {
@@ -1916,6 +1916,7 @@ HAL_SERFLASH_Write_return:
     HAL_FSP_Exit();
     #elif defined(CONFIG_FSP_WRITE_BDMA)
     HAL_FSP_Entry();
+    HAL_FSP_WriteExtAddrReg((u32Addr >> 24) & 0xFF);
     bRet = HAL_FSP_Write_BDMA(u32Addr, u32Size, pu8Data);
     HAL_FSP_Exit();
 
@@ -2057,6 +2058,7 @@ MS_BOOL HAL_SERFLASH_Read(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data)
 #elif defined(CONFIG_FSP_READ_RIUOP)
     Ret = HAL_FSP_Read(u32Addr, u32Size, pu8Data);
 #elif defined(CONFIG_FSP_READ_BDMA)
+    HAL_FSP_WriteExtAddrReg((u32Addr >> 24) & 0xFF);
     Ret = HAL_SERFLASH_ReadBdma(u32Addr, u32Size, pu8Data);
 #else
 #error "FPS READ"
@@ -2100,7 +2102,8 @@ EN_WP_AREA_EXISTED_RTN HAL_SERFLASH_WP_Area_Existed(MS_U32 u32UpperBound, MS_U32
             && pWriteProtectTable->u32UpperBound == u32UpperBound
             )
         {
-            *pu8BlockProtectBits = pWriteProtectTable->u8BlockProtectBits;
+            *pu8BlockProtectBits &= ~pWriteProtectTable->u8BlockProtectMask;
+            *pu8BlockProtectBits |= pWriteProtectTable->u8BlockProtectBits;
 
             return WP_AREA_EXACTLY_AVAILABLE;
         }
@@ -2118,7 +2121,8 @@ EN_WP_AREA_EXISTED_RTN HAL_SERFLASH_WP_Area_Existed(MS_U32 u32UpperBound, MS_U32
             {
                 u32PartialFittedUpperBound = pWriteProtectTable->u32UpperBound;
                 u32PartialFittedLowerBound = pWriteProtectTable->u32LowerBound;
-                *pu8BlockProtectBits = pWriteProtectTable->u8BlockProtectBits;
+                *pu8BlockProtectBits &= ~pWriteProtectTable->u8BlockProtectMask;
+                *pu8BlockProtectBits |= pWriteProtectTable->u8BlockProtectBits;
             }
 
             bPartialBoundFitted = TRUE;
@@ -2135,6 +2139,39 @@ EN_WP_AREA_EXISTED_RTN HAL_SERFLASH_WP_Area_Existed(MS_U32 u32UpperBound, MS_U32
     }
 }
 
+
+EN_WP_AREA_EXISTED_RTN HAL_SERFLASH_WP_Status_Existed(MS_U32* u32UpperBound, MS_U32* u32LowerBound, MS_U8 u8BlockProtectBits)
+{
+    ST_WRITE_PROTECT   *pWriteProtectTable;
+    MS_U8               u8Index;
+    MS_BOOL             bEndOfTable;
+
+    if (NULL == _hal_SERFLASH.pWriteProtectTable)
+    {
+        return WP_TABLE_NOT_SUPPORT;
+    }
+
+    for (u8Index = 0, bEndOfTable = FALSE; FALSE == bEndOfTable; u8Index++)
+    {
+        pWriteProtectTable = &(_hal_SERFLASH.pWriteProtectTable[u8Index]);
+
+        if (   0xFFFFFFFF == pWriteProtectTable->u32LowerBound
+            && 0xFFFFFFFF == pWriteProtectTable->u32UpperBound
+            )
+        {
+            bEndOfTable = TRUE;
+        }
+
+        if((u8BlockProtectBits & pWriteProtectTable->u8BlockProtectMask) == pWriteProtectTable->u8BlockProtectBits)
+        {
+            *u32UpperBound = pWriteProtectTable->u32UpperBound;
+            *u32LowerBound = pWriteProtectTable->u32LowerBound;
+            return WP_AREA_EXACTLY_AVAILABLE;
+        }
+    }
+    return WP_AREA_NOT_AVAILABLE;
+
+}
 
 MS_BOOL HAL_SERFLASH_WriteProtect_Area(MS_BOOL bEnableAllArea, MS_U8 u8BlockProtectBits)
 {
@@ -3859,29 +3896,6 @@ static MS_BOOL _HAL_FSP_BlockErase(MS_U32 u32FlashAddr, EN_FLASH_ERASE eSize)
     return bRet;
 }
 
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-MS_BOOL HAL_FSP_BlockErase_CUS_ZY(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_BOOL bWait)
-{
-    MS_BOOL bRet = TRUE;
-    MS_U32  u32FlashAddr = 0;
-
-    HAL_FSP_Entry();
-
-    u32FlashAddr = u32StartAddr;
-    if (u32EraseSize == 0x1000)
-    {
-        bRet &= _HAL_FSP_BlockErase(u32FlashAddr,SPI_CMD_SE);
-    }
-    else
-    {
-        bRet = FALSE;
-    }
-
-    HAL_FSP_Exit();
-    return bRet;
-}
-#endif
-
 MS_BOOL HAL_FSP_BlockErase(MS_U32 u32StartBlock, MS_U32 u32EndBlock, MS_BOOL bWait)
 {
     MS_BOOL bRet = TRUE;
@@ -3902,7 +3916,6 @@ MS_BOOL HAL_FSP_BlockErase(MS_U32 u32StartBlock, MS_U32 u32EndBlock, MS_BOOL bWa
 MS_BOOL HAL_FSP_SectorErase(MS_U32 u32SectorAddress,MS_U8 u8cmd)
 {
     MS_BOOL bRet = TRUE;
-    printk("[SerFlash]Todo correct this function %s\n", __FUNCTION__);
     HAL_FSP_Entry();
     bRet &= _HAL_FSP_BlockErase(u32SectorAddress,u8cmd);
     HAL_FSP_Exit();
@@ -4143,9 +4156,18 @@ MS_BOOL HAL_QUAD_Enable(MS_BOOL bEnable)
             bRet = HAL_FSP_ReadStatus(0x04, 1, &u8data);//exit otp mode
         }
     }
-    else if(_hal_SERFLASH.u8MID == MID_WB  || _hal_SERFLASH.u8MID == MID_EON)
+    else if(_hal_SERFLASH.u8MID == MID_WB  || _hal_SERFLASH.u8MID == MID_EON  ||  _hal_SERFLASH.u8MID == MID_BY)
     {
         MS_U8 u8status[1]={0xff};
+
+        // Status Reg 1
+        if (_hal_SERFLASH.u8MID == MID_WB)
+        {
+            u8data = 0x00; // Status Reg 1 = 0, Bill has asked WB and WB's suggest.
+            HAL_FSP_WriteStatus(SPI_CMD_WRSR, 1, &u8data);
+        }
+
+        // Status Reg 2
         if(bEnable)
             u8data =  BITS(1:1, 1);
         else
@@ -4179,6 +4201,29 @@ MS_BOOL HAL_QUAD_Enable(MS_BOOL bEnable)
         DEBUG_SER_FLASH(E_SERFLASH_DBGLV_DEBUG, printk("[FSP] XTX status2:0x%x\n",u8data));
 
     }
+    else if(_hal_SERFLASH.u8MID == MID_25Q)
+    {
+        bRet = HAL_FSP_ReadStatus(SPI_CMD_RDSR2, 1, &u8data);
+        if(bEnable)
+        {
+            if((u8data & BIT1) == 0)
+            {
+                u8data |= BIT1;
+                bRet = HAL_FSP_WriteStatus(SPI_CMD_WRSR2,1,&u8data);
+            }
+        }
+        else
+        {
+            if((u8data & BIT1) != 0)
+            {
+                u8data &= ~BIT1;
+                bRet = HAL_FSP_WriteStatus(SPI_CMD_WRSR2,1,&u8data);
+            }
+        }
+        bRet = HAL_FSP_ReadStatus(SPI_CMD_RDSR2, 1, &u8data);
+        printk("[FSP] 25Q status2:0x%x\n",u8data);
+    }
+
     return bRet;
 }
 
@@ -4381,14 +4426,17 @@ MS_BOOL HAL_FSP_WriteProtect_Area(MS_BOOL bEnableAllArea, MS_U8 u8BlockProtectBi
     HAL_FSP_WriteBufs(0,SPI_CMD_WREN);
     HAL_FSP_WriteBufs(1,SPI_CMD_WRSR);
     if (bEnableAllArea)
-    {        // SF_SR_SRWD: SRWD Status Register Write Protect
-        HAL_FSP_WriteBufs(2,(MS_U8)(SF_SR_SRWD | SERFLASH_WRSR_BLK_PROTECT));
-        }
-        else
-        {
+    {
+        // SF_SR_SRWD: SRWD Status Register Write Protect
+        //HAL_FSP_WriteBufs(2,(MS_U8)(SF_SR_SRWD | SERFLASH_WRSR_BLK_PROTECT));
+        HAL_FSP_WriteBufs(2,(MS_U8)(SERFLASH_WRSR_BLK_PROTECT));
+    }
+    else
+    {
         // [4:2] or [5:2] protect blocks
-        HAL_FSP_WriteBufs(2,(SF_SR_SRWD | u8BlockProtectBits));
-        }
+        //HAL_FSP_WriteBufs(2,(SF_SR_SRWD | u8BlockProtectBits));
+        HAL_FSP_WriteBufs(2,(u8BlockProtectBits));
+    }
     HAL_FSP_WriteBufs(3,SPI_CMD_RDSR);
     FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE0(1),REG_FSP_WBF_SIZE0_MASK);
     FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE1(2),REG_FSP_WBF_SIZE1_MASK);
@@ -4418,22 +4466,39 @@ MS_BOOL HAL_FSP_WriteProtect(MS_BOOL bEnable)
 {
     MS_BOOL bRet = TRUE;
     MS_U8 u8Status;
+    MS_U8 u8Status2;
     DEBUG_SER_FLASH(E_SERFLASH_DBGLV_DEBUG, printk("%s(%d)\n", __FUNCTION__, bEnable));
 
     bRet = HAL_FSP_ReadStatusReg(&u8Status);
+    if(_hal_SERFLASH.u8MID == MID_XTX && _hal_SERFLASH.u8DID0 == 0x40 && _hal_SERFLASH.u8DID1 == 0x18)
+    {
+        HAL_FSP_ReadStatusReg2(&u8Status2);
+    }
+
     if(bRet == FALSE)
         return bRet;
 
-    u8Status |= SF_SR_SRWD;//checked on WB/GD/MX
+    if(_hal_SERFLASH.u8MID == MID_WB)
+    {
+        u8Status = 0x00; // Status Reg 1 = 0, Bill has asked WB and WB's suggest.
+    }
+    else
+    {
+        u8Status |= SF_SR_SRWD;//checked on WB/GD/MX
+    }
 //quad mode should be handled in read/write
 #if 0 //device dependent
     if (gReadMode==E_QUAD_MODE)
         u8Status |= SF_SR_QUAD;
 #endif
     //clear BP bits
-    if(_hal_SERFLASH.u8MID == MID_GD)
+    if((_hal_SERFLASH.u8MID == MID_GD) || (_hal_SERFLASH.u8MID == MID_XTX) || (_hal_SERFLASH.u8MID == MID_WUHAN))
     {
         u8Status &= ~BITS(6:2,0x1F);
+    }
+    else if(_hal_SERFLASH.u8DID0 == 0x40 && _hal_SERFLASH.u8DID1 == 0x18)
+    {
+        u8Status &= ~BITS(7:2,0x3F);
     }
     else {//check on WB/MX
         u8Status &= ~BITS(5:2,0xF);
@@ -4445,24 +4510,50 @@ MS_BOOL HAL_FSP_WriteProtect(MS_BOOL bEnable)
     _HAL_SERFLASH_ActiveFlash_Set_HW_WP(0);
     //MsOS_DelayTask(bEnable ? 5 : 20);
     udelay(20);
-    HAL_FSP_WriteBufs(0,SPI_CMD_WREN);
-    HAL_FSP_WriteBufs(1,SPI_CMD_WRSR);
-    HAL_FSP_WriteBufs(2, u8Status);
-    HAL_FSP_WriteBufs(3,SPI_CMD_RDSR);
-    FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE0(1),REG_FSP_WBF_SIZE0_MASK);
-    FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE1(2),REG_FSP_WBF_SIZE1_MASK);
-    FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE2(1),REG_FSP_WBF_SIZE2_MASK);
-    FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE0(0),REG_FSP_RBF_SIZE0_MASK);
-    FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE1(0),REG_FSP_RBF_SIZE1_MASK);
-    FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE2(1),REG_FSP_RBF_SIZE2_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_ENABLE,REG_FSP_ENABLE_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_NRESET,REG_FSP_RESET_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_INT,REG_FSP_INT_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_2NDCMD_ON,REG_FSP_2NDCMD_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_3THCMD_ON,REG_FSP_3THCMD_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_3THCMD,REG_FSP_RDSR_MASK);
-    FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_FSCHK_ON,REG_FSP_FSCHK_MASK);
-    FSP_WRITE_MASK(REG_FSP_TRIGGER,REG_FSP_FIRE,REG_FSP_TRIGGER_MASK);
+    if(_hal_SERFLASH.u8MID == MID_XTX && _hal_SERFLASH.u8DID0 == 0x40 && _hal_SERFLASH.u8DID1 == 0x18)
+    {
+        HAL_FSP_WriteBufs(0,SPI_CMD_WREN);
+        HAL_FSP_WriteBufs(1,SPI_CMD_WRSR);
+        HAL_FSP_WriteBufs(2, u8Status);
+        HAL_FSP_WriteBufs(3, u8Status2);
+        HAL_FSP_WriteBufs(4,SPI_CMD_RDSR);
+        FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE0(1),REG_FSP_WBF_SIZE0_MASK);
+        FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE1(3),REG_FSP_WBF_SIZE1_MASK);
+        FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE2(1),REG_FSP_WBF_SIZE2_MASK);
+        FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE0(0),REG_FSP_RBF_SIZE0_MASK);
+        FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE1(0),REG_FSP_RBF_SIZE1_MASK);
+        FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE2(1),REG_FSP_RBF_SIZE2_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_ENABLE,REG_FSP_ENABLE_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_NRESET,REG_FSP_RESET_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_INT,REG_FSP_INT_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_2NDCMD_ON,REG_FSP_2NDCMD_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_3THCMD_ON,REG_FSP_3THCMD_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_3THCMD,REG_FSP_RDSR_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_FSCHK_ON,REG_FSP_FSCHK_MASK);
+        FSP_WRITE_MASK(REG_FSP_TRIGGER,REG_FSP_FIRE,REG_FSP_TRIGGER_MASK);
+    }
+    else
+    {
+        HAL_FSP_WriteBufs(0,SPI_CMD_WREN);
+        HAL_FSP_WriteBufs(1,SPI_CMD_WRSR);
+        HAL_FSP_WriteBufs(2, u8Status);
+        HAL_FSP_WriteBufs(3,SPI_CMD_RDSR);
+        FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE0(1),REG_FSP_WBF_SIZE0_MASK);
+        FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE1(2),REG_FSP_WBF_SIZE1_MASK);
+        FSP_WRITE_MASK(REG_FSP_WBF_SIZE,REG_FSP_WBF_SIZE2(1),REG_FSP_WBF_SIZE2_MASK);
+        FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE0(0),REG_FSP_RBF_SIZE0_MASK);
+        FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE1(0),REG_FSP_RBF_SIZE1_MASK);
+        FSP_WRITE_MASK(REG_FSP_RBF_SIZE,REG_FSP_RBF_SIZE2(1),REG_FSP_RBF_SIZE2_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_ENABLE,REG_FSP_ENABLE_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_NRESET,REG_FSP_RESET_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_INT,REG_FSP_INT_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_2NDCMD_ON,REG_FSP_2NDCMD_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_3THCMD_ON,REG_FSP_3THCMD_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_3THCMD,REG_FSP_RDSR_MASK);
+        FSP_WRITE_MASK(REG_FSP_CTRL,REG_FSP_FSCHK_ON,REG_FSP_FSCHK_MASK);
+        FSP_WRITE_MASK(REG_FSP_TRIGGER,REG_FSP_FIRE,REG_FSP_TRIGGER_MASK);
+    }
+
     bRet &= _HAL_FSP_WaitDone();
     if(!bRet)
     {
@@ -4928,7 +5019,7 @@ MS_BOOL CompareMemory(MS_U32 u32Addr, MS_U32 u32Addr2, MS_U32 u32Size)
     return TRUE;
 }
 
-static MS_BOOL _HAL_QP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u32Len)
+MS_BOOL _HAL_QP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u32Len)
 {
     //struct timeval time_st;
     MS_U16 u16data;
@@ -5118,7 +5209,7 @@ static MS_BOOL _HAL_QP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u3
     return bRet;
 }
 
-static MS_BOOL _HAL_4PP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u32Len)
+MS_BOOL _HAL_4PP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u32Len)
 {
     MS_U16 u16data;
     MS_BOOL bRet=FALSE;
@@ -5292,8 +5383,8 @@ static MS_BOOL _HAL_4PP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u
     return bRet;
 }
 
-#if 0
-static MS_BOOL _HAL_PP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u32Len)
+
+MS_BOOL _HAL_PP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u32Len)
 {
     //struct timeval time_st;
     MS_U16 u16data;
@@ -5416,7 +5507,7 @@ static MS_BOOL _HAL_PP_BDMAToFSP(MS_U32 u32Src_off, MS_U32 u32Dst_off, MS_U32 u3
 
     return bRet;
 }
-#endif
+
 
 MS_BOOL HAL_FSP_Write_BDMA(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data)
 {
@@ -5437,7 +5528,7 @@ MS_BOOL HAL_FSP_Write_BDMA(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data)
         {
             u16WriteBytes = u32Size;
         }
-
+#if  defined(CONFIG_NOR_QUAL_WRITE)
         if(_hal_SERFLASH.u8MID == MID_MXIC)
         {
             bRet = _HAL_4PP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
@@ -5446,7 +5537,9 @@ MS_BOOL HAL_FSP_Write_BDMA(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data)
         {
             bRet = _HAL_QP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
         }
-        //bRet = _HAL_PP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
+#else
+        bRet = _HAL_PP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
+#endif
 
         if ( bRet == TRUE )
         {
@@ -5463,7 +5556,8 @@ MS_BOOL HAL_FSP_Write_BDMA(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data)
     while(u32Size)
     {
         u16WriteBytes =(u32Size>SERFLASH_PAGE_SIZE) ? SERFLASH_PAGE_SIZE:u32Size;
-        //bRet = _HAL_PP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
+
+#if  defined(CONFIG_NOR_QUAL_WRITE)
         if(_hal_SERFLASH.u8MID == MID_MXIC)
         {
             bRet = _HAL_4PP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
@@ -5472,6 +5566,9 @@ MS_BOOL HAL_FSP_Write_BDMA(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data)
         {
             bRet = _HAL_QP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
         }
+#else
+        bRet = _HAL_PP_BDMAToFSP((MS_U32)u8Buf, u32Addr, u16WriteBytes);
+#endif
 
         if ( bRet == TRUE  )
         {

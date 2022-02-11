@@ -70,6 +70,7 @@
 struct miu_device {
     struct device dev;
     int index;
+    int reg_dram_size;  // register setting for dram size
 };
 
 struct miu_client {
@@ -143,9 +144,18 @@ static struct miu_device miu0;
 static struct miu_device miu1;
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+int miu_subsys_suspend(struct device *dev);
+int miu_subsys_resume(struct device *dev);
+static SIMPLE_DEV_PM_OPS(miu_pm_ops, miu_subsys_suspend, miu_subsys_resume);
+#endif
+
 static struct bus_type miu_subsys = {
     .name = "miu",
     .dev_name = "miu",
+#ifdef CONFIG_PM_SLEEP
+    .pm = &miu_pm_ops,
+#endif
 };
 
 static int gmonitor_interval[MIU_NUM] = {4};//{14};
@@ -1097,7 +1107,7 @@ static ssize_t measure_all_hw_show(struct device *dev, struct device_attribute *
 
             OUTREG16((iMiuBankAddr+REG_ID_0D), 0) ; // reset all
 
-            (pstMiuClient + i)->effi_avg = total_temp / temp_loop_time;
+            (pstMiuClient + i)->effi_avg = temp_loop_time ? total_temp / temp_loop_time : 0;
 
             total_temp = 0;
             temp_loop_time = 0;
@@ -1195,8 +1205,8 @@ static ssize_t measure_all_hw_show(struct device *dev, struct device_attribute *
                 ((pstMiuClient + i)->bw_max*10000/1024)%100,
                 (pstMiuClient + i)->bw_avg_div_effi*100/1024,
                 ((pstMiuClient + i)->bw_avg_div_effi*10000/1024)%100,
-                (pstMiuClient + i)->bw_max*100/(pstMiuClient + i)->effi_avg,
-                ((pstMiuClient + i)->bw_max*10000/(pstMiuClient + i)->effi_avg)%100);
+                (pstMiuClient + i)->effi_avg ? (pstMiuClient + i)->bw_max*100/(pstMiuClient + i)->effi_avg : 0,
+                (pstMiuClient + i)->effi_avg ? ((pstMiuClient + i)->bw_max*10000/(pstMiuClient + i)->effi_avg)%100 : 0);
             }
             else
             {
@@ -1292,6 +1302,30 @@ DEVICE_ATTR(monitor_client_filter_enable, 0644, monitor_filter_abnormal_value_sh
 DEVICE_ATTR(measure_all, 0644, measure_all_show, measure_all_store);
 DEVICE_ATTR(measure_all_hw, 0644, measure_all_hw_show, measure_all_store);
 DEVICE_ATTR(dram_info, 0444, dram_info_show, NULL);
+
+#ifdef CONFIG_PM_SLEEP
+int miu_subsys_suspend(struct device *dev)
+{
+    if (dev == &miu0.dev) {
+        // keep dram size setting
+        miu0.reg_dram_size = INREGMSK16(BASE_REG_MIU_PA + REG_ID_69, 0xF000);
+    }
+
+    pr_debug("miu subsys suspend %s\n", dev->kobj.name);
+    return 0;
+}
+
+int miu_subsys_resume(struct device *dev)
+{
+    if (dev == &miu0.dev) {
+        // restore dram size setting
+        OUTREGMSK16(BASE_REG_MIU_PA + REG_ID_69, miu0.reg_dram_size, 0xF000);
+    }
+
+    pr_debug("miu subsys resume %s\n", dev->kobj.name);
+    return 0;
+}
+#endif
 
 void mstar_create_MIU_node(void)
 {

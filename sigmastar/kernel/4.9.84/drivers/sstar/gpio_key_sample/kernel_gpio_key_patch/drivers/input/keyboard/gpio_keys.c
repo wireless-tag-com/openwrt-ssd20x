@@ -50,10 +50,11 @@
 #include <linux/spinlock.h>
 
 
-#define SUPPORT_SW_BOTH_TRIGGER
-
-#ifdef SUPPORT_SW_BOTH_TRIGGER
-int key_status;
+#ifdef CONFIG_ARCH_SSTAR
+#define SSTAR_MAX_GPIO  128
+#define SSTAR_GPIO_KEY_STATE_INDEX(x) (x >> 5)
+/* bitmap to save gpio state */
+int key_status[SSTAR_MAX_GPIO/(sizeof(int)*8)] = {0};
 #endif
 
 struct gpio_button_data {
@@ -380,40 +381,40 @@ static struct attribute_group gpio_keys_attr_group = {
 
 static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 {
-	const struct gpio_keys_button *button = bdata->button;
-	struct input_dev *input = bdata->input;
-	unsigned int type = button->type ?: EV_KEY;
-	int state;
+    const struct gpio_keys_button *button = bdata->button;
+    struct input_dev *input = bdata->input;
+    unsigned int type = button->type ?: EV_KEY;
+    int state;
 
-	state = gpiod_get_value_cansleep(bdata->gpiod);
-	if (state < 0) {
-		dev_err(input->dev.parent,
-			"failed to get gpio state: %d\n", state);
+    state = gpiod_get_value_cansleep(bdata->gpiod);
+    if (state < 0) {
+        dev_err(input->dev.parent,
+                "failed to get gpio state: %d\n", state);
+        return;
+    }
+#ifdef CONFIG_ARCH_SSTAR
+    BUG_ON(button->gpio > SSTAR_MAX_GPIO);
+
+    //if(key_status[SSTAR_GPIO_KEY_STATE_INDEX(button->gpio)]==state)
+
+    if( !(((key_status[SSTAR_GPIO_KEY_STATE_INDEX(button->gpio)] >> (button->gpio % sizeof(key_status[0]))) ^ state) & 0x1) )
+	{
+		pr_debug("false trigger, state: %d\n", state);
 		return;
 	}
-#ifdef SUPPORT_SW_BOTH_TRIGGER
-	if(key_status==state)
-	{
-		pr_info("false trigger");
-		return;
-	}
-	key_status = state;
 
-	if(key_status)
+	if(state)
 	{
-		//irqflags = IRQF_TRIGGER_RISING;
 		irq_set_irq_type(bdata->irq,IRQF_TRIGGER_RISING);
-
-
+		key_status[SSTAR_GPIO_KEY_STATE_INDEX(button->gpio)] |=  (1 << (button->gpio % sizeof(key_status[0])));
 	}
 	else
 	{
-			//irqflags = IRQF_TRIGGER_FALLING;
 		irq_set_irq_type(bdata->irq,IRQF_TRIGGER_FALLING);
-			
+		key_status[SSTAR_GPIO_KEY_STATE_INDEX(button->gpio)] &=  ~(1 << (button->gpio % sizeof(key_status[0])));
 	}
 
-	pr_info("gpio_keys_gpio_report_event: code = %d state=%d\r\n", button->code, state);
+	pr_debug("gpio_keys_gpio_report_event: code = %d state=%d\r\n", button->code, state);
 #endif
 	if (type == EV_ABS) {
 		if (state)
@@ -434,6 +435,7 @@ static void gpio_keys_gpio_work_func(struct work_struct *work)
 	if (bdata->button->wakeup)
 		pm_relax(bdata->input->dev.parent);
 }
+
 
 static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 {
@@ -522,6 +524,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 	unsigned long irqflags;
 	int irq;
 	int error;
+	int state;
 
 	bdata->input = input;
 	bdata->button = button;
@@ -575,18 +578,24 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		INIT_DELAYED_WORK(&bdata->work, gpio_keys_gpio_work_func);
 
 		isr = gpio_keys_gpio_isr;
-#ifdef SUPPORT_SW_BOTH_TRIGGER
-		key_status = gpiod_get_value_cansleep(bdata->gpiod);
-		if (key_status < 0) {
+#ifdef CONFIG_ARCH_SSTAR
+		state = gpiod_get_value_cansleep(bdata->gpiod);
+		if (state < 0) {
 			dev_err(input->dev.parent,
-				"failed to get gpio state: %d\n", key_status);
-			return key_status;
+				"failed to get gpio state: %d\n", state);
+			return state;
 		}
 
-		if(key_status)
+		if(state)
+		{
 			irqflags = IRQF_TRIGGER_RISING;
+			key_status[SSTAR_GPIO_KEY_STATE_INDEX(button->gpio)] |=  (1 << (button->gpio % sizeof(key_status[0])));
+		}
 		else
+		{
 			irqflags = IRQF_TRIGGER_FALLING;
+			key_status[SSTAR_GPIO_KEY_STATE_INDEX(button->gpio)] &=  ~(1 << (button->gpio % sizeof(key_status[0])));
+		}
 
 #else
 		irqflags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;

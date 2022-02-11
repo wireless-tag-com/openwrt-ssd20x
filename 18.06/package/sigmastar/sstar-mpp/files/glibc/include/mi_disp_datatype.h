@@ -317,6 +317,12 @@ typedef struct
     MI_U8 *pu8ColorB;
 }MI_DISP_GammaParam_t;
 
+typedef struct MI_DISP_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_DISP_InitParam_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

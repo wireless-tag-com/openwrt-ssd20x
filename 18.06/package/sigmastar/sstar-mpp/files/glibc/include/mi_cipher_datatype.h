@@ -153,6 +153,12 @@ typedef struct MI_CIPHER_RSA_VERIFY_s
     MI_CIPHER_RSA_PUB_Key_t stPubKey;
 } MI_CIPHER_RSA_VERIFY_t;
 
+typedef struct MI_CIPHER_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_CIPHER_InitParam_t;
+
 #ifdef __cplusplus
 }
 #endif

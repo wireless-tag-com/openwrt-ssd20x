@@ -15,5 +15,11 @@ select PWM
 help
     SStar PWM driver function
 
-	
+if MS_PWM
+config PWM_NEW
+    bool "Support NEW PWM configuration"
+    default n
+    help
+      Support NEW PWM configuration
+endif
 

@@ -103,12 +103,19 @@ static inline struct serflash *mtd_to_serflash(struct mtd_info *mtd)
     return container_of(mtd, struct serflash, mtd);
 }
 
+#define FLASH_BLOCK_SIZE 0x10000
+
 /* Erase flash fully or part of it */
 static int serflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-
+    int ret;
+    u32 len;
+    u32 offset;
+    u32 u32ErasedSize;
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    u8 is_protected;
+#endif
     struct serflash *flash = mtd_to_serflash(mtd);
-    uint64_t addr_temp, len_temp;
 
     //printk(KERN_WARNING"%s: addr 0x%08x, len %ld\n", __func__, (u32)instr->addr, (long int)instr->len);
 
@@ -120,41 +127,20 @@ static int serflash_erase(struct mtd_info *mtd, struct erase_info *instr)
     if (instr->addr + instr->len > mtd->size)
         return -EINVAL;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
-
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-    if ((instr->addr == 0x5F000)&&(instr->len == 0x1000))
-    {
-        // do nothing
-    }
-    else
-    {
-        /*  mod = do_div(x,y);
-            result = x; */
-        addr_temp = instr->addr;
-        len_temp = instr->len;
-        if ((do_div(addr_temp , mtd->erasesize) != 0) ||(do_div(len_temp, mtd->erasesize) != 0))
-        {
-            return -EINVAL;
-        }
-    }
-#else
-    /*  mod = do_div(x,y);
-        result = x; */
-    addr_temp = instr->addr;
-    len_temp = instr->len;
-    if ((do_div(addr_temp , mtd->erasesize) != 0) ||(do_div(len_temp, mtd->erasesize) != 0))
-    {
-        return -EINVAL;
-    }
-#endif
-
-#else
-    if ((instr->addr % mtd->erasesize) != 0 || (instr->len % mtd->erasesize) != 0)
-        return -EINVAL;
-#endif
-
     mutex_lock(&flash->lock);
+
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    if(!MDrv_SERFLASH_WriteProtect_Check(instr->addr, instr->addr + instr->len - 1, &is_protected))
+    {
+        mutex_unlock(&flash->lock);
+        return -EINVAL;
+    }
+    if(is_protected)
+    {
+        mutex_unlock(&flash->lock);
+        return -EPERM;
+    }
+#endif
 
 #ifndef CONFIG_DISABLE_WRITE_PROTECT
     /*write protect false before erase*/
@@ -174,14 +160,73 @@ static int serflash_erase(struct mtd_info *mtd, struct erase_info *instr)
         mutex_unlock(&flash->lock);
         return -EIO;
     }
-    else if (!MDrv_SERFLASH_AddressErase(instr->addr, instr->len, 1))
+    else
     {
-        instr->state = MTD_ERASE_FAILED;
+        len = (u32)instr->len;
+        offset = (u32)instr->addr;
+
+        if(offset % FLASH_BLOCK_SIZE)
+        {
+            u32ErasedSize = FLASH_BLOCK_SIZE - offset%FLASH_BLOCK_SIZE;
+            if (len < u32ErasedSize)
+            {
+                u32ErasedSize = len;
+            }
+            if(MDrv_SERFLASH_SectorErase(offset, offset+u32ErasedSize-1))
+            {
+                offset += u32ErasedSize;
+                len -= u32ErasedSize;
+                ret = 0;
+            }
+            else
+            {
+                ret =  (-EINVAL);
+                goto Done;
+            }
+        }
+        if(len >= FLASH_BLOCK_SIZE)
+        {
+            u32ErasedSize = len - len%FLASH_BLOCK_SIZE;
+
+            if( MDrv_SERFLASH_AddressErase(offset, u32ErasedSize, 1))
+            {
+                offset += u32ErasedSize;
+                len -= u32ErasedSize;
+                ret = 0;
+            }
+            else
+            {
+                 ret =  (-EINVAL);
+                goto Done;
+            }
+        }
+
+        if(len)
+        {
+            u32ErasedSize = len;
+            if(MDrv_SERFLASH_SectorErase(offset, offset+u32ErasedSize-1))
+            {
+                offset += u32ErasedSize;
+                len -= u32ErasedSize;
+                ret = 0;
+            }
+            else
+            {
+                 ret =  (-EINVAL);
+                goto Done;
+            }
+        }
+
+    Done:
+        if(ret)
+        {
+            instr->state = MTD_ERASE_FAILED;
 #ifndef CONFIG_DISABLE_WRITE_PROTECT
-        MDrv_SERFLASH_WriteProtect(1);
+            MDrv_SERFLASH_WriteProtect(1);
 #endif
-        mutex_unlock(&flash->lock);
-        return -EIO;
+            mutex_unlock(&flash->lock);
+            return -EIO;
+        }
     }
 
 #ifndef CONFIG_DISABLE_WRITE_PROTECT
@@ -250,6 +295,9 @@ static int serflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int serflash_write(struct mtd_info *mtd, loff_t to, size_t len,
                           size_t *retlen, const u_char *buf)
 {
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    u8 is_protected;
+#endif
     struct serflash *flash = mtd_to_serflash(mtd);
 
     //printk(KERN_WARNING "%s %s 0x%08x, len %zd\n",__func__, "to", (u32)to, len);
@@ -265,6 +313,19 @@ static int serflash_write(struct mtd_info *mtd, loff_t to, size_t len,
         return -EINVAL;
 
     mutex_lock(&flash->lock);
+
+#ifdef CONFIG_SS_FLASH_ISP_WP
+    if(!MDrv_SERFLASH_WriteProtect_Check(to, to + len - 1, &is_protected))
+    {
+        mutex_unlock(&flash->lock);
+        return -EINVAL;
+    }
+    if(is_protected)
+    {
+        mutex_unlock(&flash->lock);
+        return -EPERM;
+    }
+#endif
 
 #if 0
     /* Wait until finished previous write command. */

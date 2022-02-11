@@ -85,7 +85,7 @@
 #define R_DATASYNC              BIT05_T
 #define R_DMA_RD_CLK_STOP       BIT07_T
 #define R_DIS_WR_BUSY_CHK       BIT08_T
-
+#define R_STOP_BLK              BIT09_T
 
 //============================================
 //SD_CTL: offset 0x0C

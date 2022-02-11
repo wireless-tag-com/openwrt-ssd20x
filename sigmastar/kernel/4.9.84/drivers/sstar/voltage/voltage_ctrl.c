@@ -503,7 +503,8 @@ int voltage_control_init(void)
     // Enable core voltage scaling
     VOLCTRL_DBG("[Core Voltage] %s: turn-on core voltage scaling\n", __FUNCTION__);
     enable_scaling_voltage = 1;
-    sync_core_voltage();
+    // IMPORTANT: sync core volatage here make unexpected VID control, since cpufreq not initialized yet.
+    //sync_core_voltage();
 
     return 0;
 

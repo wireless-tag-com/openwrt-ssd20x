@@ -75,6 +75,8 @@ MI_S32 MI_DISP_DeviceGetColorTempeture(MI_DISP_DEV DispDev, MI_DISP_ColorTempera
 MI_S32 MI_DISP_DeviceSetGammaParam(MI_DISP_DEV DispDev, MI_DISP_GammaParam_t * pstGammaParam);
 MI_S32 MI_DISP_ClearInputPortBuffer(MI_DISP_LAYER DispLayer, MI_DISP_INPUTPORT LayerInputPort, MI_BOOL bClrAll);
 MI_S32 MI_DISP_SetVideoLayerRotateMode(MI_DISP_LAYER DispLayer, MI_DISP_RotateConfig_t *pstRotateConfig);
+MI_S32 MI_DISP_InitDev(MI_DISP_InitParam_t *pstInitParam);
+MI_S32 MI_DISP_DeInitDev(void);
 
 #ifdef __cplusplus
 }

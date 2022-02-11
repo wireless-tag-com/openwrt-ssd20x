@@ -57,6 +57,9 @@ MI_S32 MI_VDISP_DisableInputChannel(MI_VDISP_DEV DevId,
 MI_S32 MI_VDISP_StartDev(MI_VDISP_DEV DevId);
 MI_S32 MI_VDISP_StopDev(MI_VDISP_DEV DevId);
 
+MI_S32 MI_VDISP_InitDev(MI_VDISP_InitParam_t *pstInitParam);
+MI_S32 MI_VDISP_DeInitDev(void);
+
 #ifdef __cplusplus
 }
 #endif

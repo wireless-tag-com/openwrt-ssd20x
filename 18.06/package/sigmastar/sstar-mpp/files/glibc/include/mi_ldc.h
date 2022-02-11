@@ -45,6 +45,9 @@ MI_S32 MI_LDC_GetOutputPortAttr(MI_LDC_DEV devId, MI_LDC_CHN chnId, MI_LDC_Outpu
 
 MI_S32 MI_LDC_SetConfig(MI_LDC_DEV devId, MI_LDC_CHN chnId, void *pConfigAddr, MI_U32 u32ConfigSize);
 
+MI_S32 MI_LDC_InitDev(MI_LDC_InitParam_t *pstInitParam);
+MI_S32 MI_LDC_DeInitDev(void);
+
 #ifdef __cplusplus
 }
 #endif

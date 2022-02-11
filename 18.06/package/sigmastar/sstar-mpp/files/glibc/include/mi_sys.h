@@ -100,6 +100,12 @@ MI_S32 MI_SYS_PrivateDevChnHeapAlloc(MI_ModuleId_e eModule, MI_U32 u32Devid, MI_
 MI_S32 MI_SYS_PrivateDevChnHeapFree(MI_ModuleId_e eModule, MI_U32 u32Devid, MI_S32 s32ChnId, MI_PHY phyAddr);
 MI_S32 MI_SYS_ReadUuid (MI_U64 *u64Uuid);
 
+MI_S32 MI_SYS_InitDev(MI_SYS_InitParam_t *pstInitParam);
+
+MI_S32 MI_SYS_DeInitDev(void);
+
+MI_S32 MI_SYS_Va2Pa (void *pVirtualAddress, MI_PHY *pPhyAddr);
+
 /*
 N.B.
 below MMAHeapName can only be NULL or real mma heap name, do not set it with random character string.

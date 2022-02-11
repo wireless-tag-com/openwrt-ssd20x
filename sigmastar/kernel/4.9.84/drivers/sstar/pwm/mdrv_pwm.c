@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#include <linux/pwm.h>
 
 #include "ms_msys.h"
 #include "mhal_pwm.h"
@@ -79,10 +80,13 @@ static int mstar_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm, int d
     MS_PWM_DBG("[PWM] %s duty_ns=%d, period_ns=%d\n", __func__, duty_ns, period_ns);
 
     MDEV_PWM_AllGrpEnable(ms_pwm);
+#ifdef CONFIG_PWM_NEW
+    DrvPWMSetConfig(ms_pwm, pwm->hwpwm, duty_ns, period_ns);
+#else
     DrvPWMSetPeriod(ms_pwm, pwm->hwpwm, period_ns);
     DrvPWMSetDuty(ms_pwm, pwm->hwpwm, duty_ns);
     //DrvPWMPadSet(pwm->hwpwm, (U8)ms_pwm->pad_ctrl[pwm->hwpwm]);
-
+#endif
     return 0;
 }
 
@@ -145,8 +149,12 @@ static void mstar_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm, s
     U32 u32Period = 0x00000000, u32Duty = 0x00000000;
     U8 enable = 0x00, polarity = 0x00;
 
+#ifdef CONFIG_PWM_NEW
+    DrvPWMGetConfig(ms_pwm, pwm->hwpwm, &u32Duty, &u32Period);
+#else
     DrvPWMGetPeriod(ms_pwm, pwm->hwpwm, &u32Period);
     DrvPWMGetDuty(ms_pwm, pwm->hwpwm, &u32Duty);
+#endif
     DrvPWMEnableGet(ms_pwm, pwm->hwpwm, &enable);
     DrvPWMGetPolarity(ms_pwm, pwm->hwpwm, &polarity);
     state->period = u32Period;
@@ -233,8 +241,11 @@ static int ms_pwm_probe(struct platform_device *pdev)
     ms_pwm->chip.ops = &mstar_pwm_ops;
     ms_pwm->chip.base = -1;
     if(of_property_read_u32(pdev->dev.of_node, "npwm", &ms_pwm->chip.npwm))
-    	ms_pwm->chip.npwm = 4;
+    {
+        ms_pwm->chip.npwm = 4;
+    }
     ms_pwm->pad_ctrl = devm_kzalloc(&pdev->dev, ms_pwm->chip.npwm * sizeof(*ms_pwm->pad_ctrl), GFP_KERNEL);
+
     if (ms_pwm->pad_ctrl == NULL)
     {
         dev_err(&pdev->dev, "failed to allocate memory\n");
@@ -298,7 +309,7 @@ static int ms_pwm_probe(struct platform_device *pdev)
 
 static int ms_pwm_remove(struct platform_device *pdev)
 {
-    struct mstar_pwm_chip *ms_pwm = dev_get_drvdata(&pdev->dev);
+    struct mstar_pwm_chip *ms_pwm = platform_get_drvdata(pdev);
     int err;
 
     clk_disable_unprepare(ms_pwm->clk);
@@ -316,6 +327,48 @@ static int ms_pwm_remove(struct platform_device *pdev)
     dev_info(&pdev->dev, "remove successful\n");
     return 0;
 }
+#ifdef CONFIG_PM
+static int infinity_pwm_suspend(struct platform_device *dev, pm_message_t state)
+{
+    printk("[PWM]infinity_pwm_suspend \n");
+    return 0;
+}
+
+static int infinity_pwm_resume(struct platform_device *dev)
+{
+    unsigned int i;
+    struct mstar_pwm_chip *ms_pwm = (struct mstar_pwm_chip *)platform_get_drvdata(dev);
+    struct pwm_device *pwm;
+    struct pwm_state state;
+    MS_PWM_DBG("[PWM]infinity_pwm_resume \n");
+
+    for(i=0; i<ms_pwm->chip.npwm; i++)
+    {
+        DrvPWMInit(ms_pwm, i);
+        // MS_PWM_DBG("ms_pwm->pad_ctrl[%d]=%d\n", i, ms_pwm->pad_ctrl[i]);
+    }
+
+    for (i = 0; i < PWM_GROUP_NUM; i++)
+    {
+        DrvPWMGroupEnable(ms_pwm, i, 0);
+    }
+
+    for (i = 0; i < ms_pwm->chip.npwm; i++)
+    {
+        pwm = &ms_pwm->chip.pwms[i];
+        MS_PWM_DBG("period 0x%x   duty   0x%x    enable   %d\n",pwm->state.period,pwm->state.duty_cycle,pwm->state.enabled);
+        pwm_get_state(pwm,&state);
+        if(state.period <= 0)
+        {
+            continue;
+        }
+        mstar_pwm_config(&ms_pwm->chip, pwm, state.duty_cycle, state.period);
+        mstar_pwm_enable(&ms_pwm->chip,pwm);
+        mstar_pwm_set_polarity(&ms_pwm->chip,pwm,state.polarity);
+    }
+    return 0;
+}
+#endif /* CONFIG_PM */
 
 static ssize_t group_mode_in(struct device *dev, struct device_attribute *attr,const char *buf, size_t count)
 {
@@ -624,6 +677,10 @@ MODULE_DEVICE_TABLE(of, ms_pwm_of_match_table);
 static struct platform_driver ms_pwm_driver = {
     .remove = ms_pwm_remove,
     .probe = ms_pwm_probe,
+#ifdef CONFIG_PM
+    .suspend = infinity_pwm_suspend,
+    .resume = infinity_pwm_resume,
+#endif
     .driver = {
         .name = "sstar-pwm",
         .owner = THIS_MODULE,

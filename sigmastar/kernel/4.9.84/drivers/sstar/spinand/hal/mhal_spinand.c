@@ -691,6 +691,100 @@ static U32 _HAL_SPINAND_BDMA_Write(U32 u32DataSize)
     return u32Ret;
 }
 
+U32 HAL_SPINAND_program_load_data(U16 u16_col_address, U8 *pu8_buf, U32 u32_size)
+{
+    U32 u32Ret = ERR_SPINAND_TIMEOUT;
+    U8  u8WbufIndex = 0;
+    U32 u32WrteBuf = REG_FSP_WRITE_BUFF;
+
+    //DEBUG_SPINAND(E_SPINAND_DBGLV_DEBUG, printk("u16ColumnAddr %x u16DataSize %x Data %x \r\n", u16ColumnAddr, u16DataSize, *pu8Data));
+    // Write Enable
+    u32Ret = _HAL_SPINAND_WRITE_ENABLE();
+    if (u32Ret != ERR_SPINAND_SUCCESS)
+        return u32Ret;
+
+   // while(HAL_QSPI_FOR_DEBUG()==0);
+
+    //FSP init config
+    FSP_WRITE(REG_FSP_CTRL, (ENABLE_FSP|RESET_FSP|INT_FSP));
+    FSP_WRITE(REG_FSP_CTRL2, 0);
+    FSP_WRITE(REG_FSP_CTRL4, 0);
+
+    //Set FSP write Command
+    // FIRSET COMMAND PRELOAD
+
+    FSP_WRITE_BYTE((u32WrteBuf + u8WbufIndex), SPI_NAND_CMD_PP);
+    u8WbufIndex++;
+    FSP_WRITE_BYTE((u32WrteBuf + u8WbufIndex), (u16_col_address >> 8) & 0xff);
+    u8WbufIndex++;
+    FSP_WRITE_BYTE((u32WrteBuf + u8WbufIndex), u16_col_address & 0xff);
+    u8WbufIndex++;
+
+    FSP_WRITE(REG_FSP_WRITE_SIZE, u8WbufIndex);
+    FSP_WRITE(REG_FSP_READ_SIZE, 0x00);
+    //Trigger FSP
+
+    FSP_WRITE(REG_FSP_TRIGGER, TRIGGER_FSP);
+
+
+    //Check FSP done flag
+    if (_HAL_FSP_ChkWaitDone() == FALSE)
+    {
+        DEBUG_SPINAND(E_SPINAND_DBGLV_ERR, printk(KERN_ERR"PL Wait FSP Done Time Out !!!!\r\n"));
+        return ERR_SPINAND_TIMEOUT;
+    }
+    FSP_WRITE_BYTE(REG_FSP_CLEAR_DONE, CLEAR_DONE_FSP);
+    u8WbufIndex = 0;
+
+    QSPI_WRITE(REG_SPI_BURST_WRITE, REG_SPI_ENABLE_BURST);
+
+    while (0 < u32_size)
+    {
+        while (SINGLE_WRITE_SIZE > u8WbufIndex)
+        {
+            if (u8WbufIndex == FSP_WRITE_BUF_JUMP_OFFSET)
+            {
+                u32WrteBuf = REG_FSP_WRITE_BUFF2;
+            }
+
+            FSP_WRITE_BYTE((u32WrteBuf + (u8WbufIndex % FSP_WRITE_BUF_JUMP_OFFSET)), *pu8_buf);
+            //printk("0x%02x, ", *pu8_buf);
+            pu8_buf++;
+            u8WbufIndex++;
+            u32_size--;
+
+            if (0 == u32_size)
+            {
+                break;
+            }
+        }
+
+        FSP_WRITE(REG_FSP_WRITE_SIZE, u8WbufIndex);
+        FSP_WRITE(REG_FSP_READ_SIZE, 0x00);
+        //Trigger FSP
+
+        FSP_WRITE(REG_FSP_TRIGGER, TRIGGER_FSP);
+
+
+        //Check FSP done flag
+        if (_HAL_FSP_ChkWaitDone() == FALSE)
+        {
+            DEBUG_SPINAND(E_SPINAND_DBGLV_ERR, printk(KERN_ERR"PL Wait FSP Done Time Out !!!!\r\n"));
+            return ERR_SPINAND_TIMEOUT;
+        }
+
+        u8WbufIndex = 0;
+        u32WrteBuf = REG_FSP_WRITE_BUFF;
+        //QSPI_WRITE(REG_SPI_BURST_WRITE,REG_SPI_ENABLE_BURST);
+        //Clear FSP done flag
+        FSP_WRITE_BYTE(REG_FSP_CLEAR_DONE, CLEAR_DONE_FSP);
+
+    }
+
+    QSPI_WRITE(REG_SPI_BURST_WRITE,REG_SPI_DISABLE_BURST);
+    return _HAL_FSP_CHECK_SPINAND_DONE(NULL);
+}
+
 U32 HAL_SPINAND_PROGRAM_BY_BDMA(U16 u16ColumnAddr, U16 u16DataSize)
 {
     U32 u32Ret = ERR_SPINAND_TIMEOUT;
@@ -827,7 +921,7 @@ U32 HAL_SPINAND_PROGRAM_BY_BDMA4(U16 u16ColumnAddr, U16 u16DataSize)
 
     FSP_WRITE(REG_FSP_WBF_SIZE_OUTSIDE, (u16DataSize+1) & 0x0FFF);
     FSP_WRITE(REG_FSP_WBF_OUTSIDE, 0x1000);//reg_fsp_wbf_outside_en = 1, reg_fsp_wbf_mode = 0, reg_fsp_wbf_replaced = 3.
-    QSPI_WRITE(REG_SPI_BURST_WRITE,REG_SPI_ENABLE_BURST);    
+    QSPI_WRITE(REG_SPI_BURST_WRITE,REG_SPI_ENABLE_BURST);
     FSP_WRITE(REG_FSP_WRITE_SIZE, 0x0);
     FSP_WRITE(REG_FSP_READ_SIZE, 0x0);
     FSP_WRITE_BYTE(REG_FSP_QUAD_MODE, ENABLE_FSP_QUAD);
@@ -1098,6 +1192,75 @@ U32 HAL_SPINAND_BLOCKERASE(U32 u32_PageIdx)
     return u32Ret;
 }
 
+U32 HAL_SPINAND_program(U32 u32_row_address, U16 u16_col_address, U8 *pu8_buf, U32 u32_size)
+{
+    U32 u32Ret;
+    U8  u8WbufIndex = 0;
+    U8  u8Status;
+
+    u32Ret = HAL_SPINAND_WriteProtect(FALSE);
+#if 0
+#ifdef    CONFIG_AUTO_DETECT_WRITE
+        HAL_SPINAND_SetMode(WRITE_MODE);
+#else
+       //HAL_SPINAND_SetMode(gNandReadMode);
+            HAL_SPINAND_PreHandle(E_SPINAND_QUAD_MODE_IO);
+#endif
+#endif
+    if ((BLOCKCNT == DENSITY_2G) && (((u32_row_address / BLOCK_PAGE_SIZE)&0x1) == 1))
+        u16_col_address = (1<<12); // plane select for MICRON
+
+    u32Ret = HAL_SPINAND_program_load_data(u16_col_address, pu8_buf, u32_size);
+    if (u32Ret != ERR_SPINAND_SUCCESS)
+            return u32Ret;
+
+#ifdef  CONFIG_NAND_QUAL_WRITE
+         FSP_WRITE_BYTE(REG_FSP_QUAD_MODE, 0);
+         HAL_SPINAND_PreHandle(E_SPINAND_SINGLE_MODE);
+#endif
+        //FSP init config
+        FSP_WRITE(REG_FSP_CTRL, (ENABLE_FSP | RESET_FSP | INT_FSP));
+        FSP_WRITE(REG_FSP_CTRL2, 0);
+        FSP_WRITE(REG_FSP_CTRL4, 0);
+
+        // FIRST COMMAND PAGE PROGRAM EXECUTE
+        FSP_WRITE_BYTE((REG_FSP_WRITE_BUFF + u8WbufIndex), SPI_NAND_CMD_PE);
+        u8WbufIndex++;
+        FSP_WRITE_BYTE((REG_FSP_WRITE_BUFF + u8WbufIndex), u32_row_address >> 16);
+        u8WbufIndex++;
+        FSP_WRITE_BYTE((REG_FSP_WRITE_BUFF + u8WbufIndex), (u32_row_address >> 8 & 0Xff));
+        u8WbufIndex++;
+        FSP_WRITE_BYTE((REG_FSP_WRITE_BUFF + u8WbufIndex), u32_row_address & 0xff);
+        u8WbufIndex++;
+
+        FSP_WRITE(REG_FSP_WRITE_SIZE, u8WbufIndex);
+
+        FSP_WRITE(REG_FSP_READ_SIZE, 0x000);
+        //Trigger FSP
+        FSP_WRITE(REG_FSP_TRIGGER, TRIGGER_FSP);
+
+        //Check FSP done flag
+        if (_HAL_FSP_ChkWaitDone() == FALSE)
+        {
+            DEBUG_SPINAND(E_SPINAND_DBGLV_ERR, printk(KERN_ERR"Wait FSP Done Time Out !!!!\r\n"));
+            return ERR_SPINAND_TIMEOUT;
+        }
+
+        //Clear FSP done flag
+        FSP_WRITE_BYTE(REG_FSP_CLEAR_DONE, CLEAR_DONE_FSP);
+        u32Ret = _HAL_FSP_CHECK_SPINAND_DONE(&u8Status);
+        if (u32Ret == ERR_SPINAND_SUCCESS)
+            if (u8Status & P_FAIL)
+            {
+                u32Ret = ERR_SPINAND_W_FAIL;
+                spi_nand_err("P_FAIL!!!\n");
+                return u32Ret;
+            }
+        u32Ret = HAL_SPINAND_WriteProtect(TRUE);
+
+        return u32Ret;
+}
+
 U32 HAL_SPINAND_Write(U32 u32_PageIdx, U8 *u8Data, U8 *pu8_SpareBuf)
 {
     U32 u32Ret = 0;
@@ -1139,7 +1302,7 @@ U32 HAL_SPINAND_Write(U32 u32_PageIdx, U8 *u8Data, U8 *pu8_SpareBuf)
         memcpy(ALLOC_DMEM.bdma_vir_addr, u8Data, PAGE_SIZE);
         memcpy(ALLOC_DMEM.bdma_vir_addr+PAGE_SIZE, pu8_SpareBuf, SPARE_SIZE);
         Chip_Flush_MIU_Pipe();
-#if defined	(CONFIG_NAND_QUAL_READ)|| defined(CONFIG_NAND_QUAL_WRITE)
+#if  defined(CONFIG_NAND_QUAL_WRITE)
         u32Ret = HAL_SPINAND_PROGRAM_BY_BDMA4(u16ColumnAddr, u16DataSize);
 #else
         u32Ret = HAL_SPINAND_PROGRAM_BY_BDMA(u16ColumnAddr, u16DataSize);
@@ -1313,6 +1476,7 @@ U32 HAL_SPINAND_ReadID(U32 u32DataSize, U8 *pu8Data)
 
 }
 
+#ifndef CONFIG_SS_SPINAND_WP
 U32 HAL_SPINAND_WriteProtect(BOOL bEnable)
 {
     U8 u8WbufIndex = 0;
@@ -1348,6 +1512,12 @@ U32 HAL_SPINAND_WriteProtect(BOOL bEnable)
     FSP_WRITE_BYTE(REG_FSP_CLEAR_DONE, CLEAR_DONE_FSP);
     return ERR_SPINAND_SUCCESS;
 }
+#else
+U32 HAL_SPINAND_WriteProtect(BOOL bEnable)
+{
+    return ERR_SPINAND_SUCCESS;
+}
+#endif
 
 U32 HAL_SPINAND_SetMode(SPINAND_MODE eMode)
 {

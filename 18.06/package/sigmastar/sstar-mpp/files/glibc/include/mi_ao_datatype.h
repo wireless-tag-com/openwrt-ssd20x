@@ -117,12 +117,28 @@ typedef struct MI_AO_ChnGainConfig_s
     MI_S16 s16Gain;
 }MI_AO_ChnGainConfig_t;
 
+typedef enum{
+    E_MI_AO_GAIN_FADING_OFF = 0,
+    E_MI_AO_GAIN_FADING_1_SAMPLE,
+    E_MI_AO_GAIN_FADING_2_SAMPLE,
+    E_MI_AO_GAIN_FADING_4_SAMPLE,
+    E_MI_AO_GAIN_FADING_8_SAMPLE,
+    E_MI_AO_GAIN_FADING_16_SAMPLE,
+    E_MI_AO_GAIN_FADING_32_SAMPLE,
+    E_MI_AO_GAIN_FADING_64_SAMPLE,
+}MI_AO_GainFading_e;
+
 typedef struct MI_AO_ChnParam_s
 {
     MI_AO_ChnGainConfig_t stChnGain;
     MI_U32 u32Reserved;
 } MI_AO_ChnParam_t;
 
+typedef struct MI_AO_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_AO_InitParam_t;
 
 //=============================================================================
 // Variable definition

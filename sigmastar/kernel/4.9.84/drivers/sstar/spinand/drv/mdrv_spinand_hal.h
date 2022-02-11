@@ -27,6 +27,10 @@ U32 MDrv_SPINAND_Read_RandomIn(U32 u32_PageIdx, U32 u32_Column, U32 u32_Byte, U8
 U32 MDrv_SPINAND_ReadStatusRegister(U8 *u8Status, U8 u8Addr);
 void MDrv_SPINAND_Device(struct device *dev);
 void _spiNandMain(unsigned int dwSramAddress, unsigned int dwSramSize);
+U32 MDrv_SPINAND_program(U32 u32_page, U16 u16_offset, U8 *pu8_buf, U32 u32_size);
+U32 MDrv_SPINAND_WriteProtect_Disable_Range_Set(U32 u32DisableLowerBound, U32 u32DisableUpperBound);
+U32 MDrv_SPINAND_WriteProtect_Disable_Range_Get(U32* u32DisableLowerBound, U32* u32DisableUpperBound);
+U32 MDrv_SPINAND_WriteProtect_Check(U32 u32DisableLowerBound, U32 u32DisableUpperBound, U8* pu8IsProctected);
 
 inline U32  MS_SPINAND_CREATE_MUTEX (MsOSAttribute eAttribute, char *pMutexName, U32 u32Flag);
 inline BOOL MS_SPINAND_IN_INTERRUPT (void);

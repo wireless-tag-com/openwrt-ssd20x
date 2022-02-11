@@ -20,8 +20,13 @@
 #include "mdrv_msys_io_st.h"
 #include "linux/proc_fs.h"
 
+#define MSYS_REBOOT_BY_WDT_RST 1
+#define MSYS_REBOOT_BY_SW_RST 2
+#define MSYS_REBOOT_BY_HW_RST 3
+
 extern int msys_release_dmem(MSYS_DMEM_INFO *mem_info);
 extern int msys_request_dmem(MSYS_DMEM_INFO *mem_info);
+extern void msys_set_rebootType(u16 arg);
 extern void ms_records_irq(MSYS_IRQ_INFO *irq_info);
 extern void msys_dump_irq_info(void);
 extern void ms_records_sirq(MSYS_IRQ_INFO *irq_info);

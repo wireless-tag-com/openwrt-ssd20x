@@ -192,6 +192,11 @@ typedef struct MI_RGN_PaletteTable_s
 }MI_RGN_PaletteTable_t;
 
 
+typedef struct MI_RGN_InitParam_s
+{
+    MI_RGN_PaletteTable_t *pstPaletteTable;
+} MI_RGN_InitParam_t;
+
 #define MI_RGN_OK  MI_SUCCESS
 
 /* PingPong buffer change when set attr, it needs to remap memory in mpi interface */

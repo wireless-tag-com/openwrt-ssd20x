@@ -1164,15 +1164,19 @@ static struct crypto_alg infinity_tdes_ctr_alg = {
 };
 #endif
 
+#ifdef CONFIG_PM_SLEEP
 static int infinity_aes_resume(struct platform_device *pdev)
 {
+    enableClock();
     return 0;
 }
 
 static int infinity_aes_suspend(struct platform_device *pdev, pm_message_t state)
 {
+    disableClock();
     return 0;
 }
+#endif
 
 static int infinity_aes_remove(struct platform_device *pdev)
 {
@@ -1307,8 +1311,10 @@ MODULE_DEVICE_TABLE(of, infinity_aes_dt_ids);
 static struct platform_driver infinity_aes_driver = {
 	.probe		= infinity_aes_probe,
 	.remove		= infinity_aes_remove,
+#ifdef CONFIG_PM_SLEEP
 	.suspend    = infinity_aes_suspend,
-    .resume     = infinity_aes_resume,
+	.resume     = infinity_aes_resume,
+#endif
 	.driver		= {
 		.name	= "infinity_aes",
 		.owner	= THIS_MODULE,

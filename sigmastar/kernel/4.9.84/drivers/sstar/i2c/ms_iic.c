@@ -1,8 +1,9 @@
 /*
 * ms_iic.c- Sigmastar
 *
-* Copyright (c) [2019~2020] SigmaStar Technology.
+* Copyright (C) 2018 Sigmastar Technology Corp.
 *
+* Author: richard.guo <richard.guo@sigmastar.com.tw>
 *
 * This software is licensed under the terms of the GNU General Public
 * License version 2, as published by the Free Software Foundation, and
@@ -11,7 +12,7 @@
 * This program is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License version 2 for more details.
+* GNU General Public License for more details.
 *
 */
 //#include "MsCommon.h"
@@ -138,6 +139,7 @@ struct mstar_i2c_dev {
 typedef struct _i2c_dev_data{
 	u32 i2cirq;
 	int i2cgroup;
+    void *data;
 }i2c_dev_data;
 
 
@@ -748,6 +750,16 @@ void MDrv_HW_IIC_Init(void *base,void *chipbase,int i2cgroup,void *clkbase, int 
 EXPORT_SYMBOL(MDrv_HW_IIC_Init);
 
 ////////////////////////////////////////////////////////////////////////////////
+/// @brief \b Function  \b Name: MDrv_HW_IIC_DeInit
+/// @brief \b Function  \b Description: de init iic
+////////////////////////////////////////////////////////////////////////////////
+void MDrv_HW_IIC_DeInit(int i2cgroup)
+{
+    //printk( "[%s] dma_free_coherent : %d\n", __func__, i2cgroup);
+    dma_free_coherent(NULL, 4096, HWI2C_DMA[i2cgroup].i2c_virt_addr, HWI2C_DMA[i2cgroup].i2c_dma_addr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// @brief \b Function  \b Name: MDrv_HWI2C_Start
 /// @brief \b Function  \b Description: send start bit
 /// @return             \b TRUE: Success FALSE: Fail
@@ -996,7 +1008,7 @@ ms_i2c_xfer_read(u8 u8Port, struct i2c_msg *pmsg, u8 *pbuf, int length)
 	if(g_bDMAEnable[u8Port])
     {
 		//pr_err("I2C read DMA: port = %#x\n", u8Port);
-        ret = MDrv_HWI2C_ReadBytes((u8Port<< 8)|(((pmsg->addr & I2C_BYTE_MASK) << 1) | ((pmsg->flags & I2C_M_RD) ? 1 : 0)), length, pbuf, length, pbuf);
+        ret = MDrv_HWI2C_ReadBytes((u8Port<< 8)|(((pmsg->addr & I2C_BYTE_MASK) << 1) | ((pmsg->flags & I2C_M_RD) ? 1 : 0)), 0, pbuf, length, pbuf);
 		if(ret==FALSE)
 		{
 			perrBuf = &errBuf[0];
@@ -1117,7 +1129,7 @@ ms_i2c_xfer_write(u8 u8Port, struct i2c_msg *pmsg, u8 *pbuf, int length)
 	if(g_bDMAEnable[u8Port])
     {
 		//pr_err("I2C write DMA: port = %#x\n", u8Port);
-        ret = MDrv_HWI2C_WriteBytes((u8Port<< 8)|(((pmsg->addr & I2C_BYTE_MASK) << 1) | ((pmsg->flags & I2C_M_RD) ? 1 : 0)), length, pbuf, length, pbuf);
+        ret = MDrv_HWI2C_WriteBytes((u8Port<< 8)|(((pmsg->addr & I2C_BYTE_MASK) << 1) | ((pmsg->flags & I2C_M_RD) ? 1 : 0)), 0, pbuf, length, pbuf);
 		if(ret==FALSE)
 		{
 			perrBuf = &errBuf[0];
@@ -1217,7 +1229,7 @@ ms_i2c_xfer(struct i2c_adapter *padap, struct i2c_msg *pmsg, int num)
 	ms_i2c_feature_fp ms_i2c_nwrite_fp;
 	struct i2c_msg *ptmpmsg = pmsg;
 	BOOL bDoRead = 0;
-	
+
     HWI2C_DBG_INFO("ms_i2c_xfer: processing %d messages:\n", num);
 
     i = 0;
@@ -1248,8 +1260,8 @@ ms_i2c_xfer(struct i2c_adapter *padap, struct i2c_msg *pmsg, int num)
 	udelay(1);
     MDrv_HWI2C_Reset(u16Offset,FALSE);
 	udelay(1);
-	
-    //check read cmd 
+
+    //check read cmd
     for(i = 0; i < num; i++)
     {
 
@@ -1259,7 +1271,7 @@ ms_i2c_xfer(struct i2c_adapter *padap, struct i2c_msg *pmsg, int num)
                 break;
             }
         }
-        ptmpmsg++;  
+        ptmpmsg++;
     }
 	//query nwrite mode ability and proc nwrite
 	if(MDrv_HWI2C_CheckAbility(E_HWI2C_FEATURE_NWRITE, &ms_i2c_nwrite_fp) && !bDoRead)
@@ -1267,7 +1279,7 @@ ms_i2c_xfer(struct i2c_adapter *padap, struct i2c_msg *pmsg, int num)
 		if(ms_i2c_nwrite_fp == NULL){
 			return FALSE;
 		}
-		
+
 		//HWI2C_DBG_ERR("ms_i2c_nwrite_fp num %d\n", num);
 		ms_i2c_nwrite_fp(u16Offset, ((pmsg->addr & I2C_BYTE_MASK) << 1), pmsg, num);
 	}
@@ -1296,10 +1308,11 @@ ms_i2c_xfer(struct i2c_adapter *padap, struct i2c_msg *pmsg, int num)
 	            //MDrv_HWI2C_Stop(u16Offset);
 
 	            if (err)
-				{
-					mutex_unlock(&i2cMutex);
-	                return err;
-				}
+                    {
+                        MDrv_HWI2C_Stop(u16Offset);
+                        mutex_unlock(&i2cMutex);
+                        return err;
+                    }
 	        }
 	        pmsg++;        /* next message */
     	}
@@ -1424,7 +1437,7 @@ static int mstar_i2c_probe(struct platform_device *pdev)
     if(!res)
     {
     	ret = -ENOENT;
-		goto out; 
+		goto out;
     }
 	clkbase = (void *)(IO_ADDRESS(res->start));
 
@@ -1466,7 +1479,7 @@ static int mstar_i2c_probe(struct platform_device *pdev)
 	} else if (pdev->id == 3) {
 		i2c_dev->is_dvc = 1;
 	}
- 
+
 	#ifdef CONFIG_MS_I2C_INT_ISR
 	#if 0 //tmp cancel request ISR
 	//init isr
@@ -1476,7 +1489,7 @@ static int mstar_i2c_probe(struct platform_device *pdev)
 	//init tcond
 	HAL_HWI2C_DMA_TsemInit((u8)i2c_dev->i2cgroup);
 	//HWI2C_DBG_ERR("1mstar_i2c_probe i2cirq %d\n", data->i2cirq);
-	#endif 
+	#endif
 	#endif
 
 	init_completion(&i2c_dev->msg_complete);
@@ -1494,12 +1507,13 @@ static int mstar_i2c_probe(struct platform_device *pdev)
 		 "Sstar I2C adapter %d", i2cgroup);
 	i2c_dev->adapter.algo = &sg_ms_i2c_algorithm;
 
-	i2c_dev->adapter.dev.parent = &pdev->dev;
-	i2c_dev->adapter.nr = i2cgroup;
-	i2c_dev->adapter.dev.of_node = pdev->dev.of_node;
+    i2c_dev->adapter.dev.parent = &pdev->dev;
+    i2c_dev->adapter.nr = i2cgroup;
+    i2c_dev->adapter.dev.of_node = pdev->dev.of_node;
 
-	pdev->dev.platform_data = (void*)data;
-	
+    pdev->dev.platform_data = (void*)data;
+    data->data = (void *)i2c_dev;
+
     HWI2C_DBG_INFO(" i2c_dev->adapter.nr=%d\n",i2c_dev->adapter.nr);
 	i2c_set_adapdata(&i2c_dev->adapter, i2c_dev);
 
@@ -1510,7 +1524,7 @@ static int mstar_i2c_probe(struct platform_device *pdev)
     }
 
 	return 0;
-//err return 
+//err return
 out:
 	if(data){
 		kfree(data);
@@ -1532,26 +1546,26 @@ static int mstar_i2c_remove(struct platform_device *pdev)
 	#endif
 	kfree(data);
 	i2c_del_adapter(&i2c_dev->adapter);
-	
+
 	return 0;
 }
 
-#if 0
-static int mstar_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM
+static int mstar_i2c_suspend(struct device *dev)
 {
-	struct mstar_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
-
-#if defined(CONFIG_OF)
-    int num_parents, i;
+    i2c_dev_data *data = (i2c_dev_data*)dev->platform_data;
+    struct mstar_i2c_dev *i2c_dev = (struct mstar_i2c_dev *)(data->data);
     struct clk **iic_clks;
+    struct clk *parent;
+    int num_parents, i;
 
-    num_parents = of_clk_get_parent_count(pdev->dev.of_node);
+    num_parents = of_clk_get_parent_count(dev->of_node);
     iic_clks = kzalloc((sizeof(struct clk *) * num_parents), GFP_KERNEL);
 
     //disable all clk
     for(i = 0; i < num_parents; i++)
     {
-        iic_clks[i] = of_clk_get(pdev->dev.of_node, i);
+        iic_clks[i] = of_clk_get(dev->of_node, i);
         if (IS_ERR(iic_clks[i]))
         {
             printk( "[iic_clks] Fail to get clk!\n" );
@@ -1560,35 +1574,38 @@ static int mstar_i2c_suspend(struct platform_device *pdev, pm_message_t state)
         }
         else
         {
+            //force clock parent to 0, otherwise set rate to 12MHz in resume will not take effect
+            parent = clk_hw_get_parent_by_index(__clk_get_hw(iic_clks[i]), 0)->clk;
+            //pr_err("%s parent 0 clk: %ld\n", pdev->name, clk_get_rate(parent));
+            clk_set_parent(iic_clks[i], parent);
             clk_disable_unprepare(iic_clks[i]);
+            clk_put(iic_clks[i]);
         }
     }
     kfree(iic_clks);
-#endif
 
-	i2c_lock_adapter(&i2c_dev->adapter);
-	i2c_dev->is_suspended = true;
-	i2c_unlock_adapter(&i2c_dev->adapter);
+    MDrv_HW_IIC_DeInit(i2c_dev->adapter.nr);
+    i2c_lock_adapter(&i2c_dev->adapter);
+    i2c_dev->is_suspended = true;
+    i2c_unlock_adapter(&i2c_dev->adapter);
 
 	return 0;
 }
 
-static int mstar_i2c_resume(struct platform_device *pdev)
+static int mstar_i2c_resume(struct device *dev)
 {
-	struct mstar_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
-
-	//int ret;
-#if defined(CONFIG_OF)
+    i2c_dev_data *data = (i2c_dev_data *)dev->platform_data;
+    struct mstar_i2c_dev *i2c_dev = (struct mstar_i2c_dev *)(data->data);
     int num_parents, i;
     struct clk **iic_clks;
 
-    num_parents = of_clk_get_parent_count(pdev->dev.of_node);
+    num_parents = of_clk_get_parent_count(dev->of_node);
     iic_clks = kzalloc((sizeof(struct clk *) * num_parents), GFP_KERNEL);
 
     //enable all clk
     for(i = 0; i < num_parents; i++)
     {
-        iic_clks[i] = of_clk_get(pdev->dev.of_node, i);
+        iic_clks[i] = of_clk_get(dev->of_node, i);
         if (IS_ERR(iic_clks[i]))
         {
             printk( "[iic_clks] Fail to get clk!\n" );
@@ -1599,38 +1616,42 @@ static int mstar_i2c_resume(struct platform_device *pdev)
         {
             clk_prepare_enable(iic_clks[i]);
             if(i == 0)
-	            clk_set_rate(iic_clks[i], 12000000);
+                clk_set_rate(iic_clks[i], 12000000);
         }
         kfree(iic_clks);
     }
-#endif
 
-	i2c_lock_adapter(&i2c_dev->adapter);
+    i2c_lock_adapter(&i2c_dev->adapter);
 
-    MDrv_HW_IIC_Init(i2c_dev->base,i2c_dev->chipbase,i2c_dev->i2cgroup,i2c_dev->clkbase, i2c_dev->i2cpadmux);
+    //MDrv_HW_IIC_Init(i2c_dev->base,i2c_dev->chipbase,i2c_dev->i2cgroup,i2c_dev->clkbase, i2c_dev->i2cpadmux);
+    MDrv_HW_IIC_Init(i2c_dev->base,i2c_dev->chipbase,i2c_dev->i2cgroup,i2c_dev->clkbase, i2c_dev->i2cpadmux, i2c_dev->i2c_speed, i2c_dev->i2c_en_dma);
+    i2c_dev->is_suspended = false;
 
-	i2c_dev->is_suspended = false;
+    i2c_unlock_adapter(&i2c_dev->adapter);
 
-	i2c_unlock_adapter(&i2c_dev->adapter);
-
-	return 0;
+    return 0;
 }
 #endif
 MODULE_DEVICE_TABLE(of, mstar_i2c_of_match);
 
+#ifdef CONFIG_PM
+static const struct dev_pm_ops i2c_pm_ops = {
+    .suspend_late = mstar_i2c_suspend,
+    .resume_early = mstar_i2c_resume,
+};
+#endif
 
 static struct platform_driver mstar_i2c_driver = {
-	.probe   = mstar_i2c_probe,
-	.remove  = mstar_i2c_remove,
-#if 0
-    .suspend = mstar_i2c_suspend,
-    .resume = mstar_i2c_resume,
+    .probe   = mstar_i2c_probe,
+    .remove  = mstar_i2c_remove,
+    .driver  = {
+        .name  = "mstar-i2c",
+        .owner = THIS_MODULE,
+        .of_match_table = mstar_i2c_of_match,
+#ifdef CONFIG_PM
+        .pm = &i2c_pm_ops,
 #endif
-	.driver  = {
-		.name  = "mstar-i2c",
-		.owner = THIS_MODULE,
-		.of_match_table = mstar_i2c_of_match,
-	},
+    },
 };
 
 static int __init mstar_i2c_init_driver(void)

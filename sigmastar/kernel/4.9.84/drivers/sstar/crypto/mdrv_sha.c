@@ -166,7 +166,7 @@ static int infinity_sha256_update(struct shash_desc *desc, const u8 *data, unsig
         HAL_SHA_SetAddress(Chip_Phys_to_MIU(ALLOC_DMEM.aesdma_phy_SHABuf_addr));
         HAL_SHA_SetLength(SHA256_BLOCK_SIZE);
         HAL_SHA_ManualMode(1);
-        
+
         HAL_SHA_Start();
         udelay(1);  //sha256 cost about 1~1.4us
 
@@ -300,7 +300,7 @@ int infinity_sha_update(u32 *in, u32 len, u32 *state, u32 count, u8 once)
     }
 
     Chip_Flush_MIU_Pipe();
-    HAL_SHA_SetAddress((U32)in);
+    HAL_SHA_SetAddress((u32)Chip_Phys_to_MIU((u64)(uintptr_t)in));
     HAL_SHA_SetLength(len);
     if (once)
     {

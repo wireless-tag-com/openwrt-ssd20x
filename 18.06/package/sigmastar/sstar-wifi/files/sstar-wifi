@@ -14,10 +14,5 @@ start()
 
 stop()
 {
-	killall hostapd
-	killall wpa_supplicant
-	sleep 1
-	ifconfig wlan0 down
-
-	rmmod ssw101b_wifi_HT40_usb
+	wifi down
 }

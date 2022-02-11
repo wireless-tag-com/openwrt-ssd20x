@@ -30,8 +30,9 @@ rights to any and all damages, losses, costs and expenses resulting therefrom.
 // Macro definition
 //=============================================================================
 #define MI_AUDIO_MAX_CHN_NUM            (16)
-
-
+#define _NR_BAND_NUM                    (7)
+#define _EQ_BAND_NUM                    (129)
+#define _AGC_BAND_NUM                   (7)
 
 //=============================================================================
 // Data type definition
@@ -173,7 +174,8 @@ typedef struct MI_AUDIO_HpfConfig_s
 typedef struct MI_AUDIO_AnrConfig_s
 {
     MI_AUDIO_AlgorithmMode_e eMode;
-    MI_U32   u32NrIntensity;
+    MI_U32   u32NrIntensityBand[_NR_BAND_NUM - 1];
+    MI_U32   u32NrIntensity[_NR_BAND_NUM];
     MI_U32   u32NrSmoothLevel;
     MI_AUDIO_NrSpeed_e eNrSpeed;
 }MI_AUDIO_AnrConfig_t;
@@ -191,9 +193,9 @@ typedef struct MI_AUDIO_AgcConfig_s
     MI_U32     u32DropGainMax;
     MI_U32     u32AttackTime;
     MI_U32     u32ReleaseTime;
-    MI_S16     s16Compression_ratio_input[5];
-    MI_S16     s16Compression_ratio_output[5];
-    MI_S32     s32TargetLevelDb;
+    MI_S16     s16Compression_ratio_input[_AGC_BAND_NUM];
+    MI_S16     s16Compression_ratio_output[_AGC_BAND_NUM];
+    MI_S32     s32DropGainThreshold;
     MI_S32     s32NoiseGateDb;
     MI_U32     u32NoiseGateAttenuationDb;
 }MI_AUDIO_AgcConfig_t;
@@ -201,7 +203,7 @@ typedef struct MI_AUDIO_AgcConfig_s
 typedef struct MI_AUDIO_EqConfig_s
 {
     MI_AUDIO_AlgorithmMode_e eMode;
-    MI_S16     s16EqGainDb[129];
+    MI_S16     s16EqGainDb[_EQ_BAND_NUM];
 }MI_AUDIO_EqConfig_t;
 
 typedef enum{

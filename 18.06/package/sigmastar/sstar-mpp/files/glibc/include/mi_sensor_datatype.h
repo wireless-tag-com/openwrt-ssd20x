@@ -157,6 +157,12 @@ typedef enum
     E_MI_SNR_ANADEC_SRC_NUM
 } MI_SNR_Anadec_SrcType_e;
 
+typedef struct MI_SNR_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_SNR_InitParam_t;
+
 #pragma pack(pop)
 
 #endif

@@ -37,7 +37,17 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#ifdef CONFIG_PM_SLEEP
+/**
+ * struct ss_gpi_irq_priv - private gpi interrupt data
+ * @polarity:   fiq polarity
+ */
+struct ss_gpi_irq_priv {
+    U16     polarity[(GPI_FIQ_NUM+15)>>4];
+};
 
+static struct ss_gpi_irq_priv gpi_irq_priv;
+#endif
 static void ss_gpi_irq_ack(struct irq_data *d)
 {
     U16 gpi_irq;
@@ -53,6 +63,7 @@ static void ss_gpi_irq_ack(struct irq_data *d)
     if( gpi_irq >= 0 && gpi_irq < GPI_FIQ_END )
     {
         SETREG16( (BASE_REG_GPI_INT_PA + REG_ID_0A + (gpi_irq/16)*4 ) , (1 << (gpi_irq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else
     {
@@ -67,10 +78,11 @@ static void ss_gpi_irq_mask(struct irq_data *d)
 
     gpi_irq = d->hwirq;
     pr_debug("[%s] hw:%d \n",__FUNCTION__, gpi_irq);
-
+  
     if( gpi_irq >= 0 && gpi_irq < GPI_FIQ_END )
     {
         SETREG16( (BASE_REG_GPI_INT_PA + REG_ID_00 + (gpi_irq/16)*4 ) , (1 << (gpi_irq%16)) );
+        INREG16(BASE_REG_MAILBOX_PA);//read a register make ensure the previous write command was compeleted
     }
     else
     {
@@ -89,6 +101,7 @@ static void ss_gpi_irq_unmask(struct irq_data *d)
     if( gpi_irq >= 0 && gpi_irq < GPI_FIQ_END )
     {
         CLRREG16( (BASE_REG_GPI_INT_PA + REG_ID_00 + (gpi_irq/16)*4 ) , (1 << (gpi_irq%16)) );
+        OUTREGMSK16(BASE_REG_INTRCTL_PA + REG_ID_57, 0x0, 0x0100); //unmask parent
     }
     else
     {
@@ -154,6 +167,26 @@ static int ss_gpi_irq_set_type(struct irq_data *d, unsigned int type)
     return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ss_gpi_irq_set_wake(struct irq_data *d, unsigned int enable)
+{
+    U16 gpi_irq;
+
+    gpi_irq = d->hwirq;
+    pr_err("[%s] hw:%d enable? %d \n",__FUNCTION__, gpi_irq, enable);
+
+    if (enable){
+        ss_gpi_irq_unmask(d);
+    }
+    else
+    {
+        ss_gpi_irq_mask(d);
+    }
+	return 0;
+}
+
+#endif
+
 struct irq_chip ss_gpi_intc_irqchip = {
     .name = "MS_GPI_INTC",
     .irq_ack = ss_gpi_irq_ack,
@@ -161,6 +194,11 @@ struct irq_chip ss_gpi_intc_irqchip = {
     .irq_mask = ss_gpi_irq_mask,
     .irq_unmask = ss_gpi_irq_unmask,
     .irq_set_type = ss_gpi_irq_set_type,
+#ifdef CONFIG_PM_SLEEP
+    .irq_enable = ss_gpi_irq_unmask,
+    .irq_disable = ss_gpi_irq_mask,
+    .irq_set_wake = ss_gpi_irq_set_wake,
+#endif
 };
 EXPORT_SYMBOL(ss_gpi_intc_irqchip);
 
@@ -271,7 +309,36 @@ struct irq_domain_ops ss_gpi_intc_domain_ops = {
     .free       = ss_gpi_intc_domain_free,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int ss_gpi_intc_suspend(void)
+{
+    unsigned int i, num;
 
+    num = (GPI_FIQ_NUM + 15) >> 4;
+    for (i = 0; i < num; i++) {
+        gpi_irq_priv.polarity[i] = INREG16(BASE_REG_GPI_INT_PA + REG_ID_18 + (i << 2));
+    }
+//    //interrupt-parent
+//    gpi_irq_priv.irqGpiStatus = INREG16(BASE_REG_GPI_INT_PA + REG_ID_57)&0xFEFF;
+//    printk("ss_gpi_intc_suspend %d \n\n", gpi_irq_priv.irqGpiStatus);
+    return 0;
+}
+
+static void ss_gpi_intc_resume(void)
+{
+    unsigned int i, num;
+
+    num = (GPI_FIQ_NUM + 15) >> 4;
+    for (i = 0; i < num; i++) {
+        OUTREG16(BASE_REG_GPI_INT_PA + REG_ID_18 + (i << 2), gpi_irq_priv.polarity[i]);
+    }
+}
+
+struct syscore_ops ss_gpi_intc_syscore_ops = {
+    .suspend = ss_gpi_intc_suspend,
+    .resume = ss_gpi_intc_resume,
+};
+#endif
 
 static int __init ss_init_gpi_intc(struct device_node *np, struct device_node *interrupt_parent)
 {
@@ -310,7 +377,9 @@ static int __init ss_init_gpi_intc(struct device_node *np, struct device_node *i
     }
 
     irq_set_chained_handler_and_data(irq, ss_handle_cascade_gpi, ss_gpi_irq_domain);
-
+#ifdef CONFIG_PM_SLEEP
+    register_syscore_ops(&ss_gpi_intc_syscore_ops);
+#endif
     return 0;
 }
 

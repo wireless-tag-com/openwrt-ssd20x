@@ -23,10 +23,10 @@
 #if 1
 #define RECORD_IPL_ADDR 0xF900F000 //IPL
 #define RECORD_BL_ADDR  0xF900F400 //BL
-#define RECORD_ADDR     0xF900F800 //LINUX 0XA0
+#define RECORD_ADDR     0x20000000 //LINUX 0XA0
 
-
-#define MAX_RECORD 800  /*max:(0x18000-0xF800)/40~=870*/
+#define MAX_RECORD 100
+//#define MAX_RECORD 800  /*max:(0x18000-0xF800)/40~=870*/
 #define MAX_LANGTH 32
 struct timestamp {
     unsigned int timestamp_us;      /* 4                 */
@@ -38,10 +38,18 @@ struct timecrecord {
     struct timestamp tt[MAX_RECORD];
 };
 
+static void __iomem * timestamp_vbase;
 int g_record_inited = 0;
 void* g_addr_record_ipl = 0;
 void* g_addr_record_bl = 0;
 void* g_addr_record_kernel= 0;
+
+void recode_timestamp_init(void)
+{
+    g_record_inited = 0;
+    timestamp_vbase =__va(RECORD_ADDR + 0x28); //sizeof(suspend_keep_info)
+    memset(timestamp_vbase, 0, 0xFA0);
+}
 
 U64 arch_counter_get_cntpct(void)
 {
@@ -61,7 +69,7 @@ void recode_timestamp(int mark, const char* name)
 {
     struct timecrecord *tc;
 
-    tc = (struct timecrecord *) (RECORD_ADDR);
+    tc = (struct timecrecord *) (timestamp_vbase);
     if(!g_record_inited)
     {
         tc->count = 0;
@@ -81,7 +89,7 @@ void recode_timestamp_ext(int mark, const char* name, unsigned int timestamp)
 {
     struct timecrecord *tc;
     
-    tc = (struct timecrecord *) (RECORD_ADDR);
+    tc = (struct timecrecord *) (timestamp_vbase);
     if(!g_record_inited)
     {
         tc->count = 0;
@@ -102,7 +110,7 @@ void recode_show(void)
     struct timecrecord *tc;
     int i=0;
 
-    tc = (struct timecrecord *) (RECORD_IPL_ADDR); // IMI SRAM
+    tc = (struct timecrecord *) (timestamp_vbase); // IMI SRAM
     if( tc->count <= MAX_RECORD && tc->count>0)
     {
         printk(KERN_CRIT"IPL: 0x%p\n", tc);
@@ -121,7 +129,7 @@ void recode_show(void)
         printk(KERN_CRIT"Total cost:%8u(us)\n",  tc->tt[tc->count-1].timestamp_us - tc->tt[0].timestamp_us );
     }
 
-    tc = (struct timecrecord *) (RECORD_BL_ADDR); // IMI SRAM
+    tc = (struct timecrecord *) (timestamp_vbase); // IMI SRAM
     if( tc->count <= MAX_RECORD && tc->count>0)
     {
         printk(KERN_CRIT"BL: 0x%p\n", tc);
@@ -140,7 +148,7 @@ void recode_show(void)
         printk(KERN_CRIT"Total cost:%8u(us)\n",  tc->tt[tc->count-1].timestamp_us - tc->tt[0].timestamp_us );
     }
 
-    tc = (struct timecrecord *) (RECORD_ADDR); // IMI SRAM
+    tc = (struct timecrecord *) (timestamp_vbase); // IMI SRAM
     if( tc->count <= MAX_RECORD && tc->count>0)
     {
         printk(KERN_CRIT"Linux:0x%p\n", tc);
@@ -160,6 +168,7 @@ void recode_show(void)
     }
 
 }
+EXPORT_SYMBOL(recode_timestamp);
 #else
 void recode_timestamp(int mark, const char* name){}
 void recode_show(void){}

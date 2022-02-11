@@ -6,6 +6,9 @@ EXTRA_CFLAGS      +=  -Idrivers/sstar/include/$(CONFIG_SSTAR_CHIP_NAME)
 EXTRA_CFLAGS      +=  -Idrivers/sstar/crypto/infinity
 EXTRA_CFLAGS      +=  -Idrivers/sstar/bdma/$(CONFIG_SSTAR_CHIP_NAME)
 EXTRA_CFLAGS      +=  -Idrivers/sstar/movedma/
+EXTRA_CFLAGS      +=  -Idrivers/sstar/flash_isp/
+EXTRA_CFLAGS      +=  -Idrivers/sstar/spinand/drv/
+EXTRA_CFLAGS      +=  -Idrivers/sstar/spinand/drv/inc/
 
 obj-$(CONFIG_MS_MSYS) = ms_msys.o
 obj-$(CONFIG_MS_MSYS) += ms_msys_dma_wrapper.o

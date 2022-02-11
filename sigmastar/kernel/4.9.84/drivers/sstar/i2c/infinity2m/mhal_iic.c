@@ -553,7 +553,7 @@ static BOOL HAL_HWI2C_DMA_SetMiuAddr(U16 u16PortOffset, U32 u32MiuAddr)
     g_u32DmaPhyAddr[u8Port] = u32MiuAddr;
 
     /*Enable I2C DMA wait MIU done*/
-    HAL_HWI2C_WriteRegBit(REG_HWI2C_DMA_RESERVED0+u16PortOffset, __BIT7|__BIT4, TRUE);
+    HAL_HWI2C_WriteRegBit(REG_HWI2C_DMA_RESERVED0+u16PortOffset, __BIT7|__BIT5|__BIT4, TRUE);
 
     return HAL_HWI2C_Write4Byte(REG_HWI2C_DMA_MIU_ADR+u16PortOffset, Chip_Phys_to_MIU(u32MiuAddr));
 }
@@ -833,6 +833,7 @@ static BOOL HAL_HWI2C_DMA_SetMiuData(U16 u16PortOffset, U32 u32Length, U8* pu8Sr
     u32PhyAddr = g_u32DmaPhyAddr[u8Port];
     pMiuData = HWI2C_DMA[u8Port].i2c_virt_addr;
     memcpy(pMiuData,pu8SrcData,u32Length);
+    Chip_Flush_Cache_Range((u32)pMiuData,u32Length);
     HAL_HWI2C_DMA_SetDataLen(u16PortOffset,u32Length);
     return TRUE;
 }
@@ -851,6 +852,7 @@ static BOOL HAL_HWI2C_DMA_GetMiuData(U16 u16PortOffset, U32 u32Length, U8* pu8Ds
     //pMiuData = (U8*)_PA2VA((U32)u32PhyAddr);
     u32PhyAddr = g_u32DmaPhyAddr[u8Port];
     pMiuData = HWI2C_DMA[u8Port].i2c_virt_addr;
+    Chip_Inv_Cache_Range((u32)pMiuData, u32Length);
     memcpy((void*)pu8DstData,(void*)pMiuData,u32Length);
     return TRUE;
 }
@@ -891,6 +893,7 @@ static BOOL HAL_HWI2C_DMA_WaitDone(U16 u16PortOffset, U8 u8ReadWrite)
     //check transfer done
     while(u16Timeout--)
     {
+        udelay(20);
         if(HAL_HWI2C_DMA_IsTxfrDone(u16PortOffset,u8Port))
         {
             HAL_HWI2C_DMA_TxfrDone(u16PortOffset);
@@ -1654,6 +1657,13 @@ BOOL HAL_HWI2C_DMA_WriteBytes(U16 u16PortOffset, U16 u16SlaveCfg, U32 uAddrCnt, 
         return FALSE;
     }
 
+    //set data to dram
+    if(HAL_HWI2C_DMA_SetMiuData(u16PortOffset,uSize,pData)==FALSE)
+    {
+        // HWI2C_HAL_ERR("[DMA_W]: Set MIU data error!\n");
+        return FALSE;
+    }
+
     //set transfer with stop
     HAL_HWI2C_DMA_SetTxfrStop(u16PortOffset,TRUE);
     //set slave address
@@ -1668,12 +1678,7 @@ BOOL HAL_HWI2C_DMA_WriteBytes(U16 u16PortOffset, U16 u16SlaveCfg, U32 uAddrCnt, 
         // HWI2C_HAL_ERR("[DMA_W]: Set command buffer error!\n");
         return FALSE;
     }
-    //set data to dram
-    if(HAL_HWI2C_DMA_SetMiuData(u16PortOffset,0,pData)==FALSE)
-    {
-        // HWI2C_HAL_ERR("[DMA_W]: Set MIU data error!\n");
-        return FALSE;
-    }
+
     //##################
     //  Trigger to WRITE
     if(HAL_HWI2C_DMA_WaitDone(u16PortOffset,HWI2C_DMA_WRITE)==FALSE)
@@ -1743,7 +1748,7 @@ BOOL HAL_HWI2C_DMA_ReadBytes(U16 u16PortOffset, U16 u16SlaveCfg, U32 uAddrCnt, U
             // HWI2C_HAL_ERR("[DMA_R:W]: Set command buffer error!\n");
             return FALSE;
         }
-        HAL_HWI2C_DMA_SetDataLen(u16PortOffset,0);
+        HAL_HWI2C_DMA_SetDataLen(u16PortOffset,uSize);
 
         //##################
         //  Trigger to WRITE

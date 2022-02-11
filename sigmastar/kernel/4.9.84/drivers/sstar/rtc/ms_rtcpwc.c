@@ -59,7 +59,7 @@ struct ms_rtc_info {
     struct rtc_device *rtc_dev;
     void __iomem *rtc_base;
     u32 default_base;
-    spinlock_t mutex;
+    struct mutex mutex;
 };
 
 int auto_wakeup_delay_seconds = 0;
@@ -618,12 +618,11 @@ static int ms_rtc_read_time(struct device *dev, struct rtc_time *tm)
     u64 ullSeconds = 0;
     u16 counterH = 0, counterL = 0;
     int m_ulBaseTimeInSeconds = 0;
-    unsigned long flags;
 
     if (0 == _bInit)
         return 0;
 
-    spin_lock_irqsave(&info->mutex, flags);
+    mutex_lock(&info->mutex);
 
     m_ulBaseTimeInSeconds = ms_rtc_GetBaseTime(dev);
 
@@ -657,7 +656,7 @@ static int ms_rtc_read_time(struct device *dev, struct rtc_time *tm)
                 //Reset read bit of RTC counter
                 reg = readw(info->rtc_base + RTCPWC_DIG2RTC_CNT_RD);
                 writew(reg & ~RTCPWC_DIG2RTC_CNT_RD_BIT, info->rtc_base + RTCPWC_DIG2RTC_CNT_RD);
-                spin_unlock_irqrestore(&info->mutex, flags);
+                mutex_unlock(&info->mutex);
                 return 0;
             }
 
@@ -690,7 +689,7 @@ static int ms_rtc_read_time(struct device *dev, struct rtc_time *tm)
     RTC_DBG("ms_rtc_read_time[%d,%d,%d,%d,%d,%d]\n",
         tm->tm_year,tm->tm_mon,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
 
-    spin_unlock_irqrestore(&info->mutex, flags);
+    mutex_unlock(&info->mutex);
     return rtc_valid_tm(tm);
 }
 
@@ -698,12 +697,11 @@ static int ms_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
     struct ms_rtc_info *info = dev_get_drvdata(dev);
     unsigned long  seconds;
-    unsigned long flags;
 
     if (0 == _bInit)
         return 0;
 
-    spin_lock_irqsave(&info->mutex, flags);
+    mutex_lock(&info->mutex);
     RTC_DBG("ms_rtc_set_time[%d,%d,%d,%d,%d,%d]\n",
         tm->tm_year,tm->tm_mon,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
 
@@ -714,7 +712,7 @@ static int ms_rtc_set_time(struct device *dev, struct rtc_time *tm)
 #ifdef CONFIG_RTCPWC_INNER_EHHE
     ms_rtc_SetSW1(dev, seconds);
 #endif // #ifdef CONFIG_RTCPWC_INNER_EHHE
-    spin_unlock_irqrestore(&info->mutex, flags);
+    mutex_unlock(&info->mutex);
     return 0;
 }
 
@@ -853,7 +851,8 @@ static int ms_rtcpwc_probe(struct platform_device *pdev)
         }
     }
     _bInit = 1;
-    spin_lock_init(&info->mutex);
+    mutex_init(&info->mutex);
+
     return ret;
 }
 

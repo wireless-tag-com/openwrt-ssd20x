@@ -107,15 +107,13 @@ extern MS_BOOL HAL_SERFLASH_DetectSize(MS_U32  *u32FlashSize);
 extern MS_BOOL HAL_SERFLASH_EraseChip(void);
 extern MS_BOOL HAL_SERFLASH_AddressToBlock(MS_U32 u32FlashAddr, MS_U32 *pu32BlockIndex);
 extern MS_BOOL HAL_SERFLASH_BlockToAddress(MS_U32 u32BlockIndex, MS_U32 *pu32FlashAddr);
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-extern MS_BOOL HAL_SERFLASH_BlockErase_CUS_ZY(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_BOOL bWait);
-#endif
 extern MS_BOOL HAL_SERFLASH_BlockErase(MS_U32 u32StartBlock,MS_U32 u32EndBlock,MS_BOOL bWait);
 extern MS_BOOL HAL_SERFLASH_SectorErase(MS_U32 u32SectorAddress);
 extern MS_BOOL HAL_SERFLASH_CheckWriteDone(void);
 extern MS_BOOL HAL_SERFLASH_Write(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data);
 extern MS_BOOL HAL_SERFLASH_Read(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data);
 extern EN_WP_AREA_EXISTED_RTN HAL_SERFLASH_WP_Area_Existed(MS_U32 u32UpperBound, MS_U32 u32LowerBound, MS_U8 *pu8BlockProtectBits);
+extern EN_WP_AREA_EXISTED_RTN HAL_SERFLASH_WP_Status_Existed(MS_U32* u32UpperBound, MS_U32* u32LowerBound, MS_U8 u8BlockProtectBits);
 extern MS_BOOL HAL_SERFLASH_WriteProtect_Area(MS_BOOL bEnableAllArea, MS_U8 u8BlockProtectBits);
 extern MS_BOOL HAL_SERFLASH_WriteProtect(MS_BOOL bEnable);
 extern MS_BOOL HAL_SERFLASH_ReadID(MS_U8 *pu8Data, MS_U32 u32Size);
@@ -144,9 +142,6 @@ extern void HAL_SERFLASH_ProgramFlashByFSP(MS_U32 u32Addr, MS_U32 u32Data);
 
 extern MS_U8 HAL_SPI_ReadBlockStatus(MS_PHYADDR u32FlashAddr);
 
-#ifdef CONFIG_SS_CUSTOMIZED_CUS_ZY_ERASE_ENV
-MS_BOOL HAL_FSP_BlockErase_CUS_ZY(MS_U32 u32StartAddr, MS_U32 u32EraseSize, MS_BOOL bWait);
-#endif
 MS_BOOL HAL_FSP_BlockErase(MS_U32 u32StartBlock, MS_U32 u32EndBlock, MS_BOOL bWait);
 MS_BOOL HAL_FSP_BurstRead(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data);
 MS_BOOL HAL_FSP_Read(MS_U32 u32Addr, MS_U32 u32Size, MS_U8 *pu8Data);

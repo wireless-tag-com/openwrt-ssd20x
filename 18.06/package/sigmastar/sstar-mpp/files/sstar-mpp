@@ -14,71 +14,29 @@ start() {
 		insmod mhal.ko
 	fi
 
-	insmod mi_common.ko
+	insmod /lib/modules/4.9.84/mi_common.ko
+	insmod /lib/modules/4.9.84/mi_sys.ko cmdQBufSize=128 logBufSize=0
+	insmod /lib/modules/4.9.84/mi_gfx.ko
+	insmod /lib/modules/4.9.84/mi_divp.ko
+	insmod /lib/modules/4.9.84/mi_vdec.ko
+	insmod /lib/modules/4.9.84/mi_ai.ko
+	insmod /lib/modules/4.9.84/mi_ao.ko
+	insmod /lib/modules/4.9.84/mi_disp.ko
+	insmod soundcore.ko
+	insmod snd.ko
+	insmod snd-timer.ko
+	insmod snd-pcm.ko
+	insmod snd-pcm-oss.ko
+	insmod /lib/modules/4.9.84/mi_alsa.ko
+	insmod /lib/modules/4.9.84/mi_venc.ko
+	insmod /lib/modules/4.9.84/mi_panel.ko
 
-	major=`cat /proc/devices | awk "\\$2==\""mi"\" {print \\$1}"\n`
-	minor=0
+	major=`cat /proc/devices | busybox awk "\\$2==\""mi_poll"\" {print \\$1}"`
+	busybox mknod /dev/mi_poll c $major 0
+	insmod /lib/modules/4.9.84/fbdev.ko
 
-	insmod mi_sys.ko cmdQBufSize=128 logBufSize=0
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_sys c $major $minor
-		let minor++
-	fi
-
-	insmod mi_gfx.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_gfx c $major $minor
-		let minor++
-	fi
-
-	insmod mi_divp.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_divp c $major $minor
-		let minor++
-	fi
-
-	insmod mi_vdec.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_vdec c $major $minor
-		let minor++
-	fi
-
-	insmod mi_ao.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_ao c $major $minor
-		let minor++
-	fi
-
-	insmod mi_disp.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_disp c $major $minor
-		let minor++
-	fi
-
-	echo 1 > /sys/class/mstar/mdisp/bootlogo
-
-	insmod mi_ai.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_ai c $major $minor
-		let minor++
-	fi
-
-	insmod mi_venc.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_venc c $major $minor
-		let minor++
-	fi
-
-	insmod mi_panel.ko
-	if [ $? -eq 0 ]; then
-		mknod /dev/mi_panel c $major $minor
-		let minor++
-	fi
-
-	#mi module
-	major=`cat /proc/devices | awk "\\$2==\""mi_poll"\" {print \\$1}"`
-	mknod /dev/mi_poll c $major 0
-	insmod fbdev.ko
+	major=`cat /proc/devices | busybox awk "\\$2==\""mi_poll"\" {print \\$1}"`
+	busybox mknod /dev/mi_poll c $major 0
 
 	# audio mute off
 	if [ "$mute" != "0" ]; then

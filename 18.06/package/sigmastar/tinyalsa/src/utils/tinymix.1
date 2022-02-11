@@ -1,0 +1,86 @@
+.TH TINYMIX 1 "October 2, 2016" "tinymix" "TinyALSA"
+
+.SH NAME
+tinymix \- view and edit mixer controls for a specified mixer.
+
+.SH SYNOPSIS
+.B tinymix\fR [ \fIoptions\fR ] \fIcommand\fR
+
+.SH Description
+
+\fBtinymix\fR can be used to view and/or edit a list of mixer controls for a specified mixer.
+
+.SH OPTIONS
+
+.TP
+\fB\-D, --card\fR \fIcard\fR
+Card number of the mixer.
+The default is 0.
+
+.TP
+\fB\-h, --help\fR
+Print help contents and exit.
+
+.TP
+\fB\-v, --version\fR
+Print the current version of tinymix and exit.
+
+.SH COMMANDS
+
+.TP
+\fBget <control-id|control-name>\fR
+Prints the value of a specified control
+
+.TP
+\fBset <control-id|control-name> <control-value>\fR
+Sets the value of a specified control
+
+.TP
+\fBcontents\fR
+Prints the contents of all mixer controls.
+
+.TP
+\fBcontrols\fR
+Prints the names and IDs of all mixer controls.
+
+.SH EXAMPLES
+
+.TP
+\fBtinymix controls\fR
+Prints a list of control IDs for the mixer of card 0.
+
+.TP
+\fBtinymix -D 1 controls\fR
+Prints a list of control IDs for the mixer of card 1.
+
+.TP
+\fBtinymix get 0\fR
+Prints information about control 0.
+
+.TP
+\fBtinymix get "Headphone Playback Volume"\fR
+Prints information about a control called "Headphone Playback Volume"\fR
+
+.TP
+\fBtinymix set 0 4\fR
+Sets control 0 to the value of 4.
+
+.TP
+\fBtinymix --card 1 set 2 32
+Sets control 2 of card 1 to the value of 32.
+
+.SH BUGS
+
+Please report bugs to https://github.com/tinyalsa/tinyalsa/issues.
+
+.SH SEE ALSO
+
+.BR tinycap(1),
+.BR tinyplay(1),
+.BR tinypcminfo(1)
+
+.SH AUTHORS
+Simon Wilson
+.P
+For a complete list of authors, visit the project page at https://github.com/tinyalsa/tinyalsa.
+

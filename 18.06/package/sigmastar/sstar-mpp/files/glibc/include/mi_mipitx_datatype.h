@@ -75,6 +75,12 @@ typedef struct
     MI_MipiTx_ChannelSwapType_e    *peChSwapType;  ///< all lane order swap
 }MI_MipiTx_ChannelAttr_t;
 
+typedef struct MI_MipiTx_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_MipiTx_InitParam_t;
+
 #ifdef __cplusplus
 }
 #endif

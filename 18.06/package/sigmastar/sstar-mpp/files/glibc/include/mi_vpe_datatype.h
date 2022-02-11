@@ -175,6 +175,12 @@ typedef struct MI_VPE_PortMode_s
     MI_SYS_CompressMode_e eCompressMode;   // Compression mode of the output
 }MI_VPE_PortMode_t;
 
+typedef struct MI_VPE_InitParam_s
+{
+    MI_U32 u32DevId;
+    MI_U8 *u8Data;
+} MI_VPE_InitParam_t;
+
 #ifdef __cplusplus
 }
 #endif

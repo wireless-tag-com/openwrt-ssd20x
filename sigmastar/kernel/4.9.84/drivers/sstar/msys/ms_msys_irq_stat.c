@@ -149,6 +149,7 @@ void ms_records_sirq(MSYS_IRQ_INFO *irq_info)
     struct IRQ_INFO_LIST *new, *old_entry = NULL;
     struct list_head *ptr;
     unsigned long flags;
+
     spin_lock_irqsave(&irq_lock, flags);
     new=(struct IRQ_INFO_LIST *)kmalloc(sizeof(struct IRQ_INFO_LIST), GFP_ATOMIC);
 

@@ -66,6 +66,10 @@ MI_S32 MI_VPE_LDCSetViewConfig(MI_VPE_CHANNEL VpeCh, void *pConfigAddr, MI_U32 u
 MI_S32 MI_VPE_Alloc_IspDataBuf(MI_U32 u32Size,void **pUserVirAddr);
 MI_S32 MI_VPE_Free_IspDataBuf(void *pUserBuf);
 
+
+MI_S32 MI_VPE_InitDev(MI_VPE_InitParam_t *pstInitParam);
+MI_S32 MI_VPE_DeInitDev(void);
+
 #ifdef __cplusplus
 }
 #endif

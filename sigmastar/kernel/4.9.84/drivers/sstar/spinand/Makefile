@@ -21,5 +21,6 @@ endif
 
 kdrv_spinand-objs := drv/mdrv_spinand.o \
                      drv/mdrv_spinand_hal.o \
+                     drv/mdrv_spinand_dev.o \
                      $(MHAL_SOURCE) \
                      hal/$(CONFIG_SSTAR_CHIP_NAME)/mhal_spinand_chip_config.o

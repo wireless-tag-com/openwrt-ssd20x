@@ -92,6 +92,7 @@ EOF
 			ifconfig "$ifname" up
 			ifconfig "$ifname" 0.0.0.0
 			/usr/sbin/hostapd -s -P /var/run/wifi-$ifname.pid -B "$hostapd_conf"
+			brctl addif "$bridge" "$ifname"
 		else
 			local wpa_supplicant_conf="/var/run/wpa_supplicant-$ifname.conf"
 
@@ -251,6 +252,10 @@ detect_sstar() {
 			dev_id="set wireless.radio${devidx}.macaddr=$(cat /sys/class/ieee80211/${dev}/macaddress)"
 		fi
 
+		local mac_addr=$(cat /sys/class/ieee80211/${dev}/macaddress)
+		local suffix=$(echo $mac_addr | sed 's/://g')
+		local mac_suffix=${suffix:8:4}
+
 		uci -q batch <<-EOF
 			set wireless.radio${devidx}=wifi-device
 			set wireless.radio${devidx}.type=sstar
@@ -265,7 +270,7 @@ detect_sstar() {
 			set wireless.wlan0.ifname=p2p0
 			set wireless.wlan0.network=lan
 			set wireless.wlan0.mode=ap
-			set wireless.wlan0.ssid=WT-wifi
+			set wireless.wlan0.ssid=WT-${mac_suffix}
 			set wireless.wlan0.encryption=none
 
 			set wireless.wisp0=wifi-iface
