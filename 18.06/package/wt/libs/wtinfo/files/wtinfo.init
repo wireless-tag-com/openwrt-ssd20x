@@ -1,0 +1,8 @@
+#!/bin/sh /etc/rc.common
+
+START=20
+
+start () {
+	wtinfo -i
+}
+

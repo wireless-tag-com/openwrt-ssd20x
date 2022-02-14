@@ -70,9 +70,11 @@ define Package/libwtinfo-lua/install
 endef
 
 define Package/wtinfo/install
+	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/usr/bin $(1)/lib/functions
 	$(INSTALL_BIN) ./files/wtinfo $(1)/usr/bin/wtinfo
 	$(INSTALL_BIN) ./files/wtinfo.sh $(1)/lib/functions/wtinfo.sh
+	$(INSTALL_BIN) ./files/wtinfo.init $(1)/etc/init.d/wtinfo
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
