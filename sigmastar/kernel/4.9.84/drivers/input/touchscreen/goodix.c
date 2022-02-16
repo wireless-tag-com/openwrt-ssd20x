@@ -1,3 +1,4 @@
+
 /*
  *  Driver for Goodix Touchscreens
  *
@@ -80,6 +81,9 @@ struct goodix_ts_data {
 #define RESOLUTION_LOC		1
 #define MAX_CONTACTS_LOC	5
 #define TRIGGER_LOC		6
+
+int goodix_ts_fail = 0;
+int goodix_ts_suspending = 0;
 
 static const unsigned long goodix_irq_flags[] = {
 	IRQ_TYPE_EDGE_RISING,
@@ -168,6 +172,7 @@ static int goodix_i2c_write(struct i2c_client *client, u16 reg, const u8 *buf,
 	msg.len = len + 2;
 
 	ret = i2c_transfer(client->adapter, &msg, 1);
+
 	kfree(addr_buf);
 	return ret < 0 ? ret : (ret != 1 ? -EIO : 0);
 }
@@ -287,11 +292,15 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 {
 	struct goodix_ts_data *ts = dev_id;
+	if(!goodix_ts_suspending)
+	{
+		goodix_process_events(ts);
 
-	goodix_process_events(ts);
-
-	if (goodix_i2c_write_u8(ts->client, GOODIX_READ_COOR_ADDR, 0) < 0)
-		dev_err(&ts->client->dev, "I2C write end_cmd error\n");
+		if (goodix_i2c_write_u8(ts->client, GOODIX_READ_COOR_ADDR, 0) < 0)
+			dev_err(&ts->client->dev, "I2C write end_cmd error\n");
+	}
+	else
+		printk("drop touch evt when suspending\n");
 
 	return IRQ_HANDLED;
 }
@@ -405,8 +414,8 @@ static int goodix_reset(struct goodix_ts_data *ts)
     gpio_rst = desc_to_gpio(ts->gpiod_rst);
     gpio_int = desc_to_gpio(ts->gpiod_int);
 
-    gpio_request(gpio_rst, GOODIX_GPIO_INT_NAME);
-    gpio_request(gpio_int, GOODIX_GPIO_RST_NAME);
+    gpio_request(gpio_rst, GOODIX_GPIO_RST_NAME);
+    gpio_request(gpio_int, GOODIX_GPIO_INT_NAME);
 
 	/* begin select I2C slave addr */
 	error = gpio_direction_output(gpio_rst, 0);
@@ -886,6 +895,7 @@ static int goodix_ts_config(struct i2c_client *client,
         /* update device config */
         ts->cfg_name = devm_kasprintf(&client->dev, GFP_KERNEL,
                 "goodix_%d_cfg.bin", ts->id);
+
         if (!ts->cfg_name)
             return -ENOMEM;
 
@@ -925,6 +935,7 @@ static void goodix_ts_work_handler(struct work_struct *pwork)
     ptswork = container_of(pwork, struct goodix_ts_work, work);
     if(goodix_ts_config(ptswork->client, ptswork->id))
     {
+        goodix_ts_fail = 1;
         dev_err(&ptswork->client->dev,"touchscreen config failed!!!\n");
     }
 }
@@ -944,10 +955,11 @@ static int goodix_ts_remove(struct i2c_client *client)
 {
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 
-    goodix_ts_sysfs_deinit(ts);
-	if (ts->gpiod_int && ts->gpiod_rst)
-		wait_for_completion(&ts->firmware_loading_complete);
-
+	goodix_ts_sysfs_deinit(ts);
+	if(!goodix_ts_fail){
+		if ((ts->gpiod_int && ts->gpiod_rst))
+			wait_for_completion(&ts->firmware_loading_complete);
+        }
 	return 0;
 }
 
@@ -955,12 +967,18 @@ static int __maybe_unused goodix_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
-	int error;
+	//int error;
 
 	/* We need gpio pins to suspend/resume */
+	if(goodix_ts_fail)
+		return 0;
 	if (!ts->gpiod_int || !ts->gpiod_rst)
 		return 0;
-
+	printk("goodix_suspend start\n");
+	goodix_ts_suspending = 1;
+	enable_irq_wake(gpio_to_irq(desc_to_gpio(ts->gpiod_int)));
+	printk("goodix_suspend end\n");
+#if 0
 	wait_for_completion(&ts->firmware_loading_complete);
 
 	/* Free IRQ as IRQ pin is used as output in the suspend sequence */
@@ -968,15 +986,16 @@ static int __maybe_unused goodix_suspend(struct device *dev)
 
 	/* Output LOW on the INT pin for 5 ms */
 	error = gpiod_direction_output(ts->gpiod_int, 0);
+
 	if (error) {
 		goodix_request_irq(ts);
 		return error;
 	}
-
 	usleep_range(5000, 6000);
 
 	error = goodix_i2c_write_u8(ts->client, GOODIX_REG_COMMAND,
 				    GOODIX_CMD_SCREEN_OFF);
+
 	if (error) {
 		dev_err(&ts->client->dev, "Screen off command failed\n");
 		gpiod_direction_input(ts->gpiod_int);
@@ -990,6 +1009,7 @@ static int __maybe_unused goodix_suspend(struct device *dev)
 	 * sooner, delay 58ms here.
 	 */
 	msleep(58);
+#endif
 	return 0;
 }
 
@@ -999,8 +1019,43 @@ static int __maybe_unused goodix_resume(struct device *dev)
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 	int error;
 
+	if(goodix_ts_fail)
+		return 0;
+
 	if (!ts->gpiod_int || !ts->gpiod_rst)
 		return 0;
+	printk("goodix_resume start\n");
+	//reset for resume flow
+	wait_for_completion(&ts->firmware_loading_complete);
+
+	/* Free IRQ as IRQ pin is used as output in the suspend sequence */
+	goodix_free_irq(ts);
+
+	/* Output LOW on the INT pin for 5 ms */
+	error = gpiod_direction_output(ts->gpiod_int, 0);
+
+	if (error) {
+		goodix_request_irq(ts);
+		return error;
+	}
+	usleep_range(5000, 6000);
+
+	error = goodix_i2c_write_u8(ts->client, GOODIX_REG_COMMAND,
+				    GOODIX_CMD_SCREEN_OFF);
+
+	if (error) {
+		dev_err(&ts->client->dev, "Screen off command failed\n");
+		gpiod_direction_input(ts->gpiod_int);
+		goodix_request_irq(ts);
+		return -EAGAIN;
+	}
+
+	/*
+	 * The datasheet specifies that the interval between sending screen-off
+	 * command and wake-up should be longer than 58 ms. To avoid waking up
+	 * sooner, delay 58ms here.
+	 */
+	msleep(58);
 
 	/*
 	 * Exit sleep mode by outputting HIGH level to INT pin
@@ -1019,7 +1074,8 @@ static int __maybe_unused goodix_resume(struct device *dev)
 	error = goodix_request_irq(ts);
 	if (error)
 		return error;
-
+	goodix_ts_suspending = 0;
+	printk("goodix_resume end\n");
 	return 0;
 }
 
