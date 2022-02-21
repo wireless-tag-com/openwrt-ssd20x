@@ -300,11 +300,29 @@
             status = "ok";
         };
 
+        spi: spi {
+            compatible = "sstar_spi";
+            io_phy_addr = <0x1f000000>;
+            banks = <0x1110>,<0x1111>,<0x1038>,<0x101E>,<0x100B>;
+            clocks = <&CLK_mspi0>;
+            interrupts = <GIC_SPI INT_IRQ_MSPI_0 IRQ_TYPE_LEVEL_HIGH>;
+            /*
+             * padmux:
+             * mode=1: PAD_PM_SD_CDZ,PAD_SD_D1,PAD_SD_D0,PAD_SD_CLK,PAD_SD_CMD
+             * mode=2: PAD_TTL16,PAD_TTL17,PAD_TTL18,PAD_TTL19
+             * mode=3: PAD_GPIO4,PAD_GPIO5,PAD_GPIO6,PAD_GPIO7
+             * mode=4: PAD_FUART_RX,PAD_FUART_TX,PAD_FUART_CTS,PAD_FUART_RTS
+             * mode=5: PAD_GPIO8,PAD_GPIO9,PAD_GPIO10,PAD_GPIO11
+             * mode=6: PAD_GPIO0,PAD_GPIO1,PAD_GPIO2,PAD_GPIO3
+             */
+            dma = <1>;
+            spi0_mode = <5>;
+            status = "ok";
+        };
 
         spidev: spidev {
             compatible = "spidev";
 	    status = "ok";
-	    reg = <0>;
         };
          Sstar-ehci-1 {
             compatible = "Sstar-ehci-1";
