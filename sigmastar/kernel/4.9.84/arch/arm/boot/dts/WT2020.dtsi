@@ -381,13 +381,13 @@
             slot-ip-orders = <0>,<1>,<2>;
             slot-pad-orders = <0>,<1>,<2>;
             slot-max-clks = <48000000>,<48000000>,<48000000>;
-            slot-intcdzs = <1>,<1>,<1>;
-            slot-fakecdzs = <0>,<0>,<0>;
+            slot-intcdzs = <0>,<1>,<1>;
+            slot-fakecdzs = <1>,<0>,<0>;
             slot-cdzs-gpios = <PAD_PM_SD_CDZ>,<0>,<0>;
-            slot-pwr-gpios = <PAD_TTL0>,<0>,<0>; // ssc010a:PAD_TTL0 P2_ssc011a: PAD_GPIO0
+            slot-pwr-gpios = <PAD_GPIO0>,<0>,<0>; // ssc010a:PAD_TTL0 P2_ssc011a: PAD_GPIO0
             slot-pwr-off-delay = <30>,<30>,<30>;
-            slot-sdio-use = <0>,<0>,<0>;
-            
+            slot-sdio-use = <1>,<0>,<0>;
+
             interrupts-extended = <&ms_main_intc GIC_SPI INT_IRQ_SDIO IRQ_TYPE_LEVEL_HIGH>,//was INT_IRQ_SDIO
                                  <&ms_main_intc GIC_SPI INT_IRQ_SDIO IRQ_TYPE_LEVEL_HIGH>,
                                  <&ms_main_intc GIC_SPI INT_FIQ_SD_CDZ IRQ_TYPE_LEVEL_HIGH>,

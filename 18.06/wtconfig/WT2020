@@ -23,7 +23,8 @@ wtinclude wt_base
 wtinclude wt_sstar_emac
 wtinclude wt_sstar_mpp
 wtinclude wt_liblvgl
-wtinclude wt_sstar_wifi
+# wtinclude wt_sstar_wifi
+wtinclude wt_esp8089
 
 CONFIG_PACKAGE_sstar-init=y
 CONFIG_SSTAR_LCD_FRD720X720BK=y
