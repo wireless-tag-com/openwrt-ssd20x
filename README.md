@@ -72,7 +72,7 @@ make V=s -j4
 ```
 
 3. 编译产物
-    位于bin/target/sstar/ssd20x/WT2022
+    位于bin/targets/sstar/ssd20x/WT2022
 
 | 文件名                   | 说明                 |
 | ------------------------ | -------------------- |
@@ -137,7 +137,7 @@ nand write.e 0x21000000 ubi ${filesize}
 ```
 
 ## 刷系统
-如果第一次系统不是openwrt系统，请再uboot下先使用以下命令刷机成openwrt系统,，然后使用上面步骤进行升级
+如果第一次系统不是openwrt系统，请在uboot下先使用以下命令刷机成openwrt系统,，然后使用上面步骤进行升级
 
 ### 网络
 
